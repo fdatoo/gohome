@@ -1,6 +1,7 @@
 package bridge
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -60,4 +61,29 @@ func (c *Client) ListLights(ctx context.Context) ([]Light, error) {
 		return nil, fmt.Errorf("hue: decode list lights: %w", err)
 	}
 	return out.Data, nil
+}
+
+// SetLight applies an update to one light resource. Returns nil on 2xx,
+// an error otherwise.
+func (c *Client) SetLight(ctx context.Context, id string, update LightUpdate) error {
+	body, err := json.Marshal(update)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, c.baseURL+"/clip/v2/resource/light/"+id, bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("hue-application-key", c.apiKey)
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close() //nolint:errcheck // body read fully in success/error paths
+	if resp.StatusCode/100 != 2 {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("hue: set light %s: status %d: %s", id, resp.StatusCode, respBody)
+	}
+	return nil
 }

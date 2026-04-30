@@ -2,6 +2,7 @@ package bridge
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -63,5 +64,42 @@ func TestListLights_HTTPError(t *testing.T) {
 	}))
 	if _, err := c.ListLights(context.Background()); err == nil {
 		t.Fatal("expected error on 500, got nil")
+	}
+}
+
+func TestSetLight(t *testing.T) {
+	type captured struct {
+		path string
+		body string
+	}
+	var got captured
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got.path = r.URL.Path
+		b, _ := io.ReadAll(r.Body)
+		got.body = string(b)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"errors":[],"data":[{"rid":"12345678-90ab-cdef-1234-567890abcdef","rtype":"light"}]}`))
+	}))
+
+	on := OnState{On: true}
+	dim := Dimming{Brightness: 50}
+	err := c.SetLight(context.Background(), "12345678-90ab-cdef-1234-567890abcdef", LightUpdate{On: &on, Dimming: &dim})
+	if err != nil {
+		t.Fatalf("SetLight: %v", err)
+	}
+	if got.path != "/clip/v2/resource/light/12345678-90ab-cdef-1234-567890abcdef" {
+		t.Errorf("path = %q", got.path)
+	}
+	if !strings.Contains(got.body, `"on":{"on":true}`) || !strings.Contains(got.body, `"brightness":50`) {
+		t.Errorf("body = %s", got.body)
+	}
+}
+
+func TestSetLight_HTTPError(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "nope", http.StatusBadRequest)
+	}))
+	if err := c.SetLight(context.Background(), "id", LightUpdate{}); err == nil {
+		t.Fatal("expected error on 400")
 	}
 }
