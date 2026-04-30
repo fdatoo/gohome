@@ -65,6 +65,7 @@ type Client struct {
 	apiKey      string
 	httpClient  *http.Client
 	authTracker authFailureTracker
+	limiter     *rateLimiter
 }
 
 // Option is a functional option for New.
@@ -96,6 +97,7 @@ func New(address, apiKey string, tlsSkipVerify bool, opts ...Option) (*Client, e
 				TLSClientConfig: &tls.Config{InsecureSkipVerify: tlsSkipVerify}, //nolint:gosec // bridge ships self-signed cert
 			},
 		},
+		limiter: newRateLimiter(10, 10),
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -107,6 +109,9 @@ func New(address, apiKey string, tlsSkipVerify bool, opts ...Option) (*Client, e
 // pre-call auth-revoked short-circuit and recording 401s. Caller closes
 // the response body.
 func (c *Client) do(req *http.Request) (*http.Response, error) {
+	if err := c.limiter.wait(req.Context()); err != nil {
+		return nil, err
+	}
 	if c.authTracker.revoked(time.Now()) {
 		return nil, ErrAuthRevoked
 	}
