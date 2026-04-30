@@ -134,27 +134,33 @@ func (c *Client) recordAuthFailureAt(t time.Time) {
 	c.authTracker.record(t)
 }
 
-// ListLights returns every light resource on the bridge.
-func (c *Client) ListLights(ctx context.Context) ([]Light, error) {
+// getJSON issues a GET to path and decodes the JSON response into v.
+// Applies the rate limiter, auth tracking, and 10s timeout.
+func (c *Client) getJSON(ctx context.Context, path string, v any) error {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/clip/v2/resource/light", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+path, nil)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	req.Header.Set("hue-application-key", c.apiKey)
 	resp, err := c.do(req)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer resp.Body.Close() //nolint:errcheck // body read fully in success/error paths
 	if resp.StatusCode/100 != 2 {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("hue: list lights: status %d: %s", resp.StatusCode, body)
+		return fmt.Errorf("hue: %s: status %d: %s", path, resp.StatusCode, body)
 	}
+	return json.NewDecoder(resp.Body).Decode(v)
+}
+
+// ListLights returns every light resource on the bridge.
+func (c *Client) ListLights(ctx context.Context) ([]Light, error) {
 	var out listLightsResponse
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return nil, fmt.Errorf("hue: decode list lights: %w", err)
+	if err := c.getJSON(ctx, "/clip/v2/resource/light", &out); err != nil {
+		return nil, fmt.Errorf("hue: list lights: %w", err)
 	}
 	if len(out.Errors) > 0 {
 		return nil, fmt.Errorf("hue: list lights: %s", out.Errors[0].Description)

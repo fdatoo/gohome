@@ -56,6 +56,27 @@ type listLightsResponse struct {
 	Data []Light `json:"data"`
 }
 
+// Device is a single physical device on the bridge. Each device carries
+// a list of services (light, button, zigbee_connectivity, etc.).
+type Device struct {
+	ID       string        `json:"id"`
+	Type     string        `json:"type"`
+	Services []ResourceRef `json:"services"`
+}
+
+// ResourceRef is the {rid, rtype} pointer used pervasively in CLIP v2.
+type ResourceRef struct {
+	RID   string `json:"rid"`
+	RType string `json:"rtype"`
+}
+
+// ZigbeeConnectivity carries the bulb's reachability status.
+type ZigbeeConnectivity struct {
+	ID     string      `json:"id"`
+	Owner  ResourceRef `json:"owner"`
+	Status string      `json:"status"` // "connected" | "connectivity_issue" | "unreachable"
+}
+
 // Event is a single resource-changed payload pulled from the SSE stream.
 // Hue v2 events carry only the fields that changed.
 type Event struct {
