@@ -11,6 +11,13 @@ import (
 	entityv1 "github.com/fdatoo/gohome/gen/gohome/entity/v1"
 )
 
+// colorToRgb is the bridge xy → packed gohome RGB conversion. Used by
+// both LightToAttrs and MergeEvent to populate Light.ColorRgb.
+func colorToRgb(xy bridge.ColorXY) uint32 {
+	r, g, b := bridge.XYToRGB(xy)
+	return bridge.PackRGB(r, g, b)
+}
+
 // EntityID returns the gohome entity ID for a Hue light. The first 8 chars
 // of the Hue v2 stable resource UUID are deterministic across renames and
 // short enough to read in logs.
@@ -29,7 +36,11 @@ func LightToAttrs(l bridge.Light, available bool) *entityv1.Attributes {
 	if l.Dimming != nil {
 		light.Brightness = brightnessHueToGohome(l.Dimming.Brightness)
 	}
-	if l.ColorTemperature != nil && l.ColorTemperature.Mirek != nil {
+	switch {
+	case l.Color != nil:
+		light.ColorRgb = colorToRgb(l.Color.XY)
+		// ColorTemp left zero (mutually exclusive).
+	case l.ColorTemperature != nil && l.ColorTemperature.Mirek != nil:
 		light.ColorTemp = *l.ColorTemperature.Mirek
 	}
 	return &entityv1.Attributes{
@@ -135,6 +146,7 @@ func MergeEvent(prev *entityv1.Light, ev bridge.Event, available bool) *entityv1
 		On:         prev.GetOn(),
 		Brightness: prev.GetBrightness(),
 		ColorTemp:  prev.GetColorTemp(),
+		ColorRgb:   prev.GetColorRgb(),
 	}
 	if ev.On != nil {
 		next.On = ev.On.On
@@ -142,8 +154,13 @@ func MergeEvent(prev *entityv1.Light, ev bridge.Event, available bool) *entityv1
 	if ev.Dimming != nil {
 		next.Brightness = brightnessHueToGohome(ev.Dimming.Brightness)
 	}
-	if ev.ColorTemperature != nil && ev.ColorTemperature.Mirek != nil {
+	switch {
+	case ev.Color != nil:
+		next.ColorRgb = colorToRgb(ev.Color.XY)
+		next.ColorTemp = 0
+	case ev.ColorTemperature != nil && ev.ColorTemperature.Mirek != nil:
 		next.ColorTemp = *ev.ColorTemperature.Mirek
+		next.ColorRgb = 0
 	}
 	return &entityv1.Attributes{
 		Available: available,

@@ -364,6 +364,62 @@ func TestCommandToUpdate_SetColorBadHex(t *testing.T) {
 	}
 }
 
+func TestLightToAttrs_ColorRGB(t *testing.T) {
+	in := bridge.Light{
+		On:    bridge.OnState{On: true},
+		Color: &bridge.Color{XY: bridge.ColorXY{X: 0.6400, Y: 0.3300}}, // pure red
+	}
+	got := LightToAttrs(in, true).GetLight()
+	if got.GetColorRgb() == 0 {
+		t.Errorf("ColorRgb = 0, want non-zero")
+	}
+	if got.GetColorTemp() != 0 {
+		t.Errorf("ColorTemp = %d, want 0 (mutually exclusive with color)", got.GetColorTemp())
+	}
+}
+
+func TestLightToAttrs_ColorTempZerosColorRGB(t *testing.T) {
+	mirek := uint32(366)
+	in := bridge.Light{
+		On:               bridge.OnState{On: true},
+		ColorTemperature: &bridge.ColorTemperature{Mirek: &mirek},
+	}
+	got := LightToAttrs(in, true).GetLight()
+	if got.GetColorTemp() != 366 {
+		t.Errorf("ColorTemp = %d, want 366", got.GetColorTemp())
+	}
+	if got.GetColorRgb() != 0 {
+		t.Errorf("ColorRgb = %d, want 0", got.GetColorRgb())
+	}
+}
+
+func TestMergeEvent_ColorClearsTemp(t *testing.T) {
+	prev := &entityv1.Light{ColorTemp: 366}
+	merged := MergeEvent(prev, bridge.Event{
+		Color: &bridge.Color{XY: bridge.ColorXY{X: 0.6400, Y: 0.3300}},
+	}, true).GetLight()
+	if merged.GetColorRgb() == 0 {
+		t.Errorf("ColorRgb = 0, want non-zero")
+	}
+	if merged.GetColorTemp() != 0 {
+		t.Errorf("ColorTemp = %d, want 0 after color update", merged.GetColorTemp())
+	}
+}
+
+func TestMergeEvent_TempClearsColor(t *testing.T) {
+	prev := &entityv1.Light{ColorRgb: 0xFF8800}
+	mirek := uint32(366)
+	merged := MergeEvent(prev, bridge.Event{
+		ColorTemperature: &bridge.ColorTemperature{Mirek: &mirek},
+	}, true).GetLight()
+	if merged.GetColorTemp() != 366 {
+		t.Errorf("ColorTemp = %d, want 366", merged.GetColorTemp())
+	}
+	if merged.GetColorRgb() != 0 {
+		t.Errorf("ColorRgb = %d, want 0 after color_temp update", merged.GetColorRgb())
+	}
+}
+
 func ptr[T any](v T) *T       { return &v }
 func ptrF(v float64) *float64 { return &v }
 func ptrU(v uint32) *uint32   { return &v }

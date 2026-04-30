@@ -88,6 +88,7 @@ type Event struct {
 	On               *OnState          `json:"on,omitempty"`
 	Dimming          *Dimming          `json:"dimming,omitempty"`
 	ColorTemperature *ColorTemperature `json:"color_temperature,omitempty"`
+	Color            *Color            `json:"color,omitempty"`
 	// 90-99: connectivity (when Type == "zigbee_connectivity")
 	Status string       `json:"status,omitempty"`
 	Owner  *ResourceRef `json:"owner,omitempty"`
