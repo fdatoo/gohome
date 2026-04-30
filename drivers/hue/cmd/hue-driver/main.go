@@ -55,6 +55,7 @@ func main() {
 	}
 
 	go runEventLoop(ctx, client, d, cache)
+	go periodicResync(ctx, client, d, cache)
 
 	runErr := d.Run(ctx)
 	cancel()
@@ -282,25 +283,107 @@ func streamOnce(ctx context.Context, client *bridge.Client, d *driver.Driver, ca
 	return nil
 }
 
+// resync reconciles the driver's view of the bridge with the bridge's
+// current state. Bulbs that appeared since the last enumeration are
+// registered; bulbs that disappeared are unregistered. State is refreshed
+// for every bulb still present.
 func resync(ctx context.Context, client *bridge.Client, d *driver.Driver, cache *stateCache) error {
 	lights, err := client.ListLights(ctx)
 	if err != nil {
 		return err
 	}
+	statuses, err := client.ListDevices(ctx)
+	if err != nil {
+		slog.Warn("list devices failed during resync; reachability not refreshed", "error", err)
+		statuses = map[string]string{}
+	}
+
+	seen := make(map[string]bool, len(lights))
 	for _, l := range lights {
+		seen[l.ID] = true
+		available := statuses[l.ID] == "connected"
+
 		cache.mu.Lock()
-		entityID, ok := cache.hueToID[l.ID]
-		if !ok {
-			cache.mu.Unlock()
+		entityID, known := cache.hueToID[l.ID]
+		cache.mu.Unlock()
+
+		if !known {
+			// Hot-add.
+			if err := registerBulb(d, cache, client, l, available); err != nil {
+				slog.Warn("register hot-added bulb failed", "hue_id", l.ID, "error", err)
+				continue
+			}
+			slog.Info("registered hot-added bulb", "entity_id", state.EntityID(l), "hue_id", l.ID)
 			continue
 		}
-		available := cache.available[entityID]
+
+		// Existing bulb: refresh state.
 		attrs := state.LightToAttrs(l, available)
+		cache.mu.Lock()
 		cache.byEntID[entityID] = attrs.GetLight()
+		cache.available[entityID] = available
 		cache.mu.Unlock()
 		if err := d.EmitState(entityID, attrs); err != nil && !errors.Is(err, driver.ErrNotConnected) {
 			slog.Warn("emit resync state failed", "entity_id", entityID, "error", err)
 		}
 	}
+
+	// Hot-remove: anything in the cache not in `seen` is gone from the bridge.
+	cache.mu.Lock()
+	type removal struct {
+		hueID    string
+		entityID string
+		deviceID string
+	}
+	var removed []removal
+	for hueID, entityID := range cache.hueToID {
+		if !seen[hueID] {
+			// Find the device ID for this entity (may be empty).
+			var deviceID string
+			for did, eid := range cache.deviceToID {
+				if eid == entityID {
+					deviceID = did
+					break
+				}
+			}
+			removed = append(removed, removal{hueID: hueID, entityID: entityID, deviceID: deviceID})
+		}
+	}
+	for _, r := range removed {
+		delete(cache.hueToID, r.hueID)
+		delete(cache.byEntID, r.entityID)
+		delete(cache.available, r.entityID)
+		if r.deviceID != "" {
+			delete(cache.deviceToID, r.deviceID)
+		}
+	}
+	cache.mu.Unlock()
+
+	for _, r := range removed {
+		if err := d.UnregisterEntity(r.entityID); err != nil && !errors.Is(err, driver.ErrNotConnected) {
+			slog.Warn("unregister failed", "entity_id", r.entityID, "error", err)
+		}
+		slog.Info("unregistered removed bulb", "entity_id", r.entityID, "hue_id", r.hueID)
+	}
+
 	return nil
+}
+
+// periodicResync runs resync on a 5-minute ticker, regardless of whether
+// the SSE stream is active. The SSE-drop path also runs resync, but bulbs
+// can be added/removed without us noticing through SSE alone (no
+// "device-added" events on the stream we subscribe to).
+func periodicResync(ctx context.Context, client *bridge.Client, d *driver.Driver, cache *stateCache) {
+	t := time.NewTicker(5 * time.Minute)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			if err := resync(ctx, client, d, cache); err != nil {
+				slog.Warn("periodic resync failed", "error", err)
+			}
+		}
+	}
 }
