@@ -166,22 +166,28 @@ func handleCommand(ctx context.Context, client *bridge.Client, cache *stateCache
 func runEventLoop(ctx context.Context, client *bridge.Client, d *driver.Driver, cache *stateCache) {
 	backoff := time.Second
 	for {
+		start := time.Now()
 		if err := streamOnce(ctx, client, d, cache); err != nil {
 			log.Printf("hue-driver: events: %v", err)
 		}
 		if ctx.Err() != nil {
 			return
 		}
+		// If the stream stayed healthy for more than 5 seconds, treat this as a
+		// normal disconnect and reset backoff so the next reconnect is fast.
+		// A stream that returns immediately (e.g. connection refused) does not
+		// trigger the reset, so the backoff grows normally for crash-loop scenarios.
+		if time.Since(start) > 5*time.Second {
+			backoff = time.Second
+		}
 		select {
 		case <-ctx.Done():
 			return
 		case <-time.After(backoff):
 		}
-		if backoff < 30*time.Second {
-			backoff *= 2
-			if backoff > 30*time.Second {
-				backoff = 30 * time.Second
-			}
+		backoff *= 2
+		if backoff > 30*time.Second {
+			backoff = 30 * time.Second
 		}
 		// Resync state before reopening the stream.
 		if err := resync(ctx, client, d, cache); err != nil {
