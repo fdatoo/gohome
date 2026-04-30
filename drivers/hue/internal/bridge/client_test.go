@@ -57,6 +57,20 @@ func TestListLights(t *testing.T) {
 	}
 }
 
+func TestListLights_BridgeError(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"errors":[{"description":"unauthorized"}],"data":[]}`))
+	}))
+	_, err := c.ListLights(context.Background())
+	if err == nil {
+		t.Fatal("expected error when envelope.errors is non-empty")
+	}
+	if !strings.Contains(err.Error(), "unauthorized") {
+		t.Errorf("error should mention bridge description, got %q", err.Error())
+	}
+}
+
 func TestListLights_HTTPError(t *testing.T) {
 	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "boom", http.StatusInternalServerError)

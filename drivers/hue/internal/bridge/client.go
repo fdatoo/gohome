@@ -74,6 +74,9 @@ func (c *Client) ListLights(ctx context.Context) ([]Light, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 		return nil, fmt.Errorf("hue: decode list lights: %w", err)
 	}
+	if len(out.Errors) > 0 {
+		return nil, fmt.Errorf("hue: list lights: %s", out.Errors[0].Description)
+	}
 	return out.Data, nil
 }
 
