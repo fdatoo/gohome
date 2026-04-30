@@ -79,10 +79,9 @@ message EntityRegistered {
 }
 
 message EntityUnregistered {
-  // 1-9: identity
-  string entity_id = 1;
-  // 10-19: payload
-  string reason    = 10;
+  string reason = 1;
+  // 2-9: identity (added v1alpha1.2 — drivers must populate)
+  string entity_id = 2;
 }
 
 message DriverEvent {

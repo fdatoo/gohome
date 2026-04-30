@@ -222,7 +222,7 @@ func (d *Driver) OnHandshake(_ []byte) (*carportv1alpha1.DriverManifest, []*even
 		SupportedCapabilities: caps,
 	}
 
-	var entities []*eventv1.EntityRegistered
+	entities := make([]*eventv1.EntityRegistered, 0, len(d.entities))
 	for entityID, e := range d.entities {
 		// Capabilities is left empty here. The proto field is vestigial:
 		// state flows over StateChanged, which the driverkit emits in

@@ -141,7 +141,7 @@ type Light struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	On            bool                   `protobuf:"varint,1,opt,name=on,proto3" json:"on,omitempty"`
 	Brightness    uint32                 `protobuf:"varint,2,opt,name=brightness,proto3" json:"brightness,omitempty"`                // 0-255
-	ColorTemp     uint32                 `protobuf:"varint,3,opt,name=color_temp,json=colorTemp,proto3" json:"color_temp,omitempty"` // mireds; 0 if unsupported / not active
+	ColorTemp     uint32                 `protobuf:"varint,3,opt,name=color_temp,json=colorTemp,proto3" json:"color_temp,omitempty"` // mireds; 0 if unsupported
 	ColorRgb      uint32                 `protobuf:"varint,4,opt,name=color_rgb,json=colorRgb,proto3" json:"color_rgb,omitempty"`    // 0xRRGGBB; 0 if unsupported / not active
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
