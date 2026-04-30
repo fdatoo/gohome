@@ -75,7 +75,7 @@ func TestLightToAttrs(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := LightToAttrs(tc.in)
+			got := LightToAttrs(tc.in, true)
 			gotLight := got.GetLight()
 			if gotLight.GetOn() != tc.want.GetOn() ||
 				gotLight.GetBrightness() != tc.want.GetBrightness() ||
@@ -203,13 +203,33 @@ func TestMergeEvent(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := MergeEvent(prev, tc.ev).GetLight()
+			got := MergeEvent(prev, tc.ev, true).GetLight()
 			if got.GetOn() != tc.want.GetOn() ||
 				got.GetBrightness() != tc.want.GetBrightness() ||
 				got.GetColorTemp() != tc.want.GetColorTemp() {
 				t.Fatalf("MergeEvent = %+v, want %+v", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestLightToAttrs_Available(t *testing.T) {
+	in := bridge.Light{On: bridge.OnState{On: true}}
+	if attrs := LightToAttrs(in, true); !attrs.GetAvailable() {
+		t.Errorf("Available = false, want true")
+	}
+	if attrs := LightToAttrs(in, false); attrs.GetAvailable() {
+		t.Errorf("Available = true, want false")
+	}
+}
+
+func TestMergeEvent_PropagatesAvailable(t *testing.T) {
+	prev := &entityv1.Light{On: true, Brightness: 100}
+	if merged := MergeEvent(prev, bridge.Event{}, true); !merged.GetAvailable() {
+		t.Errorf("Available not propagated when true")
+	}
+	if merged := MergeEvent(prev, bridge.Event{}, false); merged.GetAvailable() {
+		t.Errorf("Available not propagated when false")
 	}
 }
 

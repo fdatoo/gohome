@@ -110,7 +110,7 @@ func buildDriver(ctx context.Context, client *bridge.Client) (*driver.Driver, *s
 
 	for _, l := range lights {
 		entityID := state.EntityID(l)
-		attrs := state.LightToAttrs(l)
+		attrs := state.LightToAttrs(l, true)
 		if err := d.AddEntity(entityID, driver.EntitySpec{
 			EntityType:   "light",
 			FriendlyName: l.Metadata.Name,
@@ -153,7 +153,7 @@ func handleCommand(ctx context.Context, client *bridge.Client, cache *stateCache
 		On:               update.On,
 		Dimming:          update.Dimming,
 		ColorTemperature: update.ColorTemperature,
-	})
+	}, true)
 	cache.byEntID[entityID] = merged.GetLight()
 	cache.mu.Unlock()
 	return merged, nil
@@ -212,7 +212,7 @@ func streamOnce(ctx context.Context, client *bridge.Client, d *driver.Driver, ca
 		if prev == nil {
 			prev = &entityv1.Light{}
 		}
-		merged := state.MergeEvent(prev, ev)
+		merged := state.MergeEvent(prev, ev, true)
 		cache.byEntID[entityID] = merged.GetLight()
 		cache.mu.Unlock()
 
@@ -235,7 +235,7 @@ func resync(ctx context.Context, client *bridge.Client, d *driver.Driver, cache 
 			cache.mu.Unlock()
 			continue
 		}
-		attrs := state.LightToAttrs(l)
+		attrs := state.LightToAttrs(l, true)
 		cache.byEntID[entityID] = attrs.GetLight()
 		cache.mu.Unlock()
 		if err := d.EmitState(entityID, attrs); err != nil && !errors.Is(err, driver.ErrNotConnected) {

@@ -24,7 +24,7 @@ func EntityID(l bridge.Light) string {
 
 // LightToAttrs builds a full entityv1.Attributes from a Hue light. Used at
 // startup enumeration and when resyncing after an SSE drop.
-func LightToAttrs(l bridge.Light) *entityv1.Attributes {
+func LightToAttrs(l bridge.Light, available bool) *entityv1.Attributes {
 	light := &entityv1.Light{On: l.On.On}
 	if l.Dimming != nil {
 		light.Brightness = brightnessHueToGohome(l.Dimming.Brightness)
@@ -32,7 +32,10 @@ func LightToAttrs(l bridge.Light) *entityv1.Attributes {
 	if l.ColorTemperature != nil && l.ColorTemperature.Mirek != nil {
 		light.ColorTemp = *l.ColorTemperature.Mirek
 	}
-	return &entityv1.Attributes{Kind: &entityv1.Attributes_Light{Light: light}}
+	return &entityv1.Attributes{
+		Available: available,
+		Kind:      &entityv1.Attributes_Light{Light: light},
+	}
 }
 
 // brightnessHueToGohome converts Hue's 0-100 float to gohome's 0-255 uint32.
@@ -87,7 +90,7 @@ func CommandToUpdate(capability string, args map[string]string) (bridge.LightUpd
 // MergeEvent applies a partial SSE event to the cached previous state and
 // returns the full new attributes. The returned value is a fresh allocation;
 // the prev pointer is not mutated.
-func MergeEvent(prev *entityv1.Light, ev bridge.Event) *entityv1.Attributes {
+func MergeEvent(prev *entityv1.Light, ev bridge.Event, available bool) *entityv1.Attributes {
 	next := &entityv1.Light{
 		On:         prev.GetOn(),
 		Brightness: prev.GetBrightness(),
@@ -102,5 +105,8 @@ func MergeEvent(prev *entityv1.Light, ev bridge.Event) *entityv1.Attributes {
 	if ev.ColorTemperature != nil && ev.ColorTemperature.Mirek != nil {
 		next.ColorTemp = *ev.ColorTemperature.Mirek
 	}
-	return &entityv1.Attributes{Kind: &entityv1.Attributes_Light{Light: next}}
+	return &entityv1.Attributes{
+		Available: available,
+		Kind:      &entityv1.Attributes_Light{Light: next},
+	}
 }
