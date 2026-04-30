@@ -131,6 +131,8 @@ func (c *Client) recordAuthFailureAt(t time.Time) {
 
 // ListLights returns every light resource on the bridge.
 func (c *Client) ListLights(ctx context.Context) ([]Light, error) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/clip/v2/resource/light", nil)
 	if err != nil {
 		return nil, err
@@ -158,6 +160,8 @@ func (c *Client) ListLights(ctx context.Context) ([]Light, error) {
 // SetLight applies an update to one light resource. Returns nil on 2xx,
 // an error otherwise.
 func (c *Client) SetLight(ctx context.Context, id string, update LightUpdate) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
 	body, err := json.Marshal(update)
 	if err != nil {
 		return err

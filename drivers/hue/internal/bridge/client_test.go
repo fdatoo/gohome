@@ -164,3 +164,24 @@ func TestClient_AuthFailures_OutsideWindow(t *testing.T) {
 		t.Fatalf("ErrAuthRevoked too early — stale failures should age out, got %v", err)
 	}
 }
+
+func TestClient_SetLightTimeout(t *testing.T) {
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-r.Context().Done():
+		case <-time.After(10 * time.Second):
+		}
+	}))
+	start := time.Now()
+	err := c.SetLight(context.Background(), "id", LightUpdate{})
+	elapsed := time.Since(start)
+	if err == nil {
+		t.Fatal("expected timeout error")
+	}
+	if elapsed > 7*time.Second {
+		t.Errorf("took %v, want < 7s (timeout is 5s)", elapsed)
+	}
+	if elapsed < 4*time.Second {
+		t.Errorf("returned in %v — earlier than the 5s budget; timeout may be too aggressive", elapsed)
+	}
+}
