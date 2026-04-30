@@ -65,6 +65,7 @@ func (d *Driver) AddEntity(entityID string, spec EntitySpec) error {
 	}
 	d.entities[entityID] = &entityEntry{
 		spec:     spec,
+		attrs:    spec.InitialState,
 		handlers: make(map[string]CapabilityHandler),
 	}
 	return nil
@@ -176,11 +177,19 @@ func (d *Driver) OnHandshake(_ []byte) (*carportv1alpha1.DriverManifest, []*even
 
 	var entities []*eventv1.EntityRegistered
 	for entityID, e := range d.entities {
+		// Capabilities carries the entity's *attributes* (the daemon's state
+		// cache seeds itself from this on EntityRegistered). Use the tracked
+		// attrs if present, else an empty Attributes so the daemon sees a
+		// well-typed entity.
+		caps := e.attrs
+		if caps == nil {
+			caps = &entityv1.Attributes{}
+		}
 		entities = append(entities, &eventv1.EntityRegistered{
 			DeviceId:     entityID,
 			EntityType:   e.spec.EntityType,
 			FriendlyName: e.spec.FriendlyName,
-			Capabilities: &entityv1.Attributes{}, // typed capabilities are a C4 concern
+			Capabilities: caps,
 		})
 	}
 
