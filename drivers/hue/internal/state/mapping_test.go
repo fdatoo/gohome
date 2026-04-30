@@ -171,6 +171,48 @@ func TestCommandToUpdate(t *testing.T) {
 	}
 }
 
+func TestMergeEvent(t *testing.T) {
+	mirek := uint32(366)
+	prev := &entityv1.Light{On: true, Brightness: 200, ColorTemp: 250}
+
+	cases := []struct {
+		name string
+		ev   bridge.Event
+		want *entityv1.Light
+	}{
+		{
+			name: "on flips off, other fields preserved",
+			ev:   bridge.Event{On: &bridge.OnState{On: false}},
+			want: &entityv1.Light{On: false, Brightness: 200, ColorTemp: 250},
+		},
+		{
+			name: "brightness only",
+			ev:   bridge.Event{Dimming: &bridge.Dimming{Brightness: 50}},
+			want: &entityv1.Light{On: true, Brightness: 128, ColorTemp: 250},
+		},
+		{
+			name: "color temp only",
+			ev:   bridge.Event{ColorTemperature: &bridge.ColorTemperature{Mirek: &mirek}},
+			want: &entityv1.Light{On: true, Brightness: 200, ColorTemp: 366},
+		},
+		{
+			name: "no fields → unchanged copy",
+			ev:   bridge.Event{},
+			want: &entityv1.Light{On: true, Brightness: 200, ColorTemp: 250},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := MergeEvent(prev, tc.ev).GetLight()
+			if got.GetOn() != tc.want.GetOn() ||
+				got.GetBrightness() != tc.want.GetBrightness() ||
+				got.GetColorTemp() != tc.want.GetColorTemp() {
+				t.Fatalf("MergeEvent = %+v, want %+v", got, tc.want)
+			}
+		})
+	}
+}
+
 func ptr[T any](v T) *T   { return &v }
 func ptrF(v float64) *float64 { return &v }
 func ptrU(v uint32) *uint32   { return &v }

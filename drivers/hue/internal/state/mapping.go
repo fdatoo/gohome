@@ -83,3 +83,24 @@ func CommandToUpdate(capability string, args map[string]string) (bridge.LightUpd
 		return bridge.LightUpdate{}, fmt.Errorf("unknown capability %q", capability)
 	}
 }
+
+// MergeEvent applies a partial SSE event to the cached previous state and
+// returns the full new attributes. The returned value is a fresh allocation;
+// the prev pointer is not mutated.
+func MergeEvent(prev *entityv1.Light, ev bridge.Event) *entityv1.Attributes {
+	next := &entityv1.Light{
+		On:         prev.GetOn(),
+		Brightness: prev.GetBrightness(),
+		ColorTemp:  prev.GetColorTemp(),
+	}
+	if ev.On != nil {
+		next.On = ev.On.On
+	}
+	if ev.Dimming != nil {
+		next.Brightness = brightnessHueToGohome(ev.Dimming.Brightness)
+	}
+	if ev.ColorTemperature != nil && ev.ColorTemperature.Mirek != nil {
+		next.ColorTemp = *ev.ColorTemperature.Mirek
+	}
+	return &entityv1.Attributes{Kind: &entityv1.Attributes_Light{Light: next}}
+}
