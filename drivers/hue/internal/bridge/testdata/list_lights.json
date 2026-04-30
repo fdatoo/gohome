@@ -8,7 +8,15 @@
       "metadata": { "name": "Kitchen" },
       "on": { "on": true },
       "dimming": { "brightness": 50.0 },
-      "color_temperature": { "mirek": 366, "mirek_valid": true }
+      "color_temperature": { "mirek": 366, "mirek_valid": true },
+      "color": {
+        "xy": {"x": 0.3127, "y": 0.3290},
+        "gamut": {
+          "red":   {"x": 0.6915, "y": 0.3083},
+          "green": {"x": 0.1700, "y": 0.7000},
+          "blue":  {"x": 0.1532, "y": 0.0475}
+        }
+      }
     },
     {
       "id": "deadbeef-0000-0000-0000-000000000000",

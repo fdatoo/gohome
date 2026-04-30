@@ -11,6 +11,7 @@ type Light struct {
 	On               OnState           `json:"on"`
 	Dimming          *Dimming          `json:"dimming,omitempty"`
 	ColorTemperature *ColorTemperature `json:"color_temperature,omitempty"`
+	Color            *Color            `json:"color,omitempty"`
 }
 
 // LightMetadata carries the human-friendly bulb name set in the Hue app.
@@ -46,6 +47,7 @@ type LightUpdate struct {
 	On               *OnState          `json:"on,omitempty"`
 	Dimming          *Dimming          `json:"dimming,omitempty"`
 	ColorTemperature *ColorTemperature `json:"color_temperature,omitempty"`
+	Color            *ColorUpdate      `json:"color,omitempty"`
 	Dynamics         *Dynamics         `json:"dynamics,omitempty"`
 }
 
@@ -89,4 +91,30 @@ type Event struct {
 	// 90-99: connectivity (when Type == "zigbee_connectivity")
 	Status string       `json:"status,omitempty"`
 	Owner  *ResourceRef `json:"owner,omitempty"`
+}
+
+// Color is the Hue v2 color block on a Light response. Carries the
+// current xy point and the bulb's representable gamut.
+type Color struct {
+	XY    ColorXY `json:"xy"`
+	Gamut Gamut   `json:"gamut"`
+}
+
+// ColorXY is a CIE 1931 chromaticity point. Both dimensions are 0..1.
+type ColorXY struct {
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
+}
+
+// Gamut is the triangle of representable colors for one bulb model.
+// Hue v2 returns the three corners explicitly.
+type Gamut struct {
+	Red   ColorXY `json:"red"`
+	Green ColorXY `json:"green"`
+	Blue  ColorXY `json:"blue"`
+}
+
+// ColorUpdate is the body shape for a PUT — only xy, no gamut.
+type ColorUpdate struct {
+	XY ColorXY `json:"xy"`
 }
