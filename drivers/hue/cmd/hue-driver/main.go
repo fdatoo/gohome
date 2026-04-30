@@ -110,14 +110,16 @@ func buildDriver(ctx context.Context, client *bridge.Client) (*driver.Driver, *s
 
 	for _, l := range lights {
 		entityID := state.EntityID(l)
+		attrs := state.LightToAttrs(l)
 		if err := d.AddEntity(entityID, driver.EntitySpec{
 			EntityType:   "light",
 			FriendlyName: l.Metadata.Name,
 			Capabilities: capabilities,
+			InitialState: attrs,
 		}); err != nil {
 			return nil, nil, err
 		}
-		cache.byEntID[entityID] = state.LightToAttrs(l).GetLight()
+		cache.byEntID[entityID] = attrs.GetLight()
 		cache.hueToID[l.ID] = entityID
 
 		hueID := l.ID // pin loop variable
