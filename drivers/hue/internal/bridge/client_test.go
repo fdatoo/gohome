@@ -2,12 +2,15 @@ package bridge
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func newTestClient(t *testing.T, h http.Handler) *Client {
@@ -114,5 +117,50 @@ func TestSetLight_HTTPError(t *testing.T) {
 	}))
 	if err := c.SetLight(context.Background(), "id", LightUpdate{}); err == nil {
 		t.Fatal("expected error on 400")
+	}
+}
+
+func TestClient_AuthFailureCounting(t *testing.T) {
+	var count atomic.Int32
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		count.Add(1)
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	// Two 401s — not yet revoked.
+	for i := 0; i < 2; i++ {
+		if _, err := c.ListLights(context.Background()); err == nil {
+			t.Fatalf("call %d: expected error", i)
+		}
+	}
+	_, err := c.ListLights(context.Background())
+	if err == nil {
+		t.Fatal("expected error on third call")
+	}
+	// The third 401 trips the threshold; subsequent calls return the sentinel
+	// without hitting the network.
+	startCount := count.Load()
+	_, err = c.ListLights(context.Background())
+	if !errors.Is(err, ErrAuthRevoked) {
+		t.Fatalf("expected ErrAuthRevoked after 3 401s, got %v", err)
+	}
+	if count.Load() != startCount {
+		t.Errorf("post-revocation call hit the network %d times, want 0", count.Load()-startCount)
+	}
+}
+
+func TestClient_AuthFailures_OutsideWindow(t *testing.T) {
+	// Two stale 401s should not contribute to the live count.
+	c := newTestClient(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	// Inject two old failures via the public knob below.
+	c.recordAuthFailureAt(time.Now().Add(-2 * time.Minute))
+	c.recordAuthFailureAt(time.Now().Add(-90 * time.Second))
+	// One fresh 401 brings the live count to 1, not 3.
+	if _, err := c.ListLights(context.Background()); err == nil {
+		t.Fatal("expected error")
+	}
+	if _, err := c.ListLights(context.Background()); errors.Is(err, ErrAuthRevoked) {
+		t.Fatalf("ErrAuthRevoked too early — stale failures should age out, got %v", err)
 	}
 }

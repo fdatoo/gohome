@@ -5,17 +5,66 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"sync"
+	"time"
 )
+
+// ErrAuthRevoked indicates the bridge has rejected the API key three or
+// more times within 60 seconds. The driver treats this as fatal: the
+// only recovery is human intervention (re-pair via button press).
+var ErrAuthRevoked = errors.New("hue: api key rejected by bridge (re-pair required)")
+
+const (
+	authFailureThreshold = 3
+	authFailureWindow    = 60 * time.Second
+)
+
+type authFailureTracker struct {
+	mu         sync.Mutex
+	timestamps []time.Time
+}
+
+// record adds a fresh failure at `now` and prunes anything older than the window.
+func (t *authFailureTracker) record(now time.Time) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	cutoff := now.Add(-authFailureWindow)
+	t.timestamps = append(t.timestamps, now)
+	n := 0
+	for _, ts := range t.timestamps {
+		if ts.After(cutoff) {
+			t.timestamps[n] = ts
+			n++
+		}
+	}
+	t.timestamps = t.timestamps[:n]
+}
+
+// revoked reports whether the live failure count meets the threshold.
+func (t *authFailureTracker) revoked(now time.Time) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	cutoff := now.Add(-authFailureWindow)
+	count := 0
+	for _, ts := range t.timestamps {
+		if ts.After(cutoff) {
+			count++
+		}
+	}
+	return count >= authFailureThreshold
+}
 
 // Client talks to a single Philips Hue bridge over CLIP v2. Safe for
 // concurrent use by multiple goroutines.
 type Client struct {
-	baseURL    string
-	apiKey     string
-	httpClient *http.Client
+	baseURL     string
+	apiKey      string
+	httpClient  *http.Client
+	authTracker authFailureTracker
 }
 
 // Option is a functional option for New.
@@ -54,6 +103,32 @@ func New(address, apiKey string, tlsSkipVerify bool, opts ...Option) (*Client, e
 	return c, nil
 }
 
+// do issues an HTTP request through the client's transport, applying the
+// pre-call auth-revoked short-circuit and recording 401s. Caller closes
+// the response body.
+func (c *Client) do(req *http.Request) (*http.Response, error) {
+	if c.authTracker.revoked(time.Now()) {
+		return nil, ErrAuthRevoked
+	}
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode == http.StatusUnauthorized {
+		c.authTracker.record(time.Now())
+		// The caller still gets the response so they can read the body
+		// for diagnostics — but most callers will treat 401 as an error
+		// regardless.
+	}
+	return resp, nil
+}
+
+// recordAuthFailureAt is a test helper exported within the package for
+// driving the failure window from tests.
+func (c *Client) recordAuthFailureAt(t time.Time) {
+	c.authTracker.record(t)
+}
+
 // ListLights returns every light resource on the bridge.
 func (c *Client) ListLights(ctx context.Context) ([]Light, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/clip/v2/resource/light", nil)
@@ -61,7 +136,7 @@ func (c *Client) ListLights(ctx context.Context) ([]Light, error) {
 		return nil, err
 	}
 	req.Header.Set("hue-application-key", c.apiKey)
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -93,7 +168,7 @@ func (c *Client) SetLight(ctx context.Context, id string, update LightUpdate) er
 	}
 	req.Header.Set("hue-application-key", c.apiKey)
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.do(req)
 	if err != nil {
 		return err
 	}
