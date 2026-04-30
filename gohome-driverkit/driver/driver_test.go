@@ -122,8 +122,65 @@ func TestDriver_InitialEntities(t *testing.T) {
 		t.Fatal(err)
 	}
 	h := drivertest.New(t, d)
-	if got := len(h.Entities()); got != 2 {
-		t.Errorf("Entities() len = %d, want 2", got)
+	ents := h.Entities()
+	if got := len(ents); got != 2 {
+		t.Fatalf("Entities() len = %d, want 2", got)
+	}
+
+	// Each EntityRegistered must carry its DeviceId — the daemon uses this to
+	// bind events to a specific entity. Empty DeviceId collapses every entity
+	// into a single key, breaking multi-entity drivers.
+	got := map[string]bool{}
+	for _, e := range ents {
+		got[e.GetDeviceId()] = true
+	}
+	for _, want := range []string{"light.a", "switch.b"} {
+		if !got[want] {
+			t.Errorf("EntityRegistered.DeviceId %q missing; got %v", want, got)
+		}
+	}
+}
+
+// TestDriver_StateChangedCarriesEntityID guards against regressing the
+// entity-id-propagation bug: every StateChanged emitted by the driver must
+// carry its EntityId so the carport host can route it.
+func TestDriver_StateChangedCarriesEntityID(t *testing.T) {
+	d := driver.New("test", "0.0.1")
+	for _, id := range []string{"light.a", "light.b"} {
+		if err := d.AddEntity(id, lightSpec("turn_on")); err != nil {
+			t.Fatal(err)
+		}
+		d.OnCapability(id, "turn_on", func(_ context.Context, _ string, _ map[string]string) (*entityv1.Attributes, error) {
+			return lightAttrs(true, 100), nil
+		})
+	}
+
+	h := drivertest.New(t, d)
+	for _, id := range []string{"light.a", "light.b"} {
+		res, err := h.SendCommand(context.Background(), id, "turn_on", nil)
+		if err != nil || !res.GetOk() {
+			t.Fatalf("turn_on %s: %v %v", id, res, err)
+		}
+	}
+
+	// Drain the channel and assert each StateChanged carries the right EntityId.
+	deadline := time.After(time.Second)
+	seen := map[string]bool{}
+	for len(seen) < 2 {
+		select {
+		case sc := <-h.StateChanges():
+			if sc.GetEntityId() == "" {
+				t.Fatalf("StateChanged with empty EntityId: %v", sc)
+			}
+			seen[sc.GetEntityId()] = true
+		case <-deadline:
+			t.Fatalf("timed out waiting for StateChanges; saw %v", seen)
+		}
+	}
+	for _, want := range []string{"light.a", "light.b"} {
+		if !seen[want] {
+			t.Errorf("no StateChanged for %q; saw %v", want, seen)
+		}
 	}
 }
 

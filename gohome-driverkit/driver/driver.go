@@ -103,7 +103,7 @@ func (d *Driver) EmitState(entityID string, attrs *entityv1.Attributes) error {
 	}
 	return emit.Send(&carportv1alpha1.DriverToHost{
 		Kind: &carportv1alpha1.DriverToHost_StateChanged{
-			StateChanged: &eventv1.StateChanged{Attributes: attrs},
+			StateChanged: &eventv1.StateChanged{EntityId: entityID, Attributes: attrs},
 		},
 	})
 }
@@ -175,8 +175,9 @@ func (d *Driver) OnHandshake(_ []byte) (*carportv1alpha1.DriverManifest, []*even
 	}
 
 	var entities []*eventv1.EntityRegistered
-	for _, e := range d.entities {
+	for entityID, e := range d.entities {
 		entities = append(entities, &eventv1.EntityRegistered{
+			DeviceId:     entityID,
 			EntityType:   e.spec.EntityType,
 			FriendlyName: e.spec.FriendlyName,
 			Capabilities: &entityv1.Attributes{}, // typed capabilities are a C4 concern
@@ -184,10 +185,7 @@ func (d *Driver) OnHandshake(_ []byte) (*carportv1alpha1.DriverManifest, []*even
 	}
 
 	sort.SliceStable(entities, func(i, j int) bool {
-		if entities[i].EntityType != entities[j].EntityType {
-			return entities[i].EntityType < entities[j].EntityType
-		}
-		return entities[i].FriendlyName < entities[j].FriendlyName
+		return entities[i].DeviceId < entities[j].DeviceId
 	})
 
 	return manifest, entities, nil
@@ -255,7 +253,7 @@ func (d *Driver) OnCommand(ctx context.Context, cmd *carportv1alpha1.Command, em
 		// which tears the stream down and triggers the reconnect loop.
 		_ = emit.Send(&carportv1alpha1.DriverToHost{
 			Kind: &carportv1alpha1.DriverToHost_StateChanged{
-				StateChanged: &eventv1.StateChanged{Attributes: attrs},
+				StateChanged: &eventv1.StateChanged{EntityId: entityID, Attributes: attrs},
 			},
 		})
 	}
