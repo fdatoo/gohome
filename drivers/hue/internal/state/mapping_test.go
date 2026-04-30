@@ -102,6 +102,7 @@ func TestCommandToUpdate(t *testing.T) {
 			name:    "set_brightness 128 → 50.196",
 			cap:     "set_brightness",
 			args:    map[string]string{"brightness": "128"},
+			wantOn:  ptr(true),
 			wantBri: ptrF((128.0 * 100) / 255),
 		},
 		{
@@ -126,6 +127,7 @@ func TestCommandToUpdate(t *testing.T) {
 			name:      "set_color_temp 366",
 			cap:       "set_color_temp",
 			args:      map[string]string{"color_temp": "366"},
+			wantOn:    ptr(true),
 			wantMirek: ptrU(366),
 		},
 		{
@@ -230,6 +232,94 @@ func TestMergeEvent_PropagatesAvailable(t *testing.T) {
 	}
 	if merged := MergeEvent(prev, bridge.Event{}, false); merged.GetAvailable() {
 		t.Errorf("Available not propagated when false")
+	}
+}
+
+func TestCommandToUpdate_BrightnessZeroIsOff(t *testing.T) {
+	got, err := CommandToUpdate("set_brightness", map[string]string{"brightness": "0"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.On == nil || got.On.On {
+		t.Errorf("On = %+v, want On.On=false", got.On)
+	}
+	if got.Dimming != nil {
+		t.Errorf("Dimming = %+v, want nil for brightness=0", got.Dimming)
+	}
+}
+
+func TestCommandToUpdate_BrightnessNonZeroAutoOn(t *testing.T) {
+	got, err := CommandToUpdate("set_brightness", map[string]string{"brightness": "128"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.On == nil || !got.On.On {
+		t.Errorf("On = %+v, want On.On=true (auto-on for brightness>0)", got.On)
+	}
+	if got.Dimming == nil {
+		t.Errorf("Dimming = nil, want set")
+	}
+}
+
+func TestCommandToUpdate_ColorTempAutoOn(t *testing.T) {
+	got, err := CommandToUpdate("set_color_temp", map[string]string{"color_temp": "366"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.On == nil || !got.On.On {
+		t.Errorf("On = %+v, want On.On=true", got.On)
+	}
+}
+
+func TestCommandToUpdate_DurationMs(t *testing.T) {
+	cases := []struct {
+		name string
+		args map[string]string
+		want uint32
+	}{
+		{"omitted", map[string]string{"brightness": "100"}, 0},
+		{"explicit", map[string]string{"brightness": "100", "duration_ms": "5000"}, 5000},
+		{"zero", map[string]string{"brightness": "100", "duration_ms": "0"}, 0},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := CommandToUpdate("set_brightness", tc.args)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tc.want == 0 {
+				if got.Dynamics != nil {
+					t.Errorf("Dynamics = %+v, want nil for omitted/zero duration", got.Dynamics)
+				}
+				return
+			}
+			if got.Dynamics == nil || got.Dynamics.Duration != tc.want {
+				t.Errorf("Dynamics = %+v, want Duration=%d", got.Dynamics, tc.want)
+			}
+		})
+	}
+}
+
+func TestCommandToUpdate_DurationMs_OutOfRange(t *testing.T) {
+	for _, raw := range []string{"-1", "9000000", "abc"} {
+		t.Run(raw, func(t *testing.T) {
+			if _, err := CommandToUpdate("turn_on", map[string]string{"duration_ms": raw}); err == nil {
+				t.Errorf("expected error for duration_ms=%q", raw)
+			}
+		})
+	}
+}
+
+func TestCommandToUpdate_TurnOnWithDuration(t *testing.T) {
+	got, err := CommandToUpdate("turn_on", map[string]string{"duration_ms": "5000"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.On == nil || !got.On.On {
+		t.Errorf("On = %+v, want On.On=true", got.On)
+	}
+	if got.Dynamics == nil || got.Dynamics.Duration != 5000 {
+		t.Errorf("Dynamics = %+v, want Duration=5000", got.Dynamics)
 	}
 }
 

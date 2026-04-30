@@ -49,17 +49,39 @@ func brightnessHueToGohome(h float64) uint32 {
 	return uint32(math.Round(h * 255 / 100))
 }
 
+// parseDuration extracts and validates the optional "duration_ms" arg.
+// Returns 0 if the arg is absent. Returns an error if the value is
+// non-integer, negative, or exceeds Hue's 6,000,000 ms cap.
+func parseDuration(args map[string]string) (uint32, error) {
+	raw, ok := args["duration_ms"]
+	if !ok {
+		return 0, nil
+	}
+	v, err := strconv.Atoi(raw)
+	if err != nil || v < 0 || v > 6_000_000 {
+		return 0, fmt.Errorf("duration_ms must be integer 0-6000000, got %q", raw)
+	}
+	return uint32(v), nil
+}
+
 // CommandToUpdate translates a Carport (capability, args) pair into a
 // bridge.LightUpdate. Validates argument ranges; returns an error for
 // unknown capabilities or malformed arguments.
 func CommandToUpdate(capability string, args map[string]string) (bridge.LightUpdate, error) {
+	dur, err := parseDuration(args)
+	if err != nil {
+		return bridge.LightUpdate{}, err
+	}
+	var u bridge.LightUpdate
+	if dur > 0 {
+		u.Dynamics = &bridge.Dynamics{Duration: dur}
+	}
+
 	switch capability {
 	case "turn_on":
-		on := bridge.OnState{On: true}
-		return bridge.LightUpdate{On: &on}, nil
+		u.On = &bridge.OnState{On: true}
 	case "turn_off":
-		on := bridge.OnState{On: false}
-		return bridge.LightUpdate{On: &on}, nil
+		u.On = &bridge.OnState{On: false}
 	case "set_brightness":
 		raw, ok := args["brightness"]
 		if !ok {
@@ -69,8 +91,13 @@ func CommandToUpdate(capability string, args map[string]string) (bridge.LightUpd
 		if err != nil || v < 0 || v > 255 {
 			return bridge.LightUpdate{}, fmt.Errorf("set_brightness: brightness must be integer 0-255, got %q", raw)
 		}
-		hue := float64(v) * 100 / 255
-		return bridge.LightUpdate{Dimming: &bridge.Dimming{Brightness: hue}}, nil
+		if v == 0 {
+			u.On = &bridge.OnState{On: false}
+		} else {
+			u.On = &bridge.OnState{On: true}
+			hue := float64(v) * 100 / 255
+			u.Dimming = &bridge.Dimming{Brightness: hue}
+		}
 	case "set_color_temp":
 		raw, ok := args["color_temp"]
 		if !ok {
@@ -81,10 +108,12 @@ func CommandToUpdate(capability string, args map[string]string) (bridge.LightUpd
 			return bridge.LightUpdate{}, fmt.Errorf("set_color_temp: color_temp must be integer 153-500 mireds, got %q", raw)
 		}
 		mirek := uint32(v)
-		return bridge.LightUpdate{ColorTemperature: &bridge.ColorTemperature{Mirek: &mirek}}, nil
+		u.On = &bridge.OnState{On: true}
+		u.ColorTemperature = &bridge.ColorTemperature{Mirek: &mirek}
 	default:
 		return bridge.LightUpdate{}, fmt.Errorf("unknown capability %q", capability)
 	}
+	return u, nil
 }
 
 // MergeEvent applies a partial SSE event to the cached previous state and

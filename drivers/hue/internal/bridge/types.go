@@ -33,12 +33,19 @@ type ColorTemperature struct {
 	Mirek *uint32 `json:"mirek"`
 }
 
+// Dynamics carries optional transition timing for a LightUpdate. Hue v2
+// caps duration at ~6,000,000 ms (100 minutes).
+type Dynamics struct {
+	Duration uint32 `json:"duration"`
+}
+
 // LightUpdate is the JSON body sent to PUT /clip/v2/resource/light/{id}.
 // Pointer fields let us send only the keys we want to change.
 type LightUpdate struct {
 	On               *OnState          `json:"on,omitempty"`
 	Dimming          *Dimming          `json:"dimming,omitempty"`
 	ColorTemperature *ColorTemperature `json:"color_temperature,omitempty"`
+	Dynamics         *Dynamics         `json:"dynamics,omitempty"`
 }
 
 // listLightsResponse is the envelope returned by GET /clip/v2/resource/light.
