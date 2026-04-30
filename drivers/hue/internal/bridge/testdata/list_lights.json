@@ -4,6 +4,7 @@
     {
       "id": "12345678-90ab-cdef-1234-567890abcdef",
       "type": "light",
+      "owner": { "rid": "device-12345678-90ab-cdef-1234-567890abcdef", "rtype": "device" },
       "metadata": { "name": "Kitchen" },
       "on": { "on": true },
       "dimming": { "brightness": 50.0 },
@@ -12,6 +13,7 @@
     {
       "id": "deadbeef-0000-0000-0000-000000000000",
       "type": "light",
+      "owner": { "rid": "device-deadbeef-0000-0000-0000-000000000000", "rtype": "device" },
       "metadata": { "name": "Lamp" },
       "on": { "on": false }
     }

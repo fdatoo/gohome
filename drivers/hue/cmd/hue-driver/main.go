@@ -24,8 +24,6 @@ import (
 
 const driverName, driverVersion = "driver.hue", "0.1.0"
 
-var capabilities = []string{"turn_on", "turn_off", "set_brightness", "set_color_temp"}
-
 func main() {
 	cfg, err := loadConfig()
 	if err != nil {
@@ -110,15 +108,19 @@ func loadConfig() (config, error) {
 // Guarded by a single mutex; both command handlers and the SSE goroutine
 // read+write it.
 type stateCache struct {
-	mu      sync.Mutex
-	byEntID map[string]*entityv1.Light // last known state per gohome entity ID
-	hueToID map[string]string          // Hue resource UUID → gohome entity ID
+	mu         sync.Mutex
+	byEntID    map[string]*entityv1.Light // last known state per gohome entity ID
+	available  map[string]bool            // last known reachability per gohome entity ID
+	hueToID    map[string]string          // Hue light resource UUID → gohome entity ID
+	deviceToID map[string]string          // Hue device UUID → gohome entity ID (for connectivity events)
 }
 
 func newStateCache() *stateCache {
 	return &stateCache{
-		byEntID: map[string]*entityv1.Light{},
-		hueToID: map[string]string{},
+		byEntID:    map[string]*entityv1.Light{},
+		available:  map[string]bool{},
+		hueToID:    map[string]string{},
+		deviceToID: map[string]string{},
 	}
 }
 
@@ -128,35 +130,64 @@ func newStateCache() *stateCache {
 func buildDriver(ctx context.Context, client *bridge.Client) (*driver.Driver, *stateCache, error) {
 	lights, err := client.ListLights(ctx)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("list lights: %w", err)
+	}
+
+	// Best-effort reachability fetch. If it fails, all bulbs default to
+	// unreachable (available=false). The driver still works for command
+	// dispatch; reachability will refresh on the next resync.
+	statuses, err := client.ListDevices(ctx)
+	if err != nil {
+		slog.Warn("list devices failed; bulbs will start as unavailable", "error", err)
+		statuses = map[string]string{}
 	}
 
 	d := driver.New(driverName, driverVersion)
 	cache := newStateCache()
 
 	for _, l := range lights {
-		entityID := state.EntityID(l)
-		attrs := state.LightToAttrs(l, true)
-		if err := d.AddEntity(entityID, driver.EntitySpec{
-			EntityType:   "light",
-			FriendlyName: l.Metadata.Name,
-			Capabilities: capabilities,
-			InitialState: attrs,
-		}); err != nil {
-			return nil, nil, err
-		}
-		cache.byEntID[entityID] = attrs.GetLight()
-		cache.hueToID[l.ID] = entityID
-
-		hueID := l.ID // pin loop variable
-		for _, cap := range capabilities {
-			cap := cap
-			d.OnCapability(entityID, cap, func(ctx context.Context, entityID string, args map[string]string) (*entityv1.Attributes, error) {
-				return handleCommand(ctx, client, cache, hueID, entityID, cap, args)
-			})
+		available := statuses[l.ID] == "connected"
+		if err := registerBulb(d, cache, client, l, available); err != nil {
+			return nil, nil, fmt.Errorf("register %s: %w", state.EntityID(l), err)
 		}
 	}
 	return d, cache, nil
+}
+
+// registerBulb adds one Hue light to the driver and seeds the cache.
+// Used by buildDriver at startup and by resync for hot-added bulbs.
+// Caller must hold no cache locks; this acquires cache.mu internally.
+func registerBulb(d *driver.Driver, cache *stateCache, client *bridge.Client, l bridge.Light, available bool) error {
+	entityID := state.EntityID(l)
+	caps := state.Capabilities(l)
+	attrs := state.LightToAttrs(l, available)
+
+	if err := d.AddEntity(entityID, driver.EntitySpec{
+		EntityType:   "light",
+		FriendlyName: l.Metadata.Name,
+		Capabilities: caps,
+		InitialState: attrs,
+	}); err != nil {
+		return err
+	}
+
+	cache.mu.Lock()
+	cache.byEntID[entityID] = attrs.GetLight()
+	cache.available[entityID] = available
+	cache.hueToID[l.ID] = entityID
+	if l.Owner.RID != "" {
+		cache.deviceToID[l.Owner.RID] = entityID
+	}
+	cache.mu.Unlock()
+
+	hueID := l.ID
+	for _, c := range caps {
+		c := c
+		d.OnCapability(entityID, c, func(ctx context.Context, entityID string, args map[string]string) (*entityv1.Attributes, error) {
+			return handleCommand(ctx, client, cache, hueID, entityID, c, args)
+		})
+	}
+	return nil
 }
 
 func handleCommand(ctx context.Context, client *bridge.Client, cache *stateCache, hueID, entityID, capability string, args map[string]string) (*entityv1.Attributes, error) {
@@ -175,11 +206,12 @@ func handleCommand(ctx context.Context, client *bridge.Client, cache *stateCache
 	if prev == nil {
 		prev = &entityv1.Light{}
 	}
+	available := cache.available[entityID]
 	merged := state.MergeEvent(prev, bridge.Event{
 		On:               update.On,
 		Dimming:          update.Dimming,
 		ColorTemperature: update.ColorTemperature,
-	}, true)
+	}, available)
 	cache.byEntID[entityID] = merged.GetLight()
 	cache.mu.Unlock()
 	return merged, nil
@@ -238,7 +270,8 @@ func streamOnce(ctx context.Context, client *bridge.Client, d *driver.Driver, ca
 		if prev == nil {
 			prev = &entityv1.Light{}
 		}
-		merged := state.MergeEvent(prev, ev, true)
+		available := cache.available[entityID]
+		merged := state.MergeEvent(prev, ev, available)
 		cache.byEntID[entityID] = merged.GetLight()
 		cache.mu.Unlock()
 
@@ -261,7 +294,8 @@ func resync(ctx context.Context, client *bridge.Client, d *driver.Driver, cache 
 			cache.mu.Unlock()
 			continue
 		}
-		attrs := state.LightToAttrs(l, true)
+		available := cache.available[entityID]
+		attrs := state.LightToAttrs(l, available)
 		cache.byEntID[entityID] = attrs.GetLight()
 		cache.mu.Unlock()
 		if err := d.EmitState(entityID, attrs); err != nil && !errors.Is(err, driver.ErrNotConnected) {

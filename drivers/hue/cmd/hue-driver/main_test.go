@@ -20,9 +20,11 @@ const fakeBridgeListLightsBody = `{
     {
       "id": "12345678-90ab-cdef-1234-567890abcdef",
       "type": "light",
+      "owner": { "rid": "device-12345678-90ab-cdef-1234-567890abcdef", "rtype": "device" },
       "metadata": { "name": "Kitchen" },
       "on": { "on": false },
-      "dimming": { "brightness": 50 }
+      "dimming": { "brightness": 50 },
+      "color_temperature": { "mirek": 366 }
     }
   ]
 }`
@@ -62,6 +64,10 @@ func TestDriver_AllCapabilities(t *testing.T) {
 			flusher, _ := w.(http.Flusher)
 			flusher.Flush()
 			<-r.Context().Done()
+		case r.URL.Path == "/clip/v2/resource/device":
+			_, _ = w.Write([]byte(`{"errors":[],"data":[]}`))
+		case r.URL.Path == "/clip/v2/resource/zigbee_connectivity":
+			_, _ = w.Write([]byte(`{"errors":[],"data":[]}`))
 		default:
 			http.Error(w, "unexpected", http.StatusNotFound)
 		}
@@ -122,6 +128,10 @@ func TestDriver_BridgeError(t *testing.T) {
 			flusher, _ := w.(http.Flusher)
 			flusher.Flush()
 			<-r.Context().Done()
+		case r.URL.Path == "/clip/v2/resource/device":
+			_, _ = w.Write([]byte(`{"errors":[],"data":[]}`))
+		case r.URL.Path == "/clip/v2/resource/zigbee_connectivity":
+			_, _ = w.Write([]byte(`{"errors":[],"data":[]}`))
 		default:
 			http.Error(w, "unexpected", http.StatusNotFound)
 		}

@@ -6,6 +6,7 @@ package bridge
 type Light struct {
 	ID               string            `json:"id"`
 	Type             string            `json:"type"` // always "light" for items in the lights collection
+	Owner            ResourceRef       `json:"owner"`
 	Metadata         LightMetadata     `json:"metadata"`
 	On               OnState           `json:"on"`
 	Dimming          *Dimming          `json:"dimming,omitempty"`
