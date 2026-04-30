@@ -258,3 +258,49 @@ func TestDriver_StatePreservedOnReconnect(t *testing.T) {
 		t.Errorf("after reconnect Entities() len = %d, want 1", got)
 	}
 }
+
+func TestDriver_UnregisterEntity(t *testing.T) {
+	d := driver.New("test", "0.0.1")
+	if err := d.AddEntity("light.a", lightSpec("turn_on")); err != nil {
+		t.Fatal(err)
+	}
+	if err := d.AddEntity("light.b", lightSpec("turn_on")); err != nil {
+		t.Fatal(err)
+	}
+	d.OnCapability("light.a", "turn_on", func(_ context.Context, _ string, _ map[string]string) (*entityv1.Attributes, error) {
+		return lightAttrs(true, 100), nil
+	})
+	h := drivertest.New(t, d)
+	defer h.Close()
+
+	// Ensure stream is ready by sending a command first.
+	_, err := h.SendCommand(context.Background(), "light.b", "turn_on", nil)
+	if err != nil {
+		t.Fatalf("SendCommand before unregister: %v", err)
+	}
+
+	if err := d.UnregisterEntity("light.a"); err != nil {
+		t.Fatalf("UnregisterEntity: %v", err)
+	}
+
+	// Subsequent commands to the unregistered entity must fail at the driver.
+	res, err := h.SendCommand(context.Background(), "light.a", "turn_on", nil)
+	if err != nil {
+		t.Fatalf("SendCommand after unregister: %v", err)
+	}
+	if res.GetOk() {
+		t.Errorf("expected ok=false on unregistered entity")
+	}
+
+	// Re-registration must succeed (entity ID is now free).
+	if err := d.AddEntity("light.a", lightSpec("turn_on")); err != nil {
+		t.Errorf("re-registration after unregister failed: %v", err)
+	}
+}
+
+func TestDriver_UnregisterEntity_Unknown(t *testing.T) {
+	d := driver.New("t", "0")
+	if err := d.UnregisterEntity("light.unknown"); err == nil {
+		t.Fatal("expected error unregistering unknown entity")
+	}
+}

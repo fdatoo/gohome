@@ -83,6 +83,32 @@ func (d *Driver) OnCapability(entityID, capability string, h CapabilityHandler) 
 	e.handlers[capability] = h
 }
 
+// UnregisterEntity removes the entity from the driver and emits an
+// EntityUnregistered message on the current Run stream. Returns
+// ErrEntityUnknown if the entity wasn't registered, or ErrNotConnected
+// if no stream is active.
+func (d *Driver) UnregisterEntity(entityID string) error {
+	d.mu.Lock()
+	if _, ok := d.entities[entityID]; !ok {
+		d.mu.Unlock()
+		return fmt.Errorf("%w: %s", ErrEntityUnknown, entityID)
+	}
+	delete(d.entities, entityID)
+	d.mu.Unlock()
+
+	d.emitMu.RLock()
+	emit := d.emitter
+	d.emitMu.RUnlock()
+	if emit == nil {
+		return ErrNotConnected
+	}
+	return emit.Send(&carportv1alpha1.DriverToHost{
+		Kind: &carportv1alpha1.DriverToHost_EntityUnregistered{
+			EntityUnregistered: &eventv1.EntityUnregistered{Reason: "removed_by_driver"},
+		},
+	})
+}
+
 // EmitState updates tracked state for entityID and sends a StateChanged event
 // on the current Run stream. Safe to call from any goroutine.
 // Returns ErrNotConnected if no stream is active.
