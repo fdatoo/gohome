@@ -40,6 +40,13 @@ func New(address, apiKey string, tlsSkipVerify bool) (*Client, error) {
 	}, nil
 }
 
+// SetHTTPClientForTest swaps the underlying *http.Client. Tests use this
+// to inject httptest.NewTLSServer's pre-trusted client so calls to the
+// fake bridge don't fail TLS verification regardless of skip-verify.
+func (c *Client) SetHTTPClientForTest(h *http.Client) {
+	c.httpClient = h
+}
+
 // ListLights returns every light resource on the bridge.
 func (c *Client) ListLights(ctx context.Context) ([]Light, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/clip/v2/resource/light", nil)
