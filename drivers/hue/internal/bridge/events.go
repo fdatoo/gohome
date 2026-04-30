@@ -63,7 +63,9 @@ func (c *Client) Events(ctx context.Context) (<-chan Event, error) {
 					continue
 				}
 				for _, ev := range env.Data {
-					if ev.Type != "light" {
+					switch ev.Type {
+					case "light", "zigbee_connectivity":
+					default:
 						continue
 					}
 					select {

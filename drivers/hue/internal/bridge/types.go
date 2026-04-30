@@ -81,8 +81,11 @@ type ZigbeeConnectivity struct {
 // Hue v2 events carry only the fields that changed.
 type Event struct {
 	ID               string            `json:"id"`
-	Type             string            `json:"type"` // resource type, e.g. "light"
+	Type             string            `json:"type"` // "light" | "zigbee_connectivity"
 	On               *OnState          `json:"on,omitempty"`
 	Dimming          *Dimming          `json:"dimming,omitempty"`
 	ColorTemperature *ColorTemperature `json:"color_temperature,omitempty"`
+	// 90-99: connectivity (when Type == "zigbee_connectivity")
+	Status string       `json:"status,omitempty"`
+	Owner  *ResourceRef `json:"owner,omitempty"`
 }
