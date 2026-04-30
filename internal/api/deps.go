@@ -118,11 +118,24 @@ type EntityReader interface {
 	GetEntity(ctx context.Context, id string) (Entity, error)
 }
 
+// CapabilityCallResult is the outcome of dispatching a capability through
+// the carport supervisor. CorrelationID is the command id (always set on
+// successful dispatch). Success / ErrorMessage carry the driver's
+// CommandResult — Success=false with no go-level error means the driver
+// rejected the command (bad args, unsupported capability, etc.).
+type CapabilityCallResult struct {
+	CorrelationID string
+	Success       bool
+	ErrorMessage  string
+}
+
 type CapabilityCaller interface {
 	// Call dispatches the capability invocation through the carport supervisor;
-	// blocks until the driver acks or ctx is cancelled. Returns the command's
-	// correlation id (the CommandIssued event id) on success.
-	Call(ctx context.Context, entityID, capability string, params map[string]any) (correlationID string, err error)
+	// blocks until the driver acks or ctx is cancelled. The returned error is
+	// non-nil only for dispatch-level failures (entity unknown, instance not
+	// running, deadline). A driver rejection is reported as Success=false in
+	// the result with a non-error return.
+	Call(ctx context.Context, entityID, capability string, params map[string]any) (CapabilityCallResult, error)
 }
 
 // EntityStreamSource is implemented in Task 17. Declared here so the field

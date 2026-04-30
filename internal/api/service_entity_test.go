@@ -39,12 +39,12 @@ type fakeCaller struct {
 }
 type callRec struct{ id, cap string }
 
-func (f *fakeCaller) Call(_ context.Context, id, cap string, _ map[string]any) (string, error) {
+func (f *fakeCaller) Call(_ context.Context, id, cap string, _ map[string]any) (api.CapabilityCallResult, error) {
 	if f.returnErr != nil {
-		return "", f.returnErr
+		return api.CapabilityCallResult{}, f.returnErr
 	}
 	f.called = append(f.called, callRec{id, cap})
-	return "cmd-" + id, nil
+	return api.CapabilityCallResult{CorrelationID: "cmd-" + id, Success: true}, nil
 }
 
 func contains(s []string, v string) bool {

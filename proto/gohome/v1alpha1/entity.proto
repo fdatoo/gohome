@@ -49,6 +49,9 @@ message CallCapabilityRequest {
 }
 message CallCapabilityResponse {
   string correlation_id = 1;  // command id
+  // 10-19: outcome (the driver's CommandResult, surfaced through dispatch)
+  bool   success        = 10;
+  string error_message  = 11;
 }
 
 message SubscribeEntitiesRequest {
