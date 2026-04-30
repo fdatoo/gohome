@@ -2,6 +2,7 @@ package driver_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -302,5 +303,35 @@ func TestDriver_UnregisterEntity_Unknown(t *testing.T) {
 	d := driver.New("t", "0")
 	if err := d.UnregisterEntity("light.unknown"); err == nil {
 		t.Fatal("expected error unregistering unknown entity")
+	}
+}
+
+func TestDriver_EmitDriverEvent(t *testing.T) {
+	d := driver.New("test", "0.0.1")
+	if err := d.AddEntity("light.a", lightSpec("turn_on")); err != nil {
+		t.Fatal(err)
+	}
+	d.OnCapability("light.a", "turn_on", func(_ context.Context, _ string, _ map[string]string) (*entityv1.Attributes, error) {
+		return lightAttrs(true, 100), nil
+	})
+	h := drivertest.New(t, d)
+	defer h.Close()
+
+	// Ensure stream is ready by sending a command first.
+	_, err := h.SendCommand(context.Background(), "light.a", "turn_on", nil)
+	if err != nil {
+		t.Fatalf("SendCommand: %v", err)
+	}
+
+	if err := d.EmitDriverEvent("test_kind", "test_detail"); err != nil {
+		t.Fatalf("EmitDriverEvent: %v", err)
+	}
+}
+
+func TestDriver_EmitDriverEvent_NotConnected(t *testing.T) {
+	d := driver.New("t", "0")
+	err := d.EmitDriverEvent("k", "d")
+	if !errors.Is(err, driver.ErrNotConnected) {
+		t.Errorf("expected ErrNotConnected, got %v", err)
 	}
 }

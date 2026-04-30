@@ -138,6 +138,24 @@ func (d *Driver) EmitState(entityID string, attrs *entityv1.Attributes) error {
 	})
 }
 
+// EmitDriverEvent sends a typed driver event on the current Run stream.
+// Returns ErrNotConnected if no stream is active. The kind/detail
+// strings are free-form; conventionally kind is snake_case (e.g.
+// "bridge_unreachable") and detail is human-readable text.
+func (d *Driver) EmitDriverEvent(kind, detail string) error {
+	d.emitMu.RLock()
+	emit := d.emitter
+	d.emitMu.RUnlock()
+	if emit == nil {
+		return ErrNotConnected
+	}
+	return emit.Send(&carportv1alpha1.DriverToHost{
+		Kind: &carportv1alpha1.DriverToHost_DriverEvent{
+			DriverEvent: &eventv1.DriverEvent{Kind: kind, Detail: detail},
+		},
+	})
+}
+
 // Run reads Conn from env vars and calls RunConn in a reconnect loop until ctx
 // is cancelled.
 func (d *Driver) Run(ctx context.Context) error {
