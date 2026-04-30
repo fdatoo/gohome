@@ -117,8 +117,15 @@ func (h *Host) runLifecycle(ctx context.Context, m *managedInstance) {
 		})
 
 		// Wire stream error hook: log only — the reader goroutine already called failAll.
+		// Demote to debug when the host is shutting down; the cancellation IS the
+		// "error" and there's nothing the operator should do about it.
 		ic.setStreamErrorHook(func(streamErr error) {
-			h.logger.Warn("stream error", "instance_id", m.cfg.ID, "err", streamErr)
+			select {
+			case <-h.stopped:
+				h.logger.Debug("stream error during shutdown", "instance_id", m.cfg.ID, "err", streamErr)
+			default:
+				h.logger.Warn("stream error", "instance_id", m.cfg.ID, "err", streamErr)
+			}
 		})
 
 		// Block until health fails or context is cancelled.
