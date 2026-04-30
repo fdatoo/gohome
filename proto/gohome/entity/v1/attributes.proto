@@ -14,6 +14,11 @@ message Attributes {
     Switch switch_device = 11;
     Sensor sensor        = 12;
   }
+  // 90-99: cross-cutting metadata
+  // available is the driver's claim that the entity is currently reachable.
+  // Default false (zero) means unknown / unreachable; drivers explicitly set
+  // true after confirming connectivity. The state cache surfaces this.
+  bool available = 90;
 }
 
 message Light {

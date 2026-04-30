@@ -33,7 +33,12 @@ type Attributes struct {
 	//	*Attributes_Light
 	//	*Attributes_SwitchDevice
 	//	*Attributes_Sensor
-	Kind          isAttributes_Kind `protobuf_oneof:"kind"`
+	Kind isAttributes_Kind `protobuf_oneof:"kind"`
+	// 90-99: cross-cutting metadata
+	// available is the driver's claim that the entity is currently reachable.
+	// Default false (zero) means unknown / unreachable; drivers explicitly set
+	// true after confirming connectivity. The state cache surfaces this.
+	Available     bool `protobuf:"varint,90,opt,name=available,proto3" json:"available,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -100,6 +105,13 @@ func (x *Attributes) GetSensor() *Sensor {
 		}
 	}
 	return nil
+}
+
+func (x *Attributes) GetAvailable() bool {
+	if x != nil {
+		return x.Available
+	}
+	return false
 }
 
 type isAttributes_Kind interface {
@@ -285,13 +297,14 @@ var File_gohome_entity_v1_attributes_proto protoreflect.FileDescriptor
 
 const file_gohome_entity_v1_attributes_proto_rawDesc = "" +
 	"\n" +
-	"!gohome/entity/v1/attributes.proto\x12\x10gohome.entity.v1\"\xba\x01\n" +
+	"!gohome/entity/v1/attributes.proto\x12\x10gohome.entity.v1\"\xd8\x01\n" +
 	"\n" +
 	"Attributes\x12/\n" +
 	"\x05light\x18\n" +
 	" \x01(\v2\x17.gohome.entity.v1.LightH\x00R\x05light\x12?\n" +
 	"\rswitch_device\x18\v \x01(\v2\x18.gohome.entity.v1.SwitchH\x00R\fswitchDevice\x122\n" +
-	"\x06sensor\x18\f \x01(\v2\x18.gohome.entity.v1.SensorH\x00R\x06sensorB\x06\n" +
+	"\x06sensor\x18\f \x01(\v2\x18.gohome.entity.v1.SensorH\x00R\x06sensor\x12\x1c\n" +
+	"\tavailable\x18Z \x01(\bR\tavailableB\x06\n" +
 	"\x04kind\"V\n" +
 	"\x05Light\x12\x0e\n" +
 	"\x02on\x18\x01 \x01(\bR\x02on\x12\x1e\n" +
