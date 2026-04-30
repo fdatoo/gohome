@@ -506,8 +506,10 @@ func (x *SystemEvent) GetData() map[string]string {
 }
 
 type StateChanged struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Attributes    *v1.Attributes         `protobuf:"bytes,1,opt,name=attributes,proto3" json:"attributes,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Attributes *v1.Attributes         `protobuf:"bytes,1,opt,name=attributes,proto3" json:"attributes,omitempty"`
+	// 2-9: identity (added v1alpha1.2 — drivers must populate)
+	EntityId      string `protobuf:"bytes,2,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -547,6 +549,13 @@ func (x *StateChanged) GetAttributes() *v1.Attributes {
 		return x.Attributes
 	}
 	return nil
+}
+
+func (x *StateChanged) GetEntityId() string {
+	if x != nil {
+		return x.EntityId
+	}
+	return ""
 }
 
 type CommandIssued struct {
@@ -1733,11 +1742,12 @@ const file_gohome_event_v1_event_proto_rawDesc = "" +
 	"\x04data\x18\x02 \x03(\v2&.gohome.event.v1.SystemEvent.DataEntryR\x04data\x1a7\n" +
 	"\tDataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"L\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"i\n" +
 	"\fStateChanged\x12<\n" +
 	"\n" +
 	"attributes\x18\x01 \x01(\v2\x1c.gohome.entity.v1.AttributesR\n" +
-	"attributes\"\xb8\x01\n" +
+	"attributes\x12\x1b\n" +
+	"\tentity_id\x18\x02 \x01(\tR\bentityId\"\xb8\x01\n" +
 	"\rCommandIssued\x12\x18\n" +
 	"\acommand\x18\x01 \x01(\tR\acommand\x12N\n" +
 	"\n" +

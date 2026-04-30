@@ -51,6 +51,8 @@ message SystemEvent {
 
 message StateChanged {
   gohome.entity.v1.Attributes attributes = 1;
+  // 2-9: identity (added v1alpha1.2 — drivers must populate)
+  string                      entity_id  = 2;
 }
 
 message CommandIssued {
