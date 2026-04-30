@@ -156,6 +156,7 @@ type stateCache struct {
 	available  map[string]bool            // last known reachability per gohome entity ID
 	hueToID    map[string]string          // Hue light resource UUID → gohome entity ID
 	deviceToID map[string]string          // Hue device UUID → gohome entity ID (for connectivity events)
+	gamuts     map[string]bridge.Gamut    // gohome entity ID → bulb colour gamut (populated by C-Task 8)
 	reach      reachabilityTracker
 }
 
@@ -165,6 +166,7 @@ func newStateCache() *stateCache {
 		available:  map[string]bool{},
 		hueToID:    map[string]string{},
 		deviceToID: map[string]string{},
+		gamuts:     map[string]bridge.Gamut{},
 	}
 }
 
@@ -235,7 +237,10 @@ func registerBulb(d *driver.Driver, cache *stateCache, client *bridge.Client, l 
 }
 
 func handleCommand(ctx context.Context, client *bridge.Client, cache *stateCache, hueID, entityID, capability string, args map[string]string) (*entityv1.Attributes, error) {
-	update, err := state.CommandToUpdate(capability, args)
+	cache.mu.Lock()
+	gamut := cache.gamuts[entityID]
+	cache.mu.Unlock()
+	update, err := state.CommandToUpdate(capability, args, gamut)
 	if err != nil {
 		return nil, err
 	}

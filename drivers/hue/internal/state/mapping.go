@@ -66,8 +66,10 @@ func parseDuration(args map[string]string) (uint32, error) {
 
 // CommandToUpdate translates a Carport (capability, args) pair into a
 // bridge.LightUpdate. Validates argument ranges; returns an error for
-// unknown capabilities or malformed arguments.
-func CommandToUpdate(capability string, args map[string]string) (bridge.LightUpdate, error) {
+// unknown capabilities or malformed arguments. gamut is used for the
+// set_color case to clamp the computed xy point into the bulb's representable
+// triangle; pass bridge.Gamut{} when no gamut is available.
+func CommandToUpdate(capability string, args map[string]string, gamut bridge.Gamut) (bridge.LightUpdate, error) {
 	dur, err := parseDuration(args)
 	if err != nil {
 		return bridge.LightUpdate{}, err
@@ -110,6 +112,15 @@ func CommandToUpdate(capability string, args map[string]string) (bridge.LightUpd
 		mirek := uint32(v)
 		u.On = &bridge.OnState{On: true}
 		u.ColorTemperature = &bridge.ColorTemperature{Mirek: &mirek}
+	case "set_color":
+		r, g, b, err := ParseColor(args)
+		if err != nil {
+			return bridge.LightUpdate{}, fmt.Errorf("set_color: %w", err)
+		}
+		raw := bridge.RGBToXY(r, g, b)
+		clamped := bridge.ClampToGamut(raw, gamut)
+		u.On = &bridge.OnState{On: true}
+		u.Color = &bridge.ColorUpdate{XY: clamped}
 	default:
 		return bridge.LightUpdate{}, fmt.Errorf("unknown capability %q", capability)
 	}

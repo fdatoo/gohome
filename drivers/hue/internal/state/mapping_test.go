@@ -144,7 +144,7 @@ func TestCommandToUpdate(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := CommandToUpdate(tc.cap, tc.args)
+			got, err := CommandToUpdate(tc.cap, tc.args, bridge.Gamut{})
 			if tc.wantErr {
 				if err == nil {
 					t.Fatalf("expected error, got %+v", got)
@@ -236,7 +236,7 @@ func TestMergeEvent_PropagatesAvailable(t *testing.T) {
 }
 
 func TestCommandToUpdate_BrightnessZeroIsOff(t *testing.T) {
-	got, err := CommandToUpdate("set_brightness", map[string]string{"brightness": "0"})
+	got, err := CommandToUpdate("set_brightness", map[string]string{"brightness": "0"}, bridge.Gamut{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -249,7 +249,7 @@ func TestCommandToUpdate_BrightnessZeroIsOff(t *testing.T) {
 }
 
 func TestCommandToUpdate_BrightnessNonZeroAutoOn(t *testing.T) {
-	got, err := CommandToUpdate("set_brightness", map[string]string{"brightness": "128"})
+	got, err := CommandToUpdate("set_brightness", map[string]string{"brightness": "128"}, bridge.Gamut{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -262,7 +262,7 @@ func TestCommandToUpdate_BrightnessNonZeroAutoOn(t *testing.T) {
 }
 
 func TestCommandToUpdate_ColorTempAutoOn(t *testing.T) {
-	got, err := CommandToUpdate("set_color_temp", map[string]string{"color_temp": "366"})
+	got, err := CommandToUpdate("set_color_temp", map[string]string{"color_temp": "366"}, bridge.Gamut{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -283,7 +283,7 @@ func TestCommandToUpdate_DurationMs(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := CommandToUpdate("set_brightness", tc.args)
+			got, err := CommandToUpdate("set_brightness", tc.args, bridge.Gamut{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -303,7 +303,7 @@ func TestCommandToUpdate_DurationMs(t *testing.T) {
 func TestCommandToUpdate_DurationMs_OutOfRange(t *testing.T) {
 	for _, raw := range []string{"-1", "9000000", "abc"} {
 		t.Run(raw, func(t *testing.T) {
-			if _, err := CommandToUpdate("turn_on", map[string]string{"duration_ms": raw}); err == nil {
+			if _, err := CommandToUpdate("turn_on", map[string]string{"duration_ms": raw}, bridge.Gamut{}); err == nil {
 				t.Errorf("expected error for duration_ms=%q", raw)
 			}
 		})
@@ -311,7 +311,7 @@ func TestCommandToUpdate_DurationMs_OutOfRange(t *testing.T) {
 }
 
 func TestCommandToUpdate_TurnOnWithDuration(t *testing.T) {
-	got, err := CommandToUpdate("turn_on", map[string]string{"duration_ms": "5000"})
+	got, err := CommandToUpdate("turn_on", map[string]string{"duration_ms": "5000"}, bridge.Gamut{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -320,6 +320,47 @@ func TestCommandToUpdate_TurnOnWithDuration(t *testing.T) {
 	}
 	if got.Dynamics == nil || got.Dynamics.Duration != 5000 {
 		t.Errorf("Dynamics = %+v, want Duration=5000", got.Dynamics)
+	}
+}
+
+func TestCommandToUpdate_SetColorHex(t *testing.T) {
+	gamut := bridge.Gamut{
+		Red:   bridge.ColorXY{X: 0.6915, Y: 0.3083},
+		Green: bridge.ColorXY{X: 0.1700, Y: 0.7000},
+		Blue:  bridge.ColorXY{X: 0.1532, Y: 0.0475},
+	}
+	got, err := CommandToUpdate("set_color", map[string]string{"hex": "#FF8800"}, gamut)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.On == nil || !got.On.On {
+		t.Errorf("On = %+v, want On.On=true (auto-on)", got.On)
+	}
+	if got.Color == nil {
+		t.Fatal("Color = nil, want set")
+	}
+	if got.ColorTemperature != nil {
+		t.Errorf("ColorTemperature = %+v, want nil (mutually exclusive)", got.ColorTemperature)
+	}
+	// Sanity: xy is finite and inside gamut.
+	if got.Color.XY.X < 0 || got.Color.XY.X > 1 || got.Color.XY.Y < 0 || got.Color.XY.Y > 1 {
+		t.Errorf("xy = %+v, want both 0..1", got.Color.XY)
+	}
+}
+
+func TestCommandToUpdate_SetColorRGB(t *testing.T) {
+	got, err := CommandToUpdate("set_color", map[string]string{"r": "255", "g": "136", "b": "0"}, bridge.Gamut{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Color == nil {
+		t.Fatal("Color = nil")
+	}
+}
+
+func TestCommandToUpdate_SetColorBadHex(t *testing.T) {
+	if _, err := CommandToUpdate("set_color", map[string]string{"hex": "zz"}, bridge.Gamut{}); err == nil {
+		t.Error("expected error for malformed hex")
 	}
 }
 
