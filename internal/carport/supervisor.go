@@ -374,7 +374,17 @@ func (h *Host) shutdownInstance(ctx context.Context, m *managedInstance) {
 
 // emitDriverEvent appends a driver_event to the event store and logs the transition.
 func (h *Host) emitDriverEvent(ctx context.Context, m *managedInstance, kind, detail string) {
-	_, err := h.store.Append(ctx, eventstore.Event{
+	// If the caller context is already cancelled (typical at daemon shutdown),
+	// use a fresh background context with a short timeout so terminal events
+	// like "stopped" still land in the log. Same pattern as dispatch.go's
+	// CommandAck append.
+	appendCtx := ctx //nolint:contextcheck // intentional: when ctx is cancelled (shutdown), we swap to a fresh ctx below so the terminal event still lands
+	if ctx.Err() != nil {
+		var cancel context.CancelFunc
+		appendCtx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+	}
+	_, err := h.store.Append(appendCtx, eventstore.Event{
 		Timestamp: time.Now(),
 		Kind:      "driver_event",
 		Source:    "carport:host",
