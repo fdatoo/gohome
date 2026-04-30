@@ -22,7 +22,11 @@ import (
 func (h *Host) launchLifecycle(parent context.Context, m *managedInstance) {
 	ctx, cancel := context.WithCancel(parent)
 	m.cancelLifecycle = cancel
-	go h.runLifecycle(ctx, m)
+	m.done = make(chan struct{})
+	go func() {
+		defer close(m.done)
+		h.runLifecycle(ctx, m)
+	}()
 }
 
 // runLifecycle is the per-instance FSM loop: spawning → handshake → running →
@@ -369,6 +373,16 @@ func (h *Host) shutdownInstance(ctx context.Context, m *managedInstance) {
 		_, _ = conn.Shutdown(sctx, m.cfg.Lifecycle.ShutdownGrace.Milliseconds())
 		cancel()
 		_ = conn.Close()
+	}
+
+	// Wait for the lifecycle goroutine to actually exit so its terminal
+	// event Appends complete before we return — otherwise the daemon's
+	// final snapshot races us.
+	if m.done != nil {
+		select {
+		case <-m.done:
+		case <-ctx.Done():
+		}
 	}
 }
 
