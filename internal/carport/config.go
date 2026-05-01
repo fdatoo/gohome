@@ -134,3 +134,19 @@ func intd(v, def int) int {
 	}
 	return v
 }
+
+// defaultLifecycleConfig returns the defaults used for dynamically registered
+// instances (those coming from main.pkl rather than drivers.toml).
+func defaultLifecycleConfig() LifecycleConfig {
+	return LifecycleConfig{
+		HandshakeDeadline:       5 * time.Second,
+		HealthProbeInterval:     15 * time.Second,
+		HealthProbeTimeout:      3 * time.Second,
+		HealthFailuresToRestart: 3,
+		ShutdownGrace:           10 * time.Second,
+		RestartBackoffInitial:   time.Second,
+		RestartBackoffMax:       60 * time.Second,
+		RestartBudgetWindow:     10 * time.Minute,
+		RestartBudgetMax:        10,
+	}
+}
