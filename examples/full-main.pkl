@@ -14,15 +14,15 @@
 // Automations: Motion-activated lights, temperature alerts
 // Features: Dashboard, user roles, scheduled routines
 
-module gohome.config
+module switchyard.config
 
-import "gohome:entities" as ent
-import "gohome:carport" as cp
-import "gohome:automations" as auto
-import "gohome:scripts" as scr
-import "gohome:dashboards" as dash
-import "gohome:auth" as authmod
-import "gohome:mcp" as mcpmod
+import "switchyard:entities" as ent
+import "switchyard:carport" as cp
+import "switchyard:automations" as auto
+import "switchyard:scripts" as scr
+import "switchyard:dashboards" as dash
+import "switchyard:auth" as authmod
+import "switchyard:mcp" as mcpmod
 
 // ============================================================================
 // ENTITIES: All devices in your home (lights, sensors, switches, etc.)

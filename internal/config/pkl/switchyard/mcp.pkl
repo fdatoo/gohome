@@ -1,5 +1,5 @@
 @ModuleInfo { minPklVersion = "0.27.0" }
-module gohome.mcp
+module switchyard.mcp
 
 class MCPConfig {
   evalResultMaxBytes: UInt = 65536

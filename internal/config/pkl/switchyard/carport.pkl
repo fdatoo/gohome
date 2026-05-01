@@ -1,4 +1,4 @@
-module gohome.carport
+module switchyard.carport
 
 // DriverInstance is the base class for all driver instance configs.
 // Driver authors extend this with their own typed fields.

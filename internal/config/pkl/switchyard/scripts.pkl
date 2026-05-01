@@ -1,6 +1,6 @@
-module gohome.scripts
+module switchyard.scripts
 
-import "gohome:starlark" as starlark
+import "switchyard:starlark" as starlark
 
 class ScriptParam {
   name:     String(!isEmpty)

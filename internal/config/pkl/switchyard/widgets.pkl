@@ -1,4 +1,4 @@
-module gohome.widgets
+module switchyard.widgets
 
 const gauge:        String = "Gauge"
 const lineChart:    String = "LineChart"

@@ -1,4 +1,4 @@
-module gohome.base
+module switchyard.base
 
 // Secrets are tagged strings. Go's ResolveSecrets walks the evaluated JSON
 // and replaces these with resolved values before applying side-effects.

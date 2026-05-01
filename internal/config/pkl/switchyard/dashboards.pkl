@@ -1,4 +1,4 @@
-module gohome.dashboards
+module switchyard.dashboards
 
 class Position {
   x: Int(isBetween(0, 96))
