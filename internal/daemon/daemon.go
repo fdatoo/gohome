@@ -604,7 +604,7 @@ func (a *carportAdapter) Dispatch(ctx context.Context, entityID, capability stri
 // RegisterInstance/UnregisterInstance methods (C5+).
 type nopCarportManager struct{}
 
-func (n *nopCarportManager) RegisterInstance(_ context.Context, _, _ string, _ []byte) error {
+func (n *nopCarportManager) RegisterInstance(_ context.Context, _, _, _ string, _ []byte) error {
 	return nil
 }
 func (n *nopCarportManager) UnregisterInstance(_ context.Context, _ string) error {

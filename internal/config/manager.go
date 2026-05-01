@@ -15,7 +15,7 @@ import (
 // For C4, the daemon passes a no-op implementation; dynamic carport management
 // will be wired when carport.Host gains RegisterInstance/UnregisterInstance methods.
 type CarportManager interface {
-	RegisterInstance(ctx context.Context, id, driverName string, params []byte) error
+	RegisterInstance(ctx context.Context, id, driverName, binary string, params []byte) error
 	UnregisterInstance(ctx context.Context, id string) error
 }
 
@@ -104,7 +104,7 @@ func (m *Manager) Apply(ctx context.Context, dryRun bool) error {
 	}
 	for _, id := range diff.DriverInstancesAdded {
 		di := findInstance(snap, id)
-		if err := m.carportMgr.RegisterInstance(ctx, di.GetId(), di.GetDriverName(), di.GetParams()); err != nil {
+		if err := m.carportMgr.RegisterInstance(ctx, di.GetId(), di.GetDriverName(), di.GetBinary(), di.GetParams()); err != nil {
 			return fmt.Errorf("register %q: %w", id, err)
 		}
 	}
@@ -113,7 +113,7 @@ func (m *Manager) Apply(ctx context.Context, dryRun bool) error {
 		if err := m.carportMgr.UnregisterInstance(ctx, id); err != nil {
 			return fmt.Errorf("unregister changed %q: %w", id, err)
 		}
-		if err := m.carportMgr.RegisterInstance(ctx, di.GetId(), di.GetDriverName(), di.GetParams()); err != nil {
+		if err := m.carportMgr.RegisterInstance(ctx, di.GetId(), di.GetDriverName(), di.GetBinary(), di.GetParams()); err != nil {
 			return fmt.Errorf("re-register changed %q: %w", id, err)
 		}
 	}
