@@ -42,4 +42,3 @@ func defaultLifecycleConfig() LifecycleConfig {
 		RestartBudgetMax:        10,
 	}
 }
-

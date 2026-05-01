@@ -93,7 +93,21 @@ func runScenario(t *testing.T, mode string, until func(*carport.Host) bool) *car
 		t.Fatal(err)
 	}
 	params := []byte(`{"TESTDRIVER_MODE":"` + mode + `"}`)
-	if err := h.RegisterInstance(ctx, "test_one", "testdriver", bin, params); err != nil {
+	// Use short timeouts so scenarios resolve within the 10 s test window.
+	// The default lifecycle has 15 s health probes which would cause crash-detection
+	// tests to time out before the supervisor transitions out of StateRunning.
+	lc := carport.LifecycleConfig{
+		HandshakeDeadline:       2 * time.Second,
+		HealthProbeInterval:     500 * time.Millisecond,
+		HealthProbeTimeout:      300 * time.Millisecond,
+		HealthFailuresToRestart: 2,
+		RestartBackoffInitial:   100 * time.Millisecond,
+		RestartBackoffMax:       500 * time.Millisecond,
+		RestartBudgetWindow:     time.Minute,
+		RestartBudgetMax:        3,
+		ShutdownGrace:           time.Second,
+	}
+	if err := h.RegisterInstanceWithLifecycle(ctx, "test_one", "testdriver", bin, params, lc); err != nil {
 		t.Fatal(err)
 	}
 	if !waitFor(10*time.Second, func() bool { return until(h) }) {

@@ -141,6 +141,37 @@ func (h *Host) RegisterInstance(_ context.Context, id, driverName, binary string
 	return nil
 }
 
+// RegisterInstanceWithLifecycle is like RegisterInstance but accepts an explicit
+// LifecycleConfig, allowing callers (e.g. integration tests) to override timing.
+// The CarportManager interface uses RegisterInstance which applies defaultLifecycleConfig.
+func (h *Host) RegisterInstanceWithLifecycle(_ context.Context, id, _, binary string, params []byte, lc LifecycleConfig) error {
+	if h.ctx == nil {
+		return fmt.Errorf("carport host not started")
+	}
+	select {
+	case <-h.stopped:
+		return fmt.Errorf("carport host is stopped")
+	default:
+	}
+	h.mu.Lock()
+	if _, exists := h.instances[id]; exists {
+		h.mu.Unlock()
+		return fmt.Errorf("instance %q already registered", id)
+	}
+	inst := Instance{
+		ID:         id,
+		Binary:     binary,
+		Enabled:    true,
+		ConfigJSON: params,
+		Lifecycle:  lc,
+	}
+	m := &managedInstance{cfg: inst, state: StateDeclared}
+	h.instances[id] = m
+	h.mu.Unlock()
+	h.launchLifecycle(h.ctx, m) //nolint:contextcheck // lifecycle goroutine must outlive the caller's context
+	return nil
+}
+
 // UnregisterInstance stops and removes a driver instance by ID.
 // Returns an error if the instance is not found.
 func (h *Host) UnregisterInstance(_ context.Context, id string) error {
