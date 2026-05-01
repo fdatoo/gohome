@@ -45,6 +45,9 @@ import (
 	"github.com/fdatoo/gohome/internal/web"
 )
 
+// Compile-time assertion: *carport.Host must satisfy config.CarportManager.
+var _ config.CarportManager = (*carport.Host)(nil)
+
 type Daemon struct {
 	cfg              Config
 	logger           *slog.Logger
@@ -217,7 +220,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	mainPkl := filepath.Join(configDir, "main.pkl")
 	switch _, statErr := os.Stat(mainPkl); {
 	case statErr == nil:
-		cfgMgr, err := config.NewManager(ctx, configDir, d.store, &nopCarportManager{})
+		cfgMgr, err := config.NewManager(ctx, configDir, d.store, d.carport)
 		if err != nil {
 			return fmt.Errorf("config manager: %w", err)
 		}
@@ -600,13 +603,3 @@ func (a *carportAdapter) Dispatch(ctx context.Context, entityID, capability stri
 	return &starlark.DispatchResult{Ok: res.GetOk(), Error: res.GetErrorMessage()}, nil
 }
 
-// nopCarportManager satisfies config.CarportManager until carport.Host gains
-// RegisterInstance/UnregisterInstance methods (C5+).
-type nopCarportManager struct{}
-
-func (n *nopCarportManager) RegisterInstance(_ context.Context, _, _, _ string, _ []byte) error {
-	return nil
-}
-func (n *nopCarportManager) UnregisterInstance(_ context.Context, _ string) error {
-	return nil
-}
