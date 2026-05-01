@@ -16,10 +16,10 @@ message Attributes {
 
   oneof kind {
     // 10-19: actuator/sensor domains
-    Light          light           = 10;
-    Switch         switch_device   = 11;
-    NumericSensor  numeric_sensor  = 12;  // was: Sensor sensor; field number stays
-    BinarySensor   binary_sensor   = 13;
+    Light  light         = 10;
+    Switch switch_device = 11;
+    NumericSensor numeric_sensor = 12;  // was: Sensor sensor; field number stays
+    BinarySensor binary_sensor = 13;
   }
   // 90-99: cross-cutting metadata
   // available is the driver's claim that the entity is currently reachable.
