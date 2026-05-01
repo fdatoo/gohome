@@ -22,7 +22,11 @@ import (
 func (h *Host) launchLifecycle(parent context.Context, m *managedInstance) {
 	ctx, cancel := context.WithCancel(parent)
 	m.cancelLifecycle = cancel
-	go h.runLifecycle(ctx, m)
+	m.done = make(chan struct{})
+	go func() {
+		defer close(m.done)
+		h.runLifecycle(ctx, m)
+	}()
 }
 
 // runLifecycle is the per-instance FSM loop: spawning → handshake → running →
@@ -114,8 +118,15 @@ func (h *Host) runLifecycle(ctx context.Context, m *managedInstance) {
 		})
 
 		// Wire stream error hook: log only — the reader goroutine already called failAll.
+		// Demote to debug when the host is shutting down; the cancellation IS the
+		// "error" and there's nothing the operator should do about it.
 		ic.setStreamErrorHook(func(streamErr error) {
-			h.logger.Warn("stream error", "instance_id", m.cfg.ID, "err", streamErr)
+			select {
+			case <-h.stopped:
+				h.logger.Debug("stream error during shutdown", "instance_id", m.cfg.ID, "err", streamErr)
+			default:
+				h.logger.Warn("stream error", "instance_id", m.cfg.ID, "err", streamErr)
+			}
 		})
 
 		// Block until health fails or context is cancelled.
@@ -371,11 +382,31 @@ func (h *Host) shutdownInstance(ctx context.Context, m *managedInstance) {
 		cancel()
 		_ = conn.Close()
 	}
+
+	// Wait for the lifecycle goroutine to actually exit so its terminal
+	// event Appends complete before we return — otherwise the daemon's
+	// final snapshot races us.
+	if m.done != nil {
+		select {
+		case <-m.done:
+		case <-ctx.Done():
+		}
+	}
 }
 
 // emitDriverEvent appends a driver_event to the event store and logs the transition.
 func (h *Host) emitDriverEvent(ctx context.Context, m *managedInstance, kind, detail string) {
-	_, err := h.store.Append(ctx, eventstore.Event{
+	// If the caller context is already cancelled (typical at daemon shutdown),
+	// use a fresh background context with a short timeout so terminal events
+	// like "stopped" still land in the log. Same pattern as dispatch.go's
+	// CommandAck append.
+	appendCtx := ctx //nolint:contextcheck // intentional: when ctx is cancelled (shutdown), we swap to a fresh ctx below so the terminal event still lands
+	if ctx.Err() != nil {
+		var cancel context.CancelFunc
+		appendCtx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+	}
+	_, err := h.store.Append(appendCtx, eventstore.Event{
 		Timestamp: time.Now(),
 		Kind:      "driver_event",
 		Source:    "carport:host",

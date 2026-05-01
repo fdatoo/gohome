@@ -73,11 +73,15 @@ func (s *EntityService) CallCapability(ctx context.Context, req *connect.Request
 	if req.Msg.Parameters != nil {
 		params = req.Msg.Parameters.AsMap()
 	}
-	cid, err := s.caller.Call(ctx, req.Msg.EntityId, req.Msg.Capability, params)
+	res, err := s.caller.Call(ctx, req.Msg.EntityId, req.Msg.Capability, params)
 	if err != nil {
 		return nil, ToConnect(ctx, err, "call_failed")
 	}
-	return connect.NewResponse(&v1.CallCapabilityResponse{CorrelationId: cid}), nil
+	return connect.NewResponse(&v1.CallCapabilityResponse{
+		CorrelationId: res.CorrelationID,
+		Success:       res.Success,
+		ErrorMessage:  res.ErrorMessage,
+	}), nil
 }
 
 func (s *EntityService) Subscribe(ctx context.Context, req *connect.Request[v1.SubscribeEntitiesRequest], stream *connect.ServerStream[v1.SubscribeEntitiesResponse]) error {

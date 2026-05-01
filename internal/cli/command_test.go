@@ -36,7 +36,7 @@ func (f *fakeEntityService) CallCapability(_ context.Context, req *connect.Reque
 			f.gotParamVal = v.GetStringValue()
 		}
 	}
-	return connect.NewResponse(&v1.CallCapabilityResponse{CorrelationId: "corr-123"}), nil
+	return connect.NewResponse(&v1.CallCapabilityResponse{CorrelationId: "corr-123", Success: true}), nil
 }
 
 func TestCommandSend_RoundTripsViaConnect(t *testing.T) {

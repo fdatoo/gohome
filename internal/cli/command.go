@@ -49,14 +49,21 @@ func newCommandSendCmd(gf *globalFlags) *cobra.Command {
 				return renderConnectErr(err)
 			}
 			corrID := resp.Msg.GetCorrelationId()
+			suffix := ""
 			if corrID != "" {
-				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s %s.%s (%s)\n",
-					Success.Render("ok:"), EntityID.Render(args[0]), args[1], corrID)
-			} else {
-				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s %s.%s\n",
-					Success.Render("ok:"), EntityID.Render(args[0]), args[1])
+				suffix = fmt.Sprintf(" (%s)", corrID)
 			}
-			return nil
+			if resp.Msg.GetSuccess() {
+				_, _ = fmt.Fprintf(cmd.OutOrStdout(), "%s %s.%s%s\n",
+					Success.Render("ok:"), EntityID.Render(args[0]), args[1], suffix)
+				return nil
+			}
+			// Driver rejected the command. Surface its error message and exit non-zero.
+			msg := resp.Msg.GetErrorMessage()
+			if msg == "" {
+				msg = "command rejected by driver"
+			}
+			return fmt.Errorf("%s.%s: %s", args[0], args[1], msg)
 		},
 	}
 	c.Flags().StringArrayVar(&argPairs, "arg", nil, "k=v (repeatable)")

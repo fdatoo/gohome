@@ -383,6 +383,9 @@ func (x *CallCapabilityRequest) GetParameters() *structpb.Struct {
 type CallCapabilityResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	CorrelationId string                 `protobuf:"bytes,1,opt,name=correlation_id,json=correlationId,proto3" json:"correlation_id,omitempty"` // command id
+	// 10-19: outcome (the driver's CommandResult, surfaced through dispatch)
+	Success       bool   `protobuf:"varint,10,opt,name=success,proto3" json:"success,omitempty"`
+	ErrorMessage  string `protobuf:"bytes,11,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -420,6 +423,20 @@ func (*CallCapabilityResponse) Descriptor() ([]byte, []int) {
 func (x *CallCapabilityResponse) GetCorrelationId() string {
 	if x != nil {
 		return x.CorrelationId
+	}
+	return ""
+}
+
+func (x *CallCapabilityResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *CallCapabilityResponse) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
 	}
 	return ""
 }
@@ -667,9 +684,12 @@ const file_gohome_v1alpha1_entity_proto_rawDesc = "" +
 	"capability\x127\n" +
 	"\n" +
 	"parameters\x18\x03 \x01(\v2\x17.google.protobuf.StructR\n" +
-	"parameters\"?\n" +
+	"parameters\"~\n" +
 	"\x16CallCapabilityResponse\x12%\n" +
-	"\x0ecorrelation_id\x18\x01 \x01(\tR\rcorrelationId\"\xb6\x01\n" +
+	"\x0ecorrelation_id\x18\x01 \x01(\tR\rcorrelationId\x12\x18\n" +
+	"\asuccess\x18\n" +
+	" \x01(\bR\asuccess\x12#\n" +
+	"\rerror_message\x18\v \x01(\tR\ferrorMessage\"\xb6\x01\n" +
 	"\x18SubscribeEntitiesRequest\x12;\n" +
 	"\bselector\x18\x01 \x01(\v2\x1f.gohome.v1alpha1.EntitySelectorR\bselector\x12\x1f\n" +
 	"\vfrom_cursor\x18\x02 \x01(\x04R\n" +

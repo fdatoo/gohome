@@ -65,6 +65,11 @@ type managedInstance struct {
 	// cancelLifecycle cancels the per-instance lifecycle goroutine. Set by
 	// launchLifecycle in supervisor.go (T11).
 	cancelLifecycle context.CancelFunc
+	// done is closed when the lifecycle goroutine actually exits. Lets
+	// shutdownInstance block until any in-flight Appends (including the
+	// terminal "stopped" event) have completed before returning, so the
+	// daemon's final snapshot doesn't race the supervisor's writes.
+	done chan struct{}
 
 	mu sync.Mutex
 }

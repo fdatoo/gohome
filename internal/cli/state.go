@@ -48,7 +48,7 @@ func newStateGetCmd(gf *globalFlags) *cobra.Command {
 				fmt.Printf("  Type: %s\n", Dim.Render(entity.GetType()))
 			}
 			if entity.GetState() != nil {
-				raw, err := protojson.MarshalOptions{Multiline: true, Indent: "  "}.Marshal(entity.GetState())
+				raw, err := protojson.MarshalOptions{Multiline: true, Indent: "  ", EmitUnpopulated: true}.Marshal(entity.GetState())
 				if err != nil {
 					return fmt.Errorf("marshal state: %w", err)
 				}
@@ -91,7 +91,7 @@ func newStateDumpCmd(gf *globalFlags) *cobra.Command {
 						"friendly_name": entity.GetFriendlyName(),
 					}
 					if entity.GetState() != nil {
-						raw, _ := protojson.Marshal(entity.GetState())
+						raw, _ := protojson.MarshalOptions{EmitUnpopulated: true}.Marshal(entity.GetState())
 						var payload any
 						_ = json.Unmarshal(raw, &payload)
 						entry["state"] = payload

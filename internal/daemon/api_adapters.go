@@ -350,7 +350,7 @@ type capabilityCallerAdapter struct {
 	sup *carport.Host
 }
 
-func (a *capabilityCallerAdapter) Call(ctx context.Context, entityID, capability string, params map[string]any) (string, error) {
+func (a *capabilityCallerAdapter) Call(ctx context.Context, entityID, capability string, params map[string]any) (api.CapabilityCallResult, error) {
 	// Convert map[string]any to map[string]string
 	strParams := make(map[string]string, len(params))
 	for k, v := range params {
@@ -358,11 +358,13 @@ func (a *capabilityCallerAdapter) Call(ctx context.Context, entityID, capability
 	}
 	result, err := a.sup.Dispatch(ctx, entityID, capability, strParams)
 	if err != nil {
-		return "", err
+		return api.CapabilityCallResult{}, err
 	}
-	_ = result
-	// Return the correlation ID — Dispatch doesn't directly return a corrID; return empty string
-	return "", nil
+	out := api.CapabilityCallResult{Success: result.GetOk(), ErrorMessage: result.GetErrorMessage()}
+	if cid := result.GetCommandId(); cid != "" {
+		out.CorrelationID = cid
+	}
+	return out, nil
 }
 
 // ---- driverControlAdapter ----
