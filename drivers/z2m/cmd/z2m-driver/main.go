@@ -4,20 +4,24 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
+
+	"google.golang.org/protobuf/proto"
 
 	"github.com/fdatoo/gohome-driverkit/driver"
 	entityv1 "github.com/fdatoo/gohome/gen/gohome/entity/v1"
 
 	"github.com/fdatoo/gohome/drivers/z2m/internal/mqtt"
-	_ "github.com/fdatoo/gohome/drivers/z2m/internal/state" // used in Task 12
+	"github.com/fdatoo/gohome/drivers/z2m/internal/state"
 	"github.com/fdatoo/gohome/drivers/z2m/internal/z2m"
 )
 
@@ -173,8 +177,281 @@ type app struct {
 	cache *stateCache
 }
 
-// subscribeBridgeTopics is filled in in Task 12. Stubbed here so
-// main.go compiles.
+// subscribeBridgeTopics installs the four bridge-level subscriptions
+// that drive reconciliation, plus a dummy retained-payload handler
+// for bridge/event (logged only).
 func (a *app) subscribeBridgeTopics() {
-	// Implementation lands in Task 12.
+	_ = a.mq.Subscribe(z2m.BridgeDevices(a.cfg.BaseTopic), a.onBridgeDevices)
+	_ = a.mq.Subscribe(z2m.BridgeState(a.cfg.BaseTopic), a.onBridgeState)
+	_ = a.mq.Subscribe(z2m.BridgeEvent(a.cfg.BaseTopic), a.onBridgeEvent)
+}
+
+// onBridgeDevices is the reconciliation entry point. Z2M republishes
+// the full device list (retained) on every network change, so this is
+// the single source of truth for AddEntity/UnregisterEntity/UpdateAttrs.
+func (a *app) onBridgeDevices(_ string, payload []byte) {
+	var devices []z2m.Device
+	if err := json.Unmarshal(payload, &devices); err != nil {
+		// Z2M's republish is idempotent and the next valid payload
+		// heals; do not wipe registry on parse error.
+		slog.Error("bridge/devices parse failed; skipping reconciliation cycle",
+			"error", err, "bytes", len(payload))
+		return
+	}
+
+	a.cache.mu.Lock()
+	prev := make([]z2m.Device, 0, len(a.cache.devices))
+	for _, d := range a.cache.devices {
+		prev = append(prev, d)
+	}
+	a.cache.mu.Unlock()
+
+	actions := state.Reconcile(prev, devices)
+
+	for _, action := range actions {
+		switch act := action.(type) {
+		case state.AddEntity:
+			a.applyAdd(act)
+		case state.UnregisterEntity:
+			a.applyRemove(act)
+		case state.UpdateAttrs:
+			a.applyUpdate(act)
+		}
+	}
+
+	a.cache.mu.Lock()
+	a.cache.devices = make(map[string]z2m.Device, len(devices))
+	for _, d := range devices {
+		a.cache.devices[d.IEEEAddress] = d
+	}
+	a.cache.mu.Unlock()
+}
+
+func (a *app) applyAdd(act state.AddEntity) {
+	if err := a.d.AddEntity(act.EntityID, act.Spec); err != nil {
+		if errors.Is(err, driver.ErrEntityAlreadyRegistered) {
+			return // race-safe: bridge/devices replays produce duplicates
+		}
+		slog.Error("AddEntity failed", "entity_id", act.EntityID, "error", err)
+		return
+	}
+
+	topics := z2m.DeviceTopics(a.cfg.BaseTopic, act.FriendlyName)
+
+	a.cache.mu.Lock()
+	a.cache.friendlyByEnt[act.EntityID] = act.FriendlyName
+	a.cache.ieeeByEnt[act.EntityID] = act.IEEE
+	if act.Spec.InitialState != nil {
+		a.cache.entities[act.EntityID] = act.Spec.InitialState
+	}
+	a.cache.entityByTopic[topics.State] = append(
+		a.cache.entityByTopic[topics.State],
+		entityListener{EntityID: act.EntityID, Property: act.Property},
+	)
+	a.cache.mu.Unlock()
+
+	// Capability handlers — only lights have any.
+	if act.Spec.EntityType == "light" {
+		ent := act.EntityID
+		friendly := act.FriendlyName
+		for _, capName := range act.Spec.Capabilities {
+			cap := capName
+			a.d.OnCapability(ent, cap, func(_ context.Context, _ string, args map[string]string) (*entityv1.Attributes, error) {
+				payload, err := state.CommandToPayload(cap, args)
+				if err != nil {
+					return nil, err
+				}
+				setTopic := z2m.DeviceTopics(a.cfg.BaseTopic, friendly).Set
+				if err := a.mq.Publish(setTopic, payload, false); err != nil {
+					return nil, fmt.Errorf("publish to %s: %w", setTopic, err)
+				}
+				// Don't update state here — the echo on the state topic
+				// arrives within ~100ms and goes through MergeState.
+				return nil, nil
+			})
+		}
+	}
+
+	// Subscribe ahead of any retained-state delivery so we don't race.
+	_ = a.mq.Subscribe(topics.State, a.onDeviceState)
+	_ = a.mq.Subscribe(topics.Availability, a.onDeviceAvailability)
+}
+
+func (a *app) applyRemove(act state.UnregisterEntity) {
+	topics := z2m.DeviceTopics(a.cfg.BaseTopic, act.FriendlyName)
+
+	a.cache.mu.Lock()
+	delete(a.cache.entities, act.EntityID)
+	delete(a.cache.friendlyByEnt, act.EntityID)
+	delete(a.cache.ieeeByEnt, act.EntityID)
+	listeners := a.cache.entityByTopic[topics.State]
+	pruned := listeners[:0]
+	for _, l := range listeners {
+		if l.EntityID != act.EntityID {
+			pruned = append(pruned, l)
+		}
+	}
+	if len(pruned) == 0 {
+		delete(a.cache.entityByTopic, topics.State)
+		_ = a.mq.Unsubscribe(topics.State)
+		_ = a.mq.Unsubscribe(topics.Availability)
+	} else {
+		a.cache.entityByTopic[topics.State] = pruned
+	}
+	a.cache.mu.Unlock()
+
+	if err := a.d.UnregisterEntity(act.EntityID); err != nil && !errors.Is(err, driver.ErrEntityUnknown) {
+		slog.Warn("UnregisterEntity failed", "entity_id", act.EntityID, "error", err)
+	}
+}
+
+func (a *app) applyUpdate(act state.UpdateAttrs) {
+	a.cache.mu.Lock()
+	prev := a.cache.entities[act.EntityID]
+	a.cache.mu.Unlock()
+	if prev == nil {
+		return
+	}
+	// Re-emit the same attrs; the EntityRegistered event is register-once,
+	// so renames don't propagate via the event log in v0.1. Documented.
+	_ = a.d.EmitState(act.EntityID, prev)
+}
+
+// onDeviceState handles a per-device state-push payload by fanning it
+// out to every entity that subscribes to the topic.
+func (a *app) onDeviceState(topic string, payload []byte) {
+	var sp z2m.StatePayload
+	if err := json.Unmarshal(payload, &sp); err != nil {
+		slog.Warn("device state parse failed", "topic", topic, "error", err)
+		return
+	}
+
+	a.cache.mu.Lock()
+	listeners := append([]entityListener(nil), a.cache.entityByTopic[topic]...)
+	a.cache.mu.Unlock()
+
+	for _, l := range listeners {
+		a.applyStateUpdate(l, sp)
+	}
+}
+
+func (a *app) applyStateUpdate(l entityListener, sp z2m.StatePayload) {
+	a.cache.mu.Lock()
+	prev := a.cache.entities[l.EntityID]
+	a.cache.mu.Unlock()
+	if prev == nil {
+		return
+	}
+
+	next := prev
+	if l.Property == "" {
+		// Light: iterate all known properties in the payload.
+		for prop, raw := range sp {
+			n, err := state.MergeState(next, prop, raw)
+			if err != nil {
+				slog.Debug("MergeState skipped", "entity_id", l.EntityID, "property", prop, "error", err)
+				continue
+			}
+			next = n
+		}
+	} else {
+		raw, ok := sp[l.Property]
+		if !ok {
+			return // property not in this payload; ignore
+		}
+		n, err := state.MergeState(next, l.Property, raw)
+		if err != nil {
+			slog.Debug("MergeState failed", "entity_id", l.EntityID, "property", l.Property, "error", err)
+			return
+		}
+		next = n
+	}
+	if next == prev {
+		return // no change
+	}
+
+	a.cache.mu.Lock()
+	a.cache.entities[l.EntityID] = next
+	a.cache.mu.Unlock()
+	if err := a.d.EmitState(l.EntityID, next); err != nil && !errors.Is(err, driver.ErrNotConnected) {
+		slog.Warn("EmitState failed", "entity_id", l.EntityID, "error", err)
+	}
+}
+
+// onDeviceAvailability sets Available=true/false on every entity
+// downstream of the device's state topic.
+func (a *app) onDeviceAvailability(topic string, payload []byte) {
+	// Topic is .../<friendly>/availability — strip the suffix to get the state topic.
+	stateTopic := strings.TrimSuffix(topic, "/availability")
+
+	var av z2m.AvailabilityState
+	available := true
+	// Z2M can publish either {"state":"online"} or the bare string "online".
+	if err := json.Unmarshal(payload, &av); err == nil && av.State != "" {
+		available = av.State == "online"
+	} else {
+		s := strings.Trim(string(payload), `" `)
+		available = s == "online"
+	}
+
+	a.cache.mu.Lock()
+	listeners := append([]entityListener(nil), a.cache.entityByTopic[stateTopic]...)
+	a.cache.mu.Unlock()
+
+	for _, l := range listeners {
+		a.cache.mu.Lock()
+		prev := a.cache.entities[l.EntityID]
+		if prev == nil {
+			a.cache.mu.Unlock()
+			continue
+		}
+		next := proto.Clone(prev).(*entityv1.Attributes)
+		next.Available = available
+		a.cache.entities[l.EntityID] = next
+		a.cache.mu.Unlock()
+		_ = a.d.EmitState(l.EntityID, next)
+	}
+}
+
+// onBridgeState marks every entity unavailable when the Z2M bridge
+// itself goes offline. On return-to-online the next bridge/devices
+// retained replay will restore correct per-entity availability.
+func (a *app) onBridgeState(_ string, payload []byte) {
+	var bs z2m.BridgeStatePayload
+	if err := json.Unmarshal(payload, &bs); err != nil {
+		// Tolerate bare-string variant.
+		bs.State = strings.Trim(string(payload), `" `)
+	}
+	if bs.State == "online" {
+		_ = a.d.EmitDriverEvent("bridge_online", "")
+		return
+	}
+	_ = a.d.EmitDriverEvent("bridge_offline", "")
+
+	a.cache.mu.Lock()
+	ids := make([]string, 0, len(a.cache.entities))
+	for id := range a.cache.entities {
+		ids = append(ids, id)
+	}
+	a.cache.mu.Unlock()
+
+	for _, id := range ids {
+		a.cache.mu.Lock()
+		prev := a.cache.entities[id]
+		if prev == nil {
+			a.cache.mu.Unlock()
+			continue
+		}
+		next := proto.Clone(prev).(*entityv1.Attributes)
+		next.Available = false
+		a.cache.entities[id] = next
+		a.cache.mu.Unlock()
+		_ = a.d.EmitState(id, next)
+	}
+}
+
+// onBridgeEvent is informational — pairing / removal lifecycle is
+// already covered by the bridge/devices retained payload.
+func (a *app) onBridgeEvent(_ string, payload []byte) {
+	slog.Debug("bridge/event", "payload", string(payload))
 }
