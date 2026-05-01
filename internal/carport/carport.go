@@ -8,6 +8,7 @@ package carport
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log/slog"
 	"sync"
 
@@ -39,6 +40,8 @@ type Host struct {
 	router  *Router
 	logger  *slog.Logger
 	metrics *observability.Metrics
+
+	ctx context.Context // root context for lifecycle goroutines; set by Start
 
 	mu        sync.RWMutex
 	instances map[string]*managedInstance // keyed by Instance.ID
@@ -104,6 +107,7 @@ func New(cfg HostConfig, db *sql.DB, store *eventstore.Store, reg *registry.Regi
 // spawn/handshake are reported through DriverEvents in the event log, not
 // returned from this call.
 func (h *Host) Start(ctx context.Context) error {
+	h.ctx = ctx
 	for _, inst := range h.cfgData.Instances {
 		if !inst.Enabled {
 			continue
@@ -133,6 +137,55 @@ func (h *Host) Stop(ctx context.Context) {
 			h.shutdownInstance(ctx, m)
 		}
 	})
+}
+
+// RegisterInstance adds a new driver instance and begins its lifecycle goroutine.
+// Returns an error if an instance with that ID is already registered, if the host
+// has not been started, or if the host has been stopped.
+// IDs must not conflict with instances already running from drivers.toml.
+func (h *Host) RegisterInstance(_ context.Context, id, driverName, binary string, params []byte) error {
+	if h.ctx == nil {
+		return fmt.Errorf("carport host not started")
+	}
+	select {
+	case <-h.stopped:
+		return fmt.Errorf("carport host is stopped")
+	default:
+	}
+	h.mu.Lock()
+	if _, exists := h.instances[id]; exists {
+		h.mu.Unlock()
+		return fmt.Errorf("instance %q already registered", id)
+	}
+	inst := Instance{
+		ID:         id,
+		Binary:     binary,
+		Enabled:    true,
+		ConfigJSON: params,
+		Lifecycle:  defaultLifecycleConfig(),
+	}
+	m := &managedInstance{cfg: inst, state: StateDeclared}
+	h.instances[id] = m
+	h.mu.Unlock()
+	h.launchLifecycle(h.ctx, m)
+	return nil
+}
+
+// UnregisterInstance stops and removes a driver instance by ID.
+// Returns an error if the instance is not found.
+func (h *Host) UnregisterInstance(_ context.Context, id string) error {
+	h.mu.Lock()
+	m, exists := h.instances[id]
+	if !exists {
+		h.mu.Unlock()
+		return fmt.Errorf("instance %q not found", id)
+	}
+	delete(h.instances, id)
+	h.mu.Unlock()
+	// Use Background context so shutdown isn't cut short by the caller's deadline.
+	// Shutdown duration is bounded by m.cfg.Lifecycle.ShutdownGrace.
+	h.shutdownInstance(context.Background(), m)
+	return nil
 }
 
 // launchLifecycle and shutdownInstance are implemented in supervisor.go.
