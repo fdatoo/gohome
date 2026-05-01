@@ -597,4 +597,3 @@ func (a *carportAdapter) Dispatch(ctx context.Context, entityID, capability stri
 	}
 	return &starlark.DispatchResult{Ok: res.GetOk(), Error: res.GetErrorMessage()}, nil
 }
-

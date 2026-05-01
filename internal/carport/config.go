@@ -43,16 +43,3 @@ func defaultLifecycleConfig() LifecycleConfig {
 	}
 }
 
-func dur(ms int, def time.Duration) time.Duration {
-	if ms <= 0 {
-		return def
-	}
-	return time.Duration(ms) * time.Millisecond
-}
-
-func intd(v, def int) int {
-	if v <= 0 {
-		return def
-	}
-	return v
-}

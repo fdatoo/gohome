@@ -4,7 +4,6 @@ go 1.25.9
 
 require (
 	connectrpc.com/connect v1.19.2
-	github.com/BurntSushi/toml v1.6.0
 	github.com/apple/pkl-go v0.13.2
 	github.com/benbjohnson/immutable v0.4.3
 	github.com/charmbracelet/lipgloss v1.1.0

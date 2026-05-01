@@ -137,7 +137,7 @@ func (h *Host) RegisterInstance(_ context.Context, id, driverName, binary string
 	m := &managedInstance{cfg: inst, state: StateDeclared}
 	h.instances[id] = m
 	h.mu.Unlock()
-	h.launchLifecycle(h.ctx, m)
+	h.launchLifecycle(h.ctx, m) //nolint:contextcheck // lifecycle goroutine must outlive the caller's context
 	return nil
 }
 
@@ -154,7 +154,7 @@ func (h *Host) UnregisterInstance(_ context.Context, id string) error {
 	h.mu.Unlock()
 	// Use Background context so shutdown isn't cut short by the caller's deadline.
 	// Shutdown duration is bounded by m.cfg.Lifecycle.ShutdownGrace.
-	h.shutdownInstance(context.Background(), m)
+	h.shutdownInstance(context.Background(), m) //nolint:contextcheck
 	return nil
 }
 
