@@ -59,7 +59,7 @@ type EntityResult struct {
 // non-light properties (smart plug state) are skipped with one INFO
 // log line so users can see what they're missing.
 func EntitiesFor(dev z2m.Device) []EntityResult {
-	var out []EntityResult
+	out := make([]EntityResult, 0, len(dev.Definition.Exposes))
 	for _, e := range dev.Definition.Exposes {
 		out = append(out, mapExpose(dev, e)...)
 	}

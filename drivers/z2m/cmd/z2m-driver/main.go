@@ -27,10 +27,16 @@ import (
 const driverName, driverVersion = "driver.z2m", "0.1.0"
 
 func main() {
+	if err := run(); err != nil {
+		fmt.Fprintf(os.Stderr, "z2m-driver: %v\n", err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	cfg, err := loadConfig()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "z2m-driver: config: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("config: %w", err)
 	}
 
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
@@ -53,12 +59,10 @@ func main() {
 		TLSSkipVerify: cfg.TLSSkipVerify,
 	})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "z2m-driver: mqtt new: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("mqtt new: %w", err)
 	}
 	if err := mq.Connect(ctx); err != nil {
-		fmt.Fprintf(os.Stderr, "z2m-driver: mqtt connect: %v\n", err)
-		os.Exit(1)
+		return fmt.Errorf("mqtt connect: %w", err)
 	}
 	defer mq.Close()
 
@@ -76,11 +80,10 @@ func main() {
 
 	app.subscribeBridgeTopics()
 
-	runErr := d.Run(ctx)
-	if runErr != nil && !errors.Is(runErr, context.Canceled) {
-		slog.Error("driver run exited", "error", runErr)
-		os.Exit(1)
+	if err := d.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
+		return fmt.Errorf("driver run: %w", err)
 	}
+	return nil
 }
 
 // config is the JSON shape carried in GOHOME_CARPORT_INSTANCE_CONFIG.
@@ -139,12 +142,12 @@ func parseLogLevel(s string) slog.Level {
 // next Reconcile; which entity IDs are downstream of a given state
 // topic (a multi-property device's state topic fans out to N entities).
 type stateCache struct {
-	mu             sync.Mutex
-	entities       map[string]*entityv1.Attributes // entityID → last attrs
-	devices        map[string]z2m.Device           // ieee → last-seen device
-	entityByTopic  map[string][]entityListener     // state topic → which entities consume it
-	friendlyByEnt  map[string]string               // entityID → friendly_name (for /set)
-	ieeeByEnt      map[string]string               // entityID → ieee (for log context)
+	mu            sync.Mutex
+	entities      map[string]*entityv1.Attributes // entityID → last attrs
+	devices       map[string]z2m.Device           // ieee → last-seen device
+	entityByTopic map[string][]entityListener     // state topic → which entities consume it
+	friendlyByEnt map[string]string               // entityID → friendly_name (for /set)
+	ieeeByEnt     map[string]string               // entityID → ieee (for log context)
 }
 
 // entityListener is one entity's binding inside a state topic: which
@@ -157,11 +160,11 @@ type entityListener struct {
 
 func newStateCache() *stateCache {
 	return &stateCache{
-		entities:       map[string]*entityv1.Attributes{},
-		devices:        map[string]z2m.Device{},
-		entityByTopic:  map[string][]entityListener{},
-		friendlyByEnt:  map[string]string{},
-		ieeeByEnt:      map[string]string{},
+		entities:      map[string]*entityv1.Attributes{},
+		devices:       map[string]z2m.Device{},
+		entityByTopic: map[string][]entityListener{},
+		friendlyByEnt: map[string]string{},
+		ieeeByEnt:     map[string]string{},
 	}
 }
 
@@ -382,7 +385,7 @@ func (a *app) onDeviceAvailability(topic string, payload []byte) {
 	stateTopic := strings.TrimSuffix(topic, "/availability")
 
 	var av z2m.AvailabilityState
-	available := true
+	var available bool
 	// Z2M can publish either {"state":"online"} or the bare string "online".
 	if err := json.Unmarshal(payload, &av); err == nil && av.State != "" {
 		available = av.State == "online"

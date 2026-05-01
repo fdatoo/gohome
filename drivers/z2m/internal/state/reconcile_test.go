@@ -131,7 +131,7 @@ func TestReconcileAddBeforeRemoveOrder(t *testing.T) {
 	next := []z2m.Device{deviceByName(t, all, "kitchen_light")}
 	actions := Reconcile(prev, next)
 
-	var addedAt, removedAt int = -1, -1
+	addedAt, removedAt := -1, -1
 	for i, a := range actions {
 		switch a.(type) {
 		case AddEntity:

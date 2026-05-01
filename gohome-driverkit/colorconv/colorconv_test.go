@@ -116,11 +116,11 @@ func TestHSVToRGBKnownPoints(t *testing.T) {
 		h, s, v float64
 		r, g, b uint8
 	}{
-		{0, 0, 0, 0, 0, 0},      // black
+		{0, 0, 0, 0, 0, 0},       // black
 		{0, 0, 1, 255, 255, 255}, // white
-		{0, 1, 1, 255, 0, 0},    // red
-		{120, 1, 1, 0, 255, 0},  // green
-		{240, 1, 1, 0, 0, 255},  // blue
+		{0, 1, 1, 255, 0, 0},     // red
+		{120, 1, 1, 0, 255, 0},   // green
+		{240, 1, 1, 0, 0, 255},   // blue
 	}
 	for _, tc := range cases {
 		r, g, b := HSVToRGB(tc.h, tc.s, tc.v)
@@ -131,7 +131,7 @@ func TestHSVToRGBKnownPoints(t *testing.T) {
 }
 
 func TestHSVOutOfDomainClamped(t *testing.T) {
-	r, g, b := HSVToRGB(720, 2, 5)         // hue wraps; sat/val clamp to 1
+	r, g, b := HSVToRGB(720, 2, 5) // hue wraps; sat/val clamp to 1
 	r2, g2, b2 := HSVToRGB(0, 1, 1)
 	if r != r2 || g != g2 || b != b2 {
 		t.Errorf("clamped HSV mismatch: got (%d,%d,%d), want (%d,%d,%d)", r, g, b, r2, g2, b2)
