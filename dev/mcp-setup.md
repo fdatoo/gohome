@@ -112,4 +112,4 @@ The default socket path is `~/.local/share/switchyard/switchyardd.sock`. Overrid
 switchyard mcp serve --endpoint unix:///path/to/switchyardd.sock
 ```
 
-Or set `GOHOME_ENDPOINT=unix:///path/to/switchyardd.sock` in your environment.
+Or set `SWITCHYARD_ENDPOINT=unix:///path/to/switchyardd.sock` in your environment.

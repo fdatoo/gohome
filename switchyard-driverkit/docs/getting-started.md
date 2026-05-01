@@ -87,7 +87,7 @@ The returned `*entityv1.Attributes` becomes the new tracked state and is automat
 }
 ```
 
-`d.Run` reads env vars set by `switchyardd` (`GOHOME_CARPORT_SOCKET`, `GOHOME_CARPORT_SECRET`, etc.) and serves in a reconnect loop until the process exits.
+`d.Run` reads env vars set by `switchyardd` (`SWITCHYARD_CARPORT_SOCKET`, `SWITCHYARD_CARPORT_SECRET`, etc.) and serves in a reconnect loop until the process exits.
 
 ## 6. Background state emission
 
@@ -112,7 +112,7 @@ go func() {
 go build -o my-driver .
 ```
 
-Add to `$GOHOME_CONFIG_DIR/drivers.toml`:
+Add to `$SWITCHYARD_CONFIG_DIR/drivers.toml`:
 
 ```toml
 [[instance]]

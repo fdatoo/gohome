@@ -176,10 +176,10 @@ log.Fatal(d.Run(context.Background()))
 
 | Variable | Description |
 |---|---|
-| `GOHOME_CARPORT_SOCKET` | Unix domain socket path to listen on |
-| `GOHOME_CARPORT_SECRET` | Per-launch handshake secret |
-| `GOHOME_CARPORT_INSTANCE_ID` | Instance ID from `drivers.toml` |
-| `GOHOME_CARPORT_INSTANCE_CONFIG` | Raw instance config bytes (JSON in v0.x) |
+| `SWITCHYARD_CARPORT_SOCKET` | Unix domain socket path to listen on |
+| `SWITCHYARD_CARPORT_SECRET` | Per-launch handshake secret |
+| `SWITCHYARD_CARPORT_INSTANCE_ID` | Instance ID from `drivers.toml` |
+| `SWITCHYARD_CARPORT_INSTANCE_CONFIG` | Raw instance config bytes (JSON in v0.x) |
 
 `Run` enters a reconnect loop: if the stream closes (host restart, network glitch), it waits with exponential backoff (1s initial, 30s max) and reconnects. The backoff resets to 1s after a session longer than 5s (healthy session, not a crash loop).
 

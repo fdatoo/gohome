@@ -11,8 +11,8 @@ Most driver authors should use the `driver` package. This doc is for power users
 ## `Conn` and `FromEnv`
 
 ```go
-// Reads GOHOME_CARPORT_SOCKET, GOHOME_CARPORT_SECRET,
-// GOHOME_CARPORT_INSTANCE_ID, GOHOME_CARPORT_INSTANCE_CONFIG.
+// Reads SWITCHYARD_CARPORT_SOCKET, SWITCHYARD_CARPORT_SECRET,
+// SWITCHYARD_CARPORT_INSTANCE_ID, SWITCHYARD_CARPORT_INSTANCE_CONFIG.
 conn, err := protocol.FromEnv()
 
 // Or construct directly:

@@ -4,7 +4,7 @@
 
 All switchyard services are served under the `switchyard.v1alpha1.*` protobuf package over [Connect-RPC](https://connectrpc.com/). The same handlers speak Connect, gRPC, and gRPC-Web on both the Unix domain socket (UDS) and the TCP listener.
 
-**Base URL (default):** `http://127.0.0.1:8080` (TCP) or `unix://$GOHOME_DATA_DIR/switchyardd.sock` (UDS)
+**Base URL (default):** `http://127.0.0.1:8080` (TCP) or `unix://$SWITCHYARD_DATA_DIR/switchyardd.sock` (UDS)
 
 **Package prefix:** `switchyard.v1alpha1`
 

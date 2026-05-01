@@ -14,7 +14,7 @@ type fakeCarport struct {
 	unregistered []string
 }
 
-func (f *fakeCarport) RegisterInstance(_ context.Context, id, _ string, _ []byte) error {
+func (f *fakeCarport) RegisterInstance(_ context.Context, id, _, _ string, _ []byte) error {
 	f.registered = append(f.registered, id)
 	return nil
 }

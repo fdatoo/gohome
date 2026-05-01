@@ -323,4 +323,4 @@ Authentication attempts are rate-limited (default: 10 failures per 10-minute win
 
 ### "Invalid session" after server restart
 
-Sessions use signed cookies. If the cookie signing key changes between restarts, existing sessions are invalidated. Ensure `GOHOME_SESSION_KEY` (or the equivalent config field) is set to a stable value across restarts — do not let it default to a random value in production.
+Sessions use signed cookies. If the cookie signing key changes between restarts, existing sessions are invalidated. Ensure `SWITCHYARD_SESSION_KEY` (or the equivalent config field) is set to a stable value across restarts — do not let it default to a random value in production.

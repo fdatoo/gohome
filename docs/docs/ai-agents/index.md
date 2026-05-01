@@ -186,7 +186,7 @@ switchyard mcp serve --endpoint unix:///path/to/switchyardd.sock
 Or set the environment variable:
 
 ```sh
-export GOHOME_ENDPOINT=unix:///path/to/switchyardd.sock
+export SWITCHYARD_ENDPOINT=unix:///path/to/switchyardd.sock
 ```
 
 ### Inspecting MCP activity

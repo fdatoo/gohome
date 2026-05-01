@@ -7,7 +7,7 @@ switchyard ships two binaries:
 - **`switchyardd`** — the daemon process
 - **`switchyard`** — the operator CLI
 
-The CLI connects to the daemon over Connect-RPC. By default it dials the Unix domain socket at `~/.local/share/switchyard/switchyardd.sock`. Override with `--endpoint` or `GOHOME_ENDPOINT`.
+The CLI connects to the daemon over Connect-RPC. By default it dials the Unix domain socket at `~/.local/share/switchyard/switchyardd.sock`. Override with `--endpoint` or `SWITCHYARD_ENDPOINT`.
 
 ---
 
@@ -24,7 +24,7 @@ These flags are accepted by every `switchyard` subcommand.
 | `--log-level <level>` | `warn` | Log verbosity: `error`, `warn`, `info`, `debug` |
 | `-v`, `--verbose` | `false` | Shorthand for `--log-level=debug` |
 
-`GOHOME_ENDPOINT` environment variable overrides `--endpoint`.
+`SWITCHYARD_ENDPOINT` environment variable overrides `--endpoint`.
 
 ---
 

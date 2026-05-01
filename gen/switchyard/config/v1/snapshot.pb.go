@@ -285,6 +285,7 @@ type DriverInstanceConfig struct {
 	DriverName    string                 `protobuf:"bytes,2,opt,name=driver_name,json=driverName,proto3" json:"driver_name,omitempty"`
 	ConfigHash    []byte                 `protobuf:"bytes,3,opt,name=config_hash,json=configHash,proto3" json:"config_hash,omitempty"`
 	Params        []byte                 `protobuf:"bytes,4,opt,name=params,proto3" json:"params,omitempty"`
+	Binary        string                 `protobuf:"bytes,5,opt,name=binary,proto3" json:"binary,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -345,6 +346,13 @@ func (x *DriverInstanceConfig) GetParams() []byte {
 		return x.Params
 	}
 	return nil
+}
+
+func (x *DriverInstanceConfig) GetBinary() string {
+	if x != nil {
+		return x.Binary
+	}
+	return ""
 }
 
 type EntityConfig struct {
@@ -3029,14 +3037,15 @@ const file_switchyard_config_v1_snapshot_proto_rawDesc = "" +
 	"\ascripts\x18\x11 \x03(\v2\".switchyard.config.v1.ScriptConfigR\ascripts\x12@\n" +
 	"\blistener\x18\x14 \x01(\v2$.switchyard.config.v1.ListenerConfigR\blistener\x121\n" +
 	"\x03mcp\x18\x15 \x01(\v2\x1f.switchyard.config.v1.MCPConfigR\x03mcp\x12M\n" +
-	"\rauth_settings\x18\x16 \x01(\v2(.switchyard.config.v1.AuthSettingsConfigR\fauthSettings\"\x80\x01\n" +
+	"\rauth_settings\x18\x16 \x01(\v2(.switchyard.config.v1.AuthSettingsConfigR\fauthSettings\"\x98\x01\n" +
 	"\x14DriverInstanceConfig\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\vdriver_name\x18\x02 \x01(\tR\n" +
 	"driverName\x12\x1f\n" +
 	"\vconfig_hash\x18\x03 \x01(\fR\n" +
 	"configHash\x12\x16\n" +
-	"\x06params\x18\x04 \x01(\fR\x06params\"x\n" +
+	"\x06params\x18\x04 \x01(\fR\x06params\x12\x16\n" +
+	"\x06binary\x18\x05 \x01(\tR\x06binary\"x\n" +
 	"\fEntityConfig\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12#\n" +
 	"\rfriendly_name\x18\x02 \x01(\tR\ffriendlyName\x12\x1f\n" +

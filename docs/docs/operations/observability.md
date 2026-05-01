@@ -23,7 +23,7 @@ switchyardd --log-level debug --log-format json
 Or via environment variables (see [Deployment](deployment.md#environment-variables)):
 
 ```bash
-GOHOME_LOG_LEVEL=debug GOHOME_LOG_FORMAT=json switchyardd
+SWITCHYARD_LOG_LEVEL=debug SWITCHYARD_LOG_FORMAT=json switchyardd
 ```
 
 JSON log lines include `time`, `level`, `msg`, and structured key-value pairs specific to each event. Example:

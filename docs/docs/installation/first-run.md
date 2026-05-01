@@ -180,7 +180,7 @@ If the CLI cannot reach the daemon:
 switchyard --server http://<your-host>:8080 status
 
 # Or export it for the session
-export GOHOME_SERVER=http://<your-host>:8080
+export SWITCHYARD_SERVER=http://<your-host>:8080
 switchyard status
 ```
 
@@ -196,7 +196,7 @@ By default, `switchyardd` creates a local admin session for the user that starte
 switchyard auth token create --name "my-laptop" --role admin
 ```
 
-Store the token securely. Pass it with `--token <token>` or set `GOHOME_TOKEN=<token>` in your environment.
+Store the token securely. Pass it with `--token <token>` or set `SWITCHYARD_TOKEN=<token>` in your environment.
 
 ## What to do next
 

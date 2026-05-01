@@ -30,6 +30,7 @@ message DriverInstanceConfig {
   string driver_name = 2;
   bytes  config_hash = 3;
   bytes  params      = 4;
+  string binary      = 5;
 }
 
 message EntityConfig {

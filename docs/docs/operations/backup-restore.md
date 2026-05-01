@@ -9,9 +9,9 @@ switchyard's persistent state lives in three places:
 
 | Location | Contents | Size guidance |
 |---|---|---|
-| Config directory (`$GOHOME_CONFIG`) | All Pkl source files — your declarations | Typically < 1 MB |
-| SQLite database (`$GOHOME_DATA/switchyard.db`) | Event log, registry projections, snapshots | Grows over time; ~40 GB/year at 200 entities |
-| Driver binaries (`$GOHOME_DATA/drivers/`) | Downloaded driver executables | Varies; reinstallable from release artifacts |
+| Config directory (`$SWITCHYARD_CONFIG`) | All Pkl source files — your declarations | Typically < 1 MB |
+| SQLite database (`$SWITCHYARD_DATA/switchyard.db`) | Event log, registry projections, snapshots | Grows over time; ~40 GB/year at 200 entities |
+| Driver binaries (`$SWITCHYARD_DATA/drivers/`) | Downloaded driver executables | Varies; reinstallable from release artifacts |
 
 A complete backup captures all three. The config directory is already git-trackable — the recommended happy path is to commit it to a private repo so it has its own history independent of the daemon.
 
@@ -37,10 +37,10 @@ When `--encrypt` is passed, switchyardd prompts for a passphrase and encrypts th
 
 ### Automation
 
-For unattended backups, pipe the passphrase in or set it via `GOHOME_BACKUP_PASSPHRASE`:
+For unattended backups, pipe the passphrase in or set it via `SWITCHYARD_BACKUP_PASSPHRASE`:
 
 ```bash
-GOHOME_BACKUP_PASSPHRASE="$(cat /run/secrets/backup_key)" \
+SWITCHYARD_BACKUP_PASSPHRASE="$(cat /run/secrets/backup_key)" \
   switchyard backup --encrypt /mnt/nas/switchyard-$(date +%Y%m%d).tar.gz
 ```
 
@@ -101,11 +101,11 @@ Until `switchyard backup` is implemented, use the SQLite CLI directly:
 
 ```bash
 # Stop the daemon first, or use the online backup API directly
-sqlite3 "$GOHOME_DATA/switchyard.db" ".backup /tmp/switchyard-backup.db"
+sqlite3 "$SWITCHYARD_DATA/switchyard.db" ".backup /tmp/switchyard-backup.db"
 
 # Archive config + db snapshot
 tar -czf ~/backups/switchyard-$(date +%Y%m%d).tar.gz \
-  -C "$(dirname "$GOHOME_CONFIG")" "$(basename "$GOHOME_CONFIG")" \
+  -C "$(dirname "$SWITCHYARD_CONFIG")" "$(basename "$SWITCHYARD_CONFIG")" \
   /tmp/switchyard-backup.db
 
 rm /tmp/switchyard-backup.db

@@ -145,7 +145,7 @@ docker exec switchyardd switchyard status
 **Set a default server** so you don't repeat the flag:
 
 ```bash
-export GOHOME_SERVER=http://localhost:8080
+export SWITCHYARD_SERVER=http://localhost:8080
 switchyard status
 ```
 
