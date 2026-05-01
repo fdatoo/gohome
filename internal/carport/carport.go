@@ -1,6 +1,6 @@
-// Package carport hosts the driver-supervisor subsystem: drivers.toml
-// configuration, per-instance subprocess lifecycle, command dispatch, and
-// event ingest from drivers over the Carport gRPC protocol (v1alpha1).
+// Package carport hosts the driver-supervisor subsystem: per-instance subprocess
+// lifecycle, command dispatch, and event ingest from drivers over the Carport
+// gRPC protocol (v1alpha1). Driver instances are declared via main.pkl.
 //
 // See docs/superpowers/specs/2026-04-21-c2-carport-protocol-design.md.
 package carport
@@ -8,6 +8,7 @@ package carport
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log/slog"
 	"sync"
 
@@ -18,27 +19,22 @@ import (
 
 // HostConfig is the daemon-level configuration handed to New.
 type HostConfig struct {
-	// DriversTOMLPath is the absolute path to drivers.toml. Empty or missing
-	// file → zero configured instances (host is a no-op but still starts).
-	DriversTOMLPath string
-
-	// SocketDir is where per-instance UDS files are created. Defaults to
-	// <data_dir>/carport/ in the daemon wiring (T18); required here if
-	// any instance is to be spawned.
+	// SocketDir is where per-instance UDS files are created.
 	SocketDir string
 }
 
 // Host is the public face of the carport subsystem. Instances are spawned
 // and supervised on Start; Stop shuts them down gracefully.
 type Host struct {
-	cfg     HostConfig
-	cfgData *Config
+	cfg HostConfig
 
 	db      *sql.DB
 	store   *eventstore.Store
 	router  *Router
 	logger  *slog.Logger
 	metrics *observability.Metrics
+
+	ctx context.Context // root context for lifecycle goroutines; set by Start
 
 	mu        sync.RWMutex
 	instances map[string]*managedInstance // keyed by Instance.ID
@@ -75,20 +71,9 @@ type managedInstance struct {
 }
 
 // New constructs a Host. The host is inert until Start is called.
-// Passing an empty DriversTOMLPath OR a path that does not exist yields a
-// Host with zero instances; Start is then a no-op.
 func New(cfg HostConfig, db *sql.DB, store *eventstore.Store, reg *registry.Registry, logger *slog.Logger, metrics *observability.Metrics) (*Host, error) {
-	cfgData := &Config{}
-	if cfg.DriversTOMLPath != "" {
-		loaded, err := LoadConfig(cfg.DriversTOMLPath)
-		if err != nil {
-			return nil, err
-		}
-		cfgData = loaded
-	}
 	return &Host{
 		cfg:       cfg,
-		cfgData:   cfgData,
 		db:        db,
 		store:     store,
 		router:    NewRouter(reg),
@@ -99,21 +84,11 @@ func New(cfg HostConfig, db *sql.DB, store *eventstore.Store, reg *registry.Regi
 	}, nil
 }
 
-// Start launches lifecycle goroutines for each enabled instance. Non-blocking.
-// After Start returns, supervision goroutines are running; errors during
-// spawn/handshake are reported through DriverEvents in the event log, not
-// returned from this call.
+// Start initialises the host's root context. Non-blocking.
+// Driver instances are added dynamically via RegisterInstance (driven by
+// main.pkl evaluation in the config manager).
 func (h *Host) Start(ctx context.Context) error {
-	for _, inst := range h.cfgData.Instances {
-		if !inst.Enabled {
-			continue
-		}
-		m := &managedInstance{cfg: inst, state: StateDeclared}
-		h.mu.Lock()
-		h.instances[inst.ID] = m
-		h.mu.Unlock()
-		h.launchLifecycle(ctx, m)
-	}
+	h.ctx = ctx
 	return nil
 }
 
@@ -133,6 +108,85 @@ func (h *Host) Stop(ctx context.Context) {
 			h.shutdownInstance(ctx, m)
 		}
 	})
+}
+
+// RegisterInstance adds a new driver instance and begins its lifecycle goroutine.
+// Returns an error if an instance with that ID is already registered, if the host
+// has not been started, or if the host has been stopped.
+func (h *Host) RegisterInstance(_ context.Context, id, driverName, binary string, params []byte) error {
+	if h.ctx == nil {
+		return fmt.Errorf("carport host not started")
+	}
+	select {
+	case <-h.stopped:
+		return fmt.Errorf("carport host is stopped")
+	default:
+	}
+	h.mu.Lock()
+	if _, exists := h.instances[id]; exists {
+		h.mu.Unlock()
+		return fmt.Errorf("instance %q already registered", id)
+	}
+	inst := Instance{
+		ID:         id,
+		Binary:     binary,
+		Enabled:    true,
+		ConfigJSON: params,
+		Lifecycle:  defaultLifecycleConfig(),
+	}
+	m := &managedInstance{cfg: inst, state: StateDeclared}
+	h.instances[id] = m
+	h.mu.Unlock()
+	h.launchLifecycle(h.ctx, m) //nolint:contextcheck // lifecycle goroutine must outlive the caller's context
+	return nil
+}
+
+// RegisterInstanceWithLifecycle is like RegisterInstance but accepts an explicit
+// LifecycleConfig, allowing callers (e.g. integration tests) to override timing.
+// The CarportManager interface uses RegisterInstance which applies defaultLifecycleConfig.
+func (h *Host) RegisterInstanceWithLifecycle(_ context.Context, id, _, binary string, params []byte, lc LifecycleConfig) error {
+	if h.ctx == nil {
+		return fmt.Errorf("carport host not started")
+	}
+	select {
+	case <-h.stopped:
+		return fmt.Errorf("carport host is stopped")
+	default:
+	}
+	h.mu.Lock()
+	if _, exists := h.instances[id]; exists {
+		h.mu.Unlock()
+		return fmt.Errorf("instance %q already registered", id)
+	}
+	inst := Instance{
+		ID:         id,
+		Binary:     binary,
+		Enabled:    true,
+		ConfigJSON: params,
+		Lifecycle:  lc,
+	}
+	m := &managedInstance{cfg: inst, state: StateDeclared}
+	h.instances[id] = m
+	h.mu.Unlock()
+	h.launchLifecycle(h.ctx, m) //nolint:contextcheck // lifecycle goroutine must outlive the caller's context
+	return nil
+}
+
+// UnregisterInstance stops and removes a driver instance by ID.
+// Returns an error if the instance is not found.
+func (h *Host) UnregisterInstance(_ context.Context, id string) error {
+	h.mu.Lock()
+	m, exists := h.instances[id]
+	if !exists {
+		h.mu.Unlock()
+		return fmt.Errorf("instance %q not found", id)
+	}
+	delete(h.instances, id)
+	h.mu.Unlock()
+	// Use Background context so shutdown isn't cut short by the caller's deadline.
+	// Shutdown duration is bounded by m.cfg.Lifecycle.ShutdownGrace.
+	h.shutdownInstance(context.Background(), m) //nolint:contextcheck
+	return nil
 }
 
 // launchLifecycle and shutdownInstance are implemented in supervisor.go.

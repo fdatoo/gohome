@@ -74,34 +74,12 @@ func runScenario(t *testing.T, mode string, until func(*carport.Host) bool) *car
 		t.Fatal(err)
 	}
 
-	cfgDir := t.TempDir()
-	tomlPath := filepath.Join(cfgDir, "drivers.toml")
-	// Short timeouts to keep the test fast.
-	content := "[[instance]]\n" +
-		"id = \"test_one\"\n" +
-		"binary = \"" + bin + "\"\n" +
-		"enabled = true\n" +
-		"config_json = \"{\\\"TESTDRIVER_MODE\\\":\\\"" + mode + "\\\"}\"\n" +
-		"[instance.lifecycle]\n" +
-		"handshake_deadline_ms = 2000\n" +
-		"health_probe_interval_ms = 500\n" +
-		"health_probe_timeout_ms = 300\n" +
-		"health_failures_to_restart = 2\n" +
-		"restart_backoff_initial_ms = 100\n" +
-		"restart_backoff_max_ms = 500\n" +
-		"restart_budget_window_minutes = 1\n" +
-		"restart_budget_max = 3\n" +
-		"shutdown_grace_ms = 1000\n"
-	if err := os.WriteFile(tomlPath, []byte(content), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
 	sockDir, err := os.MkdirTemp("", "ghsd")
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = os.RemoveAll(sockDir) })
-	h, err := carport.New(carport.HostConfig{DriversTOMLPath: tomlPath, SocketDir: sockDir},
+	h, err := carport.New(carport.HostConfig{SocketDir: sockDir},
 		f.db, f.store, reg, newTestLogger(), newTestMetrics())
 	if err != nil {
 		t.Fatal(err)
@@ -112,6 +90,24 @@ func runScenario(t *testing.T, mode string, until func(*carport.Host) bool) *car
 		h.Stop(context.Background())
 	})
 	if err := h.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	params := []byte(`{"TESTDRIVER_MODE":"` + mode + `"}`)
+	// Use short timeouts so scenarios resolve within the 10 s test window.
+	// The default lifecycle has 15 s health probes which would cause crash-detection
+	// tests to time out before the supervisor transitions out of StateRunning.
+	lc := carport.LifecycleConfig{
+		HandshakeDeadline:       2 * time.Second,
+		HealthProbeInterval:     500 * time.Millisecond,
+		HealthProbeTimeout:      300 * time.Millisecond,
+		HealthFailuresToRestart: 2,
+		RestartBackoffInitial:   100 * time.Millisecond,
+		RestartBackoffMax:       500 * time.Millisecond,
+		RestartBudgetWindow:     time.Minute,
+		RestartBudgetMax:        3,
+		ShutdownGrace:           time.Second,
+	}
+	if err := h.RegisterInstanceWithLifecycle(ctx, "test_one", "testdriver", bin, params, lc); err != nil {
 		t.Fatal(err)
 	}
 	if !waitFor(10*time.Second, func() bool { return until(h) }) {

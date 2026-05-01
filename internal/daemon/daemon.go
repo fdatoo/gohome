@@ -45,6 +45,9 @@ import (
 	"github.com/fdatoo/gohome/internal/web"
 )
 
+// Compile-time assertion: *carport.Host must satisfy config.CarportManager.
+var _ config.CarportManager = (*carport.Host)(nil)
+
 type Daemon struct {
 	cfg              Config
 	logger           *slog.Logger
@@ -183,17 +186,12 @@ func (d *Daemon) Run(ctx context.Context) error {
 	}
 
 	// Phase 4.5: carport — driver supervisor
-	driversTOML := d.cfg.DriversTOMLPath
-	if driversTOML == "@data/drivers.toml" {
-		driversTOML = filepath.Join(dataDir, "drivers.toml")
-	}
 	socketDir := d.cfg.CarportSocketDir
 	if socketDir == "@data/carport" {
 		socketDir = filepath.Join(dataDir, "carport")
 	}
 	cport, err := carport.New(carport.HostConfig{
-		DriversTOMLPath: driversTOML,
-		SocketDir:       socketDir,
+		SocketDir: socketDir,
 	}, d.db, d.store, d.registry, d.logger, d.metrics)
 	if err != nil {
 		return fmt.Errorf("carport: %w", err)
@@ -217,7 +215,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	mainPkl := filepath.Join(configDir, "main.pkl")
 	switch _, statErr := os.Stat(mainPkl); {
 	case statErr == nil:
-		cfgMgr, err := config.NewManager(ctx, configDir, d.store, &nopCarportManager{})
+		cfgMgr, err := config.NewManager(ctx, configDir, d.store, d.carport)
 		if err != nil {
 			return fmt.Errorf("config manager: %w", err)
 		}
@@ -598,15 +596,4 @@ func (a *carportAdapter) Dispatch(ctx context.Context, entityID, capability stri
 		return nil, err
 	}
 	return &starlark.DispatchResult{Ok: res.GetOk(), Error: res.GetErrorMessage()}, nil
-}
-
-// nopCarportManager satisfies config.CarportManager until carport.Host gains
-// RegisterInstance/UnregisterInstance methods (C5+).
-type nopCarportManager struct{}
-
-func (n *nopCarportManager) RegisterInstance(_ context.Context, _, _ string, _ []byte) error {
-	return nil
-}
-func (n *nopCarportManager) UnregisterInstance(_ context.Context, _ string) error {
-	return nil
 }

@@ -310,6 +310,7 @@ func parseConfigJSON(text, configDir string) (*configpb.ConfigSnapshot, error) {
 		var base struct {
 			ID         string `json:"id"`
 			DriverName string `json:"driverName"`
+			Binary     string `json:"binary"`
 		}
 		if err := json.Unmarshal(rawInst, &base); err != nil {
 			return nil, fmt.Errorf("parse driver instance: %w", err)
@@ -318,6 +319,7 @@ func parseConfigJSON(text, configDir string) (*configpb.ConfigSnapshot, error) {
 		snap.DriverInstances = append(snap.DriverInstances, &configpb.DriverInstanceConfig{
 			Id:         base.ID,
 			DriverName: base.DriverName,
+			Binary:     base.Binary,
 			ConfigHash: h[:],
 			Params:     rawInst,
 		})
