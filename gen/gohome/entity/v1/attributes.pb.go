@@ -24,8 +24,7 @@ const (
 )
 
 // Attributes carries both capabilities (static) and live state (dynamic)
-// for an entity. Specific payloads land in later milestones — C1 only
-// needs the envelope compiling. Future oneof variants get added here.
+// for an entity.
 type Attributes struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Kind:
@@ -138,7 +137,7 @@ type Attributes_SwitchDevice struct {
 }
 
 type Attributes_NumericSensor struct {
-	NumericSensor *NumericSensor `protobuf:"bytes,12,opt,name=numeric_sensor,json=numericSensor,proto3,oneof"` // was: Sensor sensor; field number stays
+	NumericSensor *NumericSensor `protobuf:"bytes,12,opt,name=numeric_sensor,json=numericSensor,proto3,oneof"`
 }
 
 type Attributes_BinarySensor struct {

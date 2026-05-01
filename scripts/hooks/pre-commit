@@ -11,6 +11,16 @@ echo "pre-commit: tidy check..."
 go mod tidy
 git diff --exit-code go.mod go.sum || fail "go.mod/go.sum changed after 'go mod tidy' — stage the updated files"
 
+echo "pre-commit: proto regeneration..."
+if git diff --cached --name-only --diff-filter=d | grep -q '\.proto$'; then
+  if command -v buf >/dev/null 2>&1; then
+    PATH="$PATH:$(go env GOPATH)/bin" buf generate
+    git add gen/
+  else
+    echo "pre-commit: buf not found, skipping proto regeneration (CI will verify)"
+  fi
+fi
+
 echo "pre-commit: build (native)..."
 go build ./... || fail "build failed"
 
