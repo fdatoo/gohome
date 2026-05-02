@@ -1,9 +1,27 @@
 module switchyard.carport
 
 // DriverInstance is the base class for all driver instance configs.
-// Driver authors extend this with their own typed fields.
+// Driver authors extend this (typically transitively via switchyard:driver's
+// `Instance` class) with their own typed fields.
 abstract class DriverInstance {
   id: String(!isEmpty)
   driverName: String(!isEmpty)
-  binary: String(!isEmpty)
+  enabled: Boolean = true
+  lifecycle: LifecycleOverride? = null
+}
+
+// Used at every override layer (manifest defaults + per-instance). Each field
+// nullable. The Pkl JSON renderer omits null fields, so each layer's wire
+// format only carries what the author explicitly set. Concrete defaults live
+// in Go (carport.DefaultLifecycleConfig).
+class LifecycleOverride {
+  handshakeDeadline:       Duration? = null
+  healthProbeInterval:     Duration? = null
+  healthProbeTimeout:      Duration? = null
+  healthFailuresToRestart: Int?      = null
+  shutdownGrace:           Duration? = null
+  restartBackoffInitial:   Duration? = null
+  restartBackoffMax:       Duration? = null
+  restartBudgetWindow:     Duration? = null
+  restartBudgetMax:        Int?      = null
 }

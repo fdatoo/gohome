@@ -23,9 +23,10 @@ type pklEvaluator struct {
 	ev pkl.Evaluator
 }
 
-func newPklEvaluator(ctx context.Context) (*pklEvaluator, error) {
+func newPklEvaluator(ctx context.Context, driversRoot string) (*pklEvaluator, error) {
 	ev, err := pkl.NewEvaluator(ctx, pkl.PreconfiguredOptions,
 		pkl.WithModuleReader(&switchyardModuleReader{}),
+		pkl.WithModuleReader(&driverModuleReader{root: driversRoot}),
 		pkl.WithResourceReader(&starlarkValidatorReader{}),
 	)
 	if err != nil {
@@ -310,16 +311,17 @@ func parseConfigJSON(text, configDir string) (*configpb.ConfigSnapshot, error) {
 		var base struct {
 			ID         string `json:"id"`
 			DriverName string `json:"driverName"`
-			Binary     string `json:"binary"`
 		}
 		if err := json.Unmarshal(rawInst, &base); err != nil {
 			return nil, fmt.Errorf("parse driver instance: %w", err)
 		}
 		h := sha256.Sum256(rawInst)
+		// Binary is populated server-side in Manager.Apply by looking up the
+		// driver registry. Per-instance enabled and lifecycle live in the
+		// raw Params JSON and are decoded by parseInstanceOptions at apply time.
 		snap.DriverInstances = append(snap.DriverInstances, &configpb.DriverInstanceConfig{
 			Id:         base.ID,
 			DriverName: base.DriverName,
-			Binary:     base.Binary,
 			ConfigHash: h[:],
 			Params:     rawInst,
 		})
@@ -508,8 +510,8 @@ func parseConfigJSON(text, configDir string) (*configpb.ConfigSnapshot, error) {
 // ValidateOffline evaluates the Pkl config in configDir and runs compile-time
 // checks without connecting to a running daemon. Returns validation errors
 // alongside any snapshot parse errors.
-func ValidateOffline(ctx context.Context, configDir string) (*configpb.ConfigSnapshot, []ValidationError, error) {
-	ev, err := newPklEvaluator(ctx)
+func ValidateOffline(ctx context.Context, configDir, driversRoot string) (*configpb.ConfigSnapshot, []ValidationError, error) {
+	ev, err := newPklEvaluator(ctx, driversRoot)
 	if err != nil {
 		return nil, nil, err
 	}

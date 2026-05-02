@@ -209,13 +209,27 @@ func (d *Daemon) Run(ctx context.Context) error {
 	}
 	d.configDir = configDir
 
+	driversDir := d.cfg.DriversDir
+	if driversDir == "" {
+		driversDir = filepath.Join(dataDir, "drivers")
+	} else {
+		driversDir = expandHome(driversDir)
+	}
+
+	// One-shot deprecation log for users with a leftover drivers.toml.
+	if _, err := os.Stat(filepath.Join(dataDir, "drivers.toml")); err == nil {
+		d.logger.Warn("drivers.toml is no longer read; instances are configured in main.pkl",
+			"path", filepath.Join(dataDir, "drivers.toml"),
+		)
+	}
+
 	// Only construct the config.Manager (which spawns a Pkl JVM subprocess) if
 	// main.pkl exists. A brand-new install has no config yet; log and proceed
 	// rather than refusing to start. A present-but-invalid main.pkl still errors.
 	mainPkl := filepath.Join(configDir, "main.pkl")
 	switch _, statErr := os.Stat(mainPkl); {
 	case statErr == nil:
-		cfgMgr, err := config.NewManager(ctx, configDir, d.store, d.carport)
+		cfgMgr, err := config.NewManager(ctx, configDir, driversDir, d.store, d.carport)
 		if err != nil {
 			return fmt.Errorf("config manager: %w", err)
 		}

@@ -1,0 +1,58 @@
+/// Base module each driver's manifest.pkl `extends`. Provides the typed
+/// surface for manifest fields plus the abstract `Instance` class subclasses
+/// extend.
+///
+/// Pkl notes (verified empirically with Pkl 0.31.1):
+///   * `open module` + manifests using `extends` is required — an `amends`
+///     module cannot declare new non-local classes (`Class needs a `local`
+///     modifier. To define a non-local class, extend rather than amend the
+///     parent module (which must be `open` for extension)`).
+///   * `name` and `version` must be `const` so per-driver instance classes
+///     can reference them in class-level defaults (e.g. `driverName = name`).
+open module switchyard.driver
+
+import "switchyard:carport" as carport
+
+/// The driver's short name. Must equal the containing directory name; the
+/// daemon enforces this at registry-scan time.
+const name: String
+
+/// SemVer driver version.
+const version: String
+
+description: String?
+
+/// Entity domain types this driver registers (e.g. "light", "scene").
+produces: Listing<String>
+
+/// `DriverEvent.kind` values this driver may emit. Optional.
+driverEventTypes: Listing<String> = new {}
+
+/// Override the binary name. `null` resolves to "<name>-driver" alongside
+/// `manifest.pkl`. Relative paths resolve against the driver dir; absolute
+/// paths are honored as-is.
+binary: String?
+
+/// Per-driver lifecycle defaults. Each field nullable; unset fields fall
+/// through to `carport.DefaultLifecycleConfig()` in Go.
+lifecycleDefaults: carport.LifecycleOverride = new {}
+
+/// Base for every driver's instance class. Subclasses are declared inside
+/// the driver's manifest.pkl and add typed fields plus the one-line
+/// boilerplate `driverName = name` (which auto-derives the driver name from
+/// the module's `name` field — Pkl's lexical scoping requires this default
+/// to be written in the same module that sets `name`, not on this base).
+abstract class Instance extends carport.DriverInstance {
+}
+
+// Render manifests as JSON. switchyardd's registry uses EvaluateOutputText
+// and json.Unmarshal to decode; Pkl's default PCF renderer would not parse.
+// Duration converter mirrors switchyard:config so parsePklDuration handles
+// both layers uniformly.
+output {
+  renderer = new JsonRenderer {
+    converters {
+      [Duration] = (it) -> "\(it.value).\(it.unit)"
+    }
+  }
+}

@@ -10,7 +10,7 @@ import (
 
 func TestPklValidator_RejectsInvalidStarlark(t *testing.T) {
 	ctx := context.Background()
-	ev, err := newPklEvaluator(ctx)
+	ev, err := newPklEvaluator(ctx, t.TempDir())
 	if err != nil {
 		t.Fatalf("newPklEvaluator: %v", err)
 	}
