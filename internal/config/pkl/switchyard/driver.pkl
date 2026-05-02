@@ -44,3 +44,15 @@ lifecycleDefaults: carport.LifecycleOverride = new {}
 /// to be written in the same module that sets `name`, not on this base).
 abstract class Instance extends carport.DriverInstance {
 }
+
+// Render manifests as JSON. switchyardd's registry uses EvaluateOutputText
+// and json.Unmarshal to decode; Pkl's default PCF renderer would not parse.
+// Duration converter mirrors switchyard:config so parsePklDuration handles
+// both layers uniformly.
+output {
+  renderer = new JsonRenderer {
+    converters {
+      [Duration] = (it) -> "\(it.value).\(it.unit)"
+    }
+  }
+}
