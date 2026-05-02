@@ -229,25 +229,25 @@ func validDriverName(s string) bool { /* … */ }
 - Daemon resolves `expandHome(cfg.DriversDir)` (or the default) at startup.
 - New CLI flag `--drivers-dir` on `switchyardd` (defaults to empty/unset, populated from `Config`) and on `switchyard config validate` (defaults to `<data-dir>/drivers/`).
 
-### Carport supervisor changes
+### Driver registry and supervisor changes
 
-`internal/carport/`:
+There is **no existing `drivers.toml` loader to remove** — the supervisor is already fed entirely by the dynamic-registration path (`internal/config/manager.go:Apply` → `CarportManager.RegisterInstance`). Today the binary path travels through `configpb.DriverInstanceConfig.Binary`, sourced from the Pkl `binary` field on `carport.DriverInstance`. With this change, the binary moves to the manifest, and the resolution becomes:
 
-1. **Delete TOML loader.** Anywhere that reads `drivers.toml` is removed. The `Instance` struct stays — it is the in-process supervisor model, not a TOML schema. `defaultLifecycleConfig()` stays as the bottom of the lifecycle merge.
-2. **Single source of truth = `ConfigSnapshot.DriverInstances`.** The dynamic-registration code path that already feeds the supervisor from the Pkl evaluator becomes the only path. Existing add/remove delta handling on config reload covers the lifecycle.
-3. **Driver registry, built once at startup and refreshed on config reload.** A small `driverRegistry` scans `<drivers-root>/*/manifest.pkl`, evaluates each through the same Pkl evaluator, and caches by name → `{binaryPath, lifecycleDefaults}`. Used at instance spawn to resolve binary path and merge lifecycle.
-4. **Binary path resolution at spawn:** supervisor reads `driverName` from the instance JSON, looks up the registry entry, resolves `<drivers-root>/<driverName>/<binary or "<name>-driver">`. Absolute `binary` is honored as-is.
-5. **Lifecycle merge** (effective config for an instance):
+1. **Driver registry in `internal/config/`** (new, consumed by `Manager.Validate` and `Manager.Apply`). At Manager construction it scans `<drivers-root>/*/manifest.pkl`, evaluates each through the same Pkl evaluator, and caches `name → {binaryPath, lifecycleDefaults, manifestPath}`. The registry is rebuilt on `Manager.Validate` so freshly-installed drivers are picked up on the next config reload without a daemon restart.
+2. **Binary path resolution happens server-side in `Manager.Apply`** — after Pkl evaluation, before calling the carport. For each instance: look up `driverName` in the registry, resolve `<drivers-root>/<driverName>/<binary or "<name>-driver">` (absolute `binary` honored as-is), and write that path into `configpb.DriverInstanceConfig.Binary`. The carport supervisor receives a fully-resolved binary path and is unchanged.
+3. **`CarportManager` interface gains `enabled` and `lifecycle`** in the registration signature (or a new `RegisterInstanceFull` method — implementer's choice). `Manager.Apply` computes the effective lifecycle (defaults ← manifest ← instance) before the call.
+4. **Lifecycle merge** (effective config for an instance, computed in `Manager.Apply`):
    ```
-   defaultLifecycleConfig()         // Go-side defaults
-     ← manifest.lifecycleDefaults   // any non-zero fields override
-     ← instance.lifecycle           // any non-null fields override
+   defaultLifecycleConfig()         // Go-side defaults from internal/carport/config.go
+     ← manifest.lifecycleDefaults   // non-default fields override
+     ← instance.lifecycle           // non-null fields override
    ```
-6. **`enabled = false`** instances are evaluated, validated, and tracked but not spawned. Supervisor logs them at info level on startup.
+5. **`enabled = false`** instances are evaluated and tracked in `Manager`'s view of the snapshot but not registered with the carport. They appear in `switchyard config show` / similar surfaces; the carport never sees them. (No new "tracked but not spawned" state in the supervisor.)
+6. **`carport.Instance.Binary` field stays.** It's the in-process supervisor model field used by `spawn()` (`internal/carport/supervisor.go:187`). The change is purely about *where the value comes from* (manifest registry, not Pkl per-instance).
 
 ### `drivers.toml` deprecation
 
-Daemon emits a one-shot warn-level log if `<data-dir>/drivers.toml` exists at startup, then ignores it. No code path reads it. No automatic migration tooling.
+Daemon emits a one-shot warn-level log if `<data-dir>/drivers.toml` exists at startup, then ignores it. There is no code path that currently reads this file (nothing to remove); the warning is purely operator-facing for users who left an old TOML behind.
 
 ## Validation rules
 
@@ -269,26 +269,32 @@ The directory-name vs. `name`-field check is performed in Go after Pkl evaluatio
 **Added:**
 
 - `internal/config/pkl/switchyard/driver.pkl` — base module described above
-- `internal/config/evaluator_driver_reader.go` (or inline in `evaluator.go`) — `driverModuleReader` + `validDriverName`
-- `internal/carport/driver_registry.go` — startup scan of `<drivers-root>/*/manifest.pkl`, cached resolution
+- `internal/config/driver_reader.go` — `driverModuleReader` + `validDriverName`
+- `internal/config/driver_registry.go` — startup scan of `<drivers-root>/*/manifest.pkl`, cached resolution; binary-path + lifecycle-defaults lookup
 
 **Modified:**
 
 - `internal/config/pkl/switchyard/carport.pkl` — drop `binary` from `DriverInstance`; add `enabled`, `lifecycle`; add `LifecycleConfig` and `LifecycleOverride` classes
-- `internal/config/evaluator.go` — `newPklEvaluator` takes `driversRoot`; registers `driverModuleReader`
-- `internal/cli/config.go`, `internal/cli/cmd_mcp.go` — plumb `--drivers-dir`
-- `internal/daemon/config.go`, `internal/daemon/daemon.go` — `DriversDir` field; resolution
-- `cmd/switchyardd/main.go` — `--drivers-dir` flag
-- `internal/carport/config.go` — drop TOML loader; `Instance` struct stays; `defaultLifecycleConfig()` stays
-- `internal/carport/supervisor.go` — single Pkl-driven feed; binary resolution via registry; lifecycle merge
-- `docs/docs/configuration/drivers.md` — drop the C4-deferred caveat; document the layout, the `--drivers-dir` flag, and the migration from `drivers.toml`
+- `internal/config/evaluator.go` — `newPklEvaluator` takes `driversRoot`; registers `driverModuleReader`; `ValidateOffline` accepts `driversRoot`
+- `internal/config/manager.go` — `NewManager` accepts `driversRoot`; constructs the registry; `Apply` resolves binary path and lifecycle from registry before calling `CarportManager`
+- `internal/config/manager.go` — `CarportManager` interface gains `enabled` and `lifecycle` parameters (or new `RegisterInstanceFull`); existing `RegisterInstance` deprecated
+- `internal/carport/carport.go` — implements the new `CarportManager` method on `*Host`
+- `internal/cli/config.go` — `--drivers-dir` flag on `validate`; plumbed to `ValidateOffline`
+- `internal/daemon/config.go` — new `DriversDir string` field
+- `internal/daemon/daemon.go` — resolves `DriversDir` (default `<data-dir>/drivers/`); passes to `config.NewManager`; emits one-shot deprecation log if `<data-dir>/drivers.toml` exists
+- `cmd/switchyardd/main.go` — new `--drivers-dir` flag
+- `docs/docs/configuration/drivers.md` — drop the C4-deferred caveat; document the layout, the `--drivers-dir` flag, and the migration from per-instance binary
 - `docs/docs/drivers/building/manifest.md` — drop the C4 caveat boxes; document Shape α; show the actual `switchyard:driver` module surface
-- All evaluator-call sites in tests get the extra `driversRoot` argument (typically a `t.TempDir()` with no manifests)
+- All evaluator-call sites in tests (`internal/config/evaluator_integration_test.go`, `internal/config/evaluator_starlark_test.go`, `internal/config/manager_test.go`) get the extra `driversRoot` argument (typically a `t.TempDir()` with no manifests, plus one or two with hand-written manifests for the new tests below)
+
+**Not in modified files list (verified during planning):**
+
+- `internal/cli/cmd_mcp.go` does not construct an evaluator — talks to the running daemon over RPC
+- `internal/config/pkl/PklProject.pkl` does not need updating — module discovery is via `switchyardModuleReader`, not project paths
 
 **Removed:**
 
-- Anything in `internal/carport/` that parses `drivers.toml` or builds an `Instance` from TOML
-- Tests for the TOML loader
+- (Nothing — there is no existing TOML loader code path. The `Instance` struct, `defaultLifecycleConfig()`, and supervisor binary-spawn code all stay.)
 
 **One-shot operator action (outside the codebase):**
 
