@@ -30,6 +30,7 @@ func newConfigCmd(gf *globalFlags) *cobra.Command {
 func newConfigValidateCmd(gf *globalFlags) *cobra.Command {
 	var offline bool
 	var configDir string
+	var driversDir string
 	c := &cobra.Command{
 		Use:   "validate",
 		Short: "Evaluate and validate config without applying",
@@ -38,11 +39,16 @@ func newConfigValidateCmd(gf *globalFlags) *cobra.Command {
 				if configDir == "" {
 					configDir = filepath.Join(expandHome(gf.DataDir), "config")
 				}
+				if driversDir == "" {
+					driversDir = filepath.Join(expandHome(gf.DataDir), "drivers")
+				} else {
+					driversDir = expandHome(driversDir)
+				}
 				mainPkl := filepath.Join(configDir, "main.pkl")
 				if _, err := os.Stat(mainPkl); err != nil {
 					return fmt.Errorf("main.pkl not found in %s: %w", configDir, err)
 				}
-				_, validationErrs, err := config.ValidateOffline(cmd.Context(), configDir)
+				_, validationErrs, err := config.ValidateOffline(cmd.Context(), configDir, driversDir)
 				if err != nil {
 					return fmt.Errorf("config eval failed: %w", err)
 				}
@@ -90,6 +96,7 @@ func newConfigValidateCmd(gf *globalFlags) *cobra.Command {
 	}
 	c.Flags().BoolVar(&offline, "offline", false, "validate locally without connecting to the daemon")
 	c.Flags().StringVar(&configDir, "config-dir", "", "config directory to validate (default: <data-dir>/config)")
+	c.Flags().StringVar(&driversDir, "drivers-dir", "", "drivers directory to scan (default: <data-dir>/drivers)")
 	return c
 }
 

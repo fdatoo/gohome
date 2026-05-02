@@ -27,11 +27,12 @@ type eventStore interface {
 // Manager is the main entry point for config evaluation, validation, and application.
 // It is safe for concurrent use.
 type Manager struct {
-	configDir  string
-	ev         configEvaluator
-	store      eventStore
-	carportMgr CarportManager
-	keyring    Keyring
+	configDir   string
+	driversRoot string
+	ev          configEvaluator
+	store       eventStore
+	carportMgr  CarportManager
+	keyring     Keyring
 
 	mu           sync.RWMutex
 	current      *configpb.ConfigSnapshot
@@ -47,16 +48,19 @@ func (m *Manager) OnApplied(fn func(*configpb.ConfigSnapshot)) {
 }
 
 // NewManager creates a Manager that evaluates config at configDir/main.pkl.
-func NewManager(ctx context.Context, configDir string, store eventStore, carportMgr CarportManager) (*Manager, error) {
-	ev, err := newPklEvaluator(ctx)
+// driversRoot is the directory the driver: URI scheme reader resolves against;
+// pass an empty string only in test setups that won't import any driver: modules.
+func NewManager(ctx context.Context, configDir, driversRoot string, store eventStore, carportMgr CarportManager) (*Manager, error) {
+	ev, err := newPklEvaluator(ctx, driversRoot)
 	if err != nil {
 		return nil, fmt.Errorf("init pkl evaluator: %w", err)
 	}
 	return &Manager{
-		configDir:  configDir,
-		ev:         ev,
-		store:      store,
-		carportMgr: carportMgr,
+		configDir:   configDir,
+		driversRoot: driversRoot,
+		ev:          ev,
+		store:       store,
+		carportMgr:  carportMgr,
 	}, nil
 }
 

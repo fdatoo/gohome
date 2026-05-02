@@ -17,6 +17,7 @@ type Config struct {
 	SnapshotEveryPeriod time.Duration
 	CarportSocketDir    string // resolved against DataDir in Run; "@data/carport" is the sentinel
 	ConfigDir           string // resolved against DataDir in Run; "@data/config" is the sentinel
+	DriversDir          string // resolved against DataDir in Run; empty → "<DataDir>/drivers"
 }
 
 func (c *Config) WithDefaults() {

@@ -23,7 +23,7 @@ func testdataDir(t *testing.T, name string) string {
 
 func TestEvaluator_ValidConfig(t *testing.T) {
 	ctx := context.Background()
-	ev, err := newPklEvaluator(ctx)
+	ev, err := newPklEvaluator(ctx, t.TempDir())
 	if err != nil {
 		t.Fatalf("newPklEvaluator: %v", err)
 	}
@@ -55,7 +55,7 @@ func writePkl(t *testing.T, dir, name, body string) {
 
 func mustEvaluate(t *testing.T, dir string) *configpb.ConfigSnapshot {
 	t.Helper()
-	ev, err := newPklEvaluator(context.Background())
+	ev, err := newPklEvaluator(context.Background(), t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,7 +164,7 @@ def main(params):
 
 func TestEvaluate_ListenerDefaults(t *testing.T) {
 	ctx := context.Background()
-	ev, err := newPklEvaluator(ctx)
+	ev, err := newPklEvaluator(ctx, t.TempDir())
 	if err != nil {
 		t.Fatalf("newPklEvaluator: %v", err)
 	}
@@ -189,7 +189,7 @@ func TestEvaluate_ListenerDefaults(t *testing.T) {
 
 func TestEvaluator_InvalidXref(t *testing.T) {
 	ctx := context.Background()
-	ev, err := newPklEvaluator(ctx)
+	ev, err := newPklEvaluator(ctx, t.TempDir())
 	if err != nil {
 		t.Fatalf("newPklEvaluator: %v", err)
 	}

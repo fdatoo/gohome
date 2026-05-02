@@ -23,9 +23,10 @@ type pklEvaluator struct {
 	ev pkl.Evaluator
 }
 
-func newPklEvaluator(ctx context.Context) (*pklEvaluator, error) {
+func newPklEvaluator(ctx context.Context, driversRoot string) (*pklEvaluator, error) {
 	ev, err := pkl.NewEvaluator(ctx, pkl.PreconfiguredOptions,
 		pkl.WithModuleReader(&switchyardModuleReader{}),
+		pkl.WithModuleReader(&driverModuleReader{root: driversRoot}),
 		pkl.WithResourceReader(&starlarkValidatorReader{}),
 	)
 	if err != nil {
@@ -508,8 +509,8 @@ func parseConfigJSON(text, configDir string) (*configpb.ConfigSnapshot, error) {
 // ValidateOffline evaluates the Pkl config in configDir and runs compile-time
 // checks without connecting to a running daemon. Returns validation errors
 // alongside any snapshot parse errors.
-func ValidateOffline(ctx context.Context, configDir string) (*configpb.ConfigSnapshot, []ValidationError, error) {
-	ev, err := newPklEvaluator(ctx)
+func ValidateOffline(ctx context.Context, configDir, driversRoot string) (*configpb.ConfigSnapshot, []ValidationError, error) {
+	ev, err := newPklEvaluator(ctx, driversRoot)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -28,6 +28,7 @@ func run() int {
 		snapshotEveryEvt = flag.Int("snapshot-every-events", 10_000, "snapshot cadence: events since last")
 		snapshotEveryDur = flag.Duration("snapshot-every-period", time.Hour, "snapshot cadence: wall-clock period")
 		configDir        = flag.String("config-dir", "", "config directory with main.pkl (default <data-dir>/config)")
+		driversDir       = flag.String("drivers-dir", "", "directory containing per-driver subdirectories (default <data-dir>/drivers)")
 	)
 	flag.Parse()
 
@@ -56,6 +57,7 @@ func run() int {
 		SnapshotEveryEvents: *snapshotEveryEvt,
 		SnapshotEveryPeriod: *snapshotEveryDur,
 		ConfigDir:           *configDir,
+		DriversDir:          *driversDir,
 	}
 	d := daemon.New(cfg, logger, metrics)
 
