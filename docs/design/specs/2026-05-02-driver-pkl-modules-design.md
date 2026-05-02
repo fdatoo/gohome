@@ -62,31 +62,35 @@ Rules:
 
 ### `switchyard:driver` base module (new, ships with `switchyardd`)
 
-Lives at `internal/config/pkl/switchyard/driver.pkl`, served by the existing `switchyardModuleReader`. Each driver's `manifest.pkl` `amends` it.
+Lives at `internal/config/pkl/switchyard/driver.pkl`, served by the existing `switchyardModuleReader`. Each driver's `manifest.pkl` `extends` it.
 
 ```pkl
 // internal/config/pkl/switchyard/driver.pkl
-module switchyard.driver
+open module switchyard.driver
 
 import "switchyard:carport" as carport
 
-// Module-level fields populated by each driver's manifest.pkl.
-name: String                                    // must equal containing directory name
-version: String
+// Module-level fields populated by each driver's manifest.pkl (which `extends` this).
+// `name` and `version` are `const` so per-driver classes can reference them in
+// class-level defaults (Pkl rejects non-const references in that position).
+const name: String                              // must equal containing directory name
+const version: String
 description: String?
 produces: Listing<String>                       // entity domain types this driver registers
 driverEventTypes: Listing<String> = new {}
 binary: String?                                 // null → "<name>-driver", relative → resolved against driver dir
-lifecycleDefaults: carport.LifecycleConfig = new {}
+lifecycleDefaults: carport.LifecycleOverride = new {}
 
-// Mixin that every driver's instance class extends. Auto-derives driverName
-// from the module-level `name` field so consumers never write it.
+// Base for every driver's instance class. Subclasses are declared inside the
+// driver's manifest.pkl; each adds typed fields plus the one-line boilerplate
+// `driverName = name` (see "Why driver authors write driverName = name" below).
 abstract class Instance extends carport.DriverInstance {
-  driverName = name
 }
 ```
 
-Why a mixin (`driver.Instance`) instead of having driver authors extend `carport.DriverInstance` directly: it is the only way to auto-derive `driverName` from the module's `name` field while keeping the consumer-facing call site (`new hue.HueInstance { id = "hue_main" … }`) free of the redundant `driverName` string. It also localises the inheritance contract — driver authors look in one place (`switchyard:driver`).
+**Why `extends` and `open module`** (verified empirically with Pkl 0.31.1): Pkl forbids non-local class declarations inside an `amends` module — the error is `Class needs a `local` modifier. To define a non-local class, extend rather than amend the parent module (which must be `open` for extension).` We need driver authors to add new classes (like `HueInstance`) inside their manifests, so the base must be `open` and manifests `extends` it.
+
+**Why driver authors write `driverName = name` themselves** (instead of inheriting from the base `Instance`): Pkl's class-body identifier resolution uses the lexical scope of the class declaration. If `driverName = name` lived on `Instance` in `switchyard:driver`, `name` would resolve to that module's empty abstract `const String`, not to the manifest's `name = "hue"`. Moving the default into each driver's instance class puts it in the manifest's lexical scope where `name = "hue"` is bound. One line per driver; type-checked.
 
 ### `switchyard:carport` changes
 
@@ -112,20 +116,11 @@ abstract class DriverInstance {
   lifecycle: LifecycleOverride? = null
 }
 
-class LifecycleConfig {
-  handshakeDeadline:       Duration = 5.s
-  healthProbeInterval:     Duration = 15.s
-  healthProbeTimeout:      Duration = 3.s
-  healthFailuresToRestart: Int(this >= 1) = 3
-  shutdownGrace:           Duration = 10.s
-  restartBackoffInitial:   Duration = 1.s
-  restartBackoffMax:       Duration = 60.s
-  restartBudgetWindow:     Duration = 10.min
-  restartBudgetMax:        Int(this >= 1) = 10
-}
-
-// Each field nullable — null means "inherit from manifest.lifecycleDefaults",
-// which in turn falls back to LifecycleConfig defaults above.
+// Used at every override layer (manifest defaults, per-instance overrides).
+// Each field nullable — null means "inherit the next layer down" — and Pkl's
+// JSON renderer omits null fields, so the wire format is also free of
+// no-op defaults. The Go-side carport.LifecycleConfig (concrete, with hard
+// defaults) is the bottom of the merge.
 class LifecycleOverride {
   handshakeDeadline:       Duration? = null
   healthProbeInterval:     Duration? = null
@@ -141,32 +136,31 @@ class LifecycleOverride {
 
 `binary` is removed from `DriverInstance` because binary identity is per-driver, not per-instance. `enabled` and `lifecycle` move in from where they used to live in `drivers.toml`.
 
+There is **no Pkl-side `LifecycleConfig`** (with concrete defaults). The concrete defaults live exactly once, in Go, as `carport.LifecycleConfig` returned by `carport.DefaultLifecycleConfig()`. This keeps the merge symmetric: manifest authors write `lifecycleDefaults { restartBudgetMax = 10 }` and *only* that field overrides; everything else passes through to the Go default.
+
 ### A driver's `manifest.pkl`
 
 ```pkl
 // drivers/hue/manifest.pkl
-amends "switchyard:driver"
+extends "switchyard:driver"
 
-import "switchyard:carport" as carport
-
-name        = "hue"
-version     = "0.4.2"
-description = "Philips Hue bridge — local CLIP API."
-produces    = new { "light"; "scene"; "sensor" }
+const name        = "hue"
+const version     = "0.4.2"
+description       = "Philips Hue bridge — local CLIP API."
+produces          = new { "light"; "scene"; "sensor" }
 
 lifecycleDefaults {
-  handshakeDeadline   = 5.s
-  healthProbeInterval = 15.s
-  restartBudgetMax    = 10
+  restartBudgetMax = 10                  // only fields you write override the Go default
 }
 
 class HueInstance extends Instance {
+  driverName = name                      // one-line boilerplate; auto-derives the driver name
   bridgeHost: String
   apiToken:   String
 }
 ```
 
-(`Instance` here is inherited from the amended `switchyard:driver` module.)
+`Instance` is inherited from the extended `switchyard:driver` module. The `driverName = name` line is the only repetition driver authors carry — it's required by Pkl's lexical scoping rules (see "Why driver authors write `driverName = name` themselves" above).
 
 ### Consumer side: `main.pkl`
 
@@ -186,7 +180,7 @@ driverInstances: Listing<carport.DriverInstance> = new {
 }
 ```
 
-The `driverName` field is auto-set to `"hue"` by the `switchyard:driver.Instance` mixin. The user never writes it.
+The `driverName` field is auto-set to `"hue"` by the manifest's class-level default. The user never writes it.
 
 ## Daemon plumbing
 
@@ -238,10 +232,11 @@ There is **no existing `drivers.toml` loader to remove** — the supervisor is a
 3. **`CarportManager` interface gains `enabled` and `lifecycle`** in the registration signature (or a new `RegisterInstanceFull` method — implementer's choice). `Manager.Apply` computes the effective lifecycle (defaults ← manifest ← instance) before the call.
 4. **Lifecycle merge** (effective config for an instance, computed in `Manager.Apply`):
    ```
-   defaultLifecycleConfig()         // Go-side defaults from internal/carport/config.go
-     ← manifest.lifecycleDefaults   // non-default fields override
-     ← instance.lifecycle           // non-null fields override
+   carport.DefaultLifecycleConfig()  // Go-side concrete defaults
+     ← manifest.lifecycleDefaults    // LifecycleOverride: only non-null fields override
+     ← instance.lifecycle            // LifecycleOverride: only non-null fields override
    ```
+   Both override layers use the same `LifecycleOverride` shape (all-nullable). The Pkl JSON renderer omits null fields, so each layer's wire format only carries fields the author actually set — no spurious overrides.
 5. **`enabled = false`** instances are evaluated and tracked in `Manager`'s view of the snapshot but not registered with the carport. They appear in `switchyard config show` / similar surfaces; the carport never sees them. (No new "tracked but not spawned" state in the supervisor.)
 6. **`carport.Instance.Binary` field stays.** It's the in-process supervisor model field used by `spawn()` (`internal/carport/supervisor.go:187`). The change is purely about *where the value comes from* (manifest registry, not Pkl per-instance).
 
@@ -326,7 +321,5 @@ The directory-name vs. `name`-field check is performed in Go after Pkl evaluatio
 
 ## Risks and open follow-ons
 
-- **Pkl `amends` + new class declarations.** Shape α requires that an `amends`-style module can declare new classes (`class HueInstance extends Instance`). Standard Pkl behavior allows this; if implementation discovers an edge case, fall back to a regular `module driver.<name>` declaration with explicit `import "switchyard:driver" as driver` and a `manifest: driver.Manifest = new { … }` field. The implementer should verify on the first manifest written.
-- **Driver-author ergonomics for `lifecycleDefaults`.** Authors writing `lifecycleDefaults { restartBudgetMax = 10 }` rely on Pkl's amends semantics for nested objects — the unset fields keep their `LifecycleConfig` defaults. If this proves confusing, we can switch `lifecycleDefaults` to a `LifecycleOverride` (all-nullable) instead and merge in Go.
 - **Cross-checking runtime manifest bytes (`HandshakeResponse.manifest.pkl_module`) against on-disk `manifest.pkl`.** Reserved as a follow-on. Useful as a tampering / staleness check once drivers actually populate the proto field.
 - **`switchyard driver list` / `driver info` subcommands.** Reserved as a follow-on. The `driverRegistry` introduced here is the right substrate.

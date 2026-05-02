@@ -4,7 +4,7 @@
 
 **Goal:** Resolve `import "driver:hue"` in user Pkl configs via a new `driver:` URI scheme reader backed by per-driver `manifest.pkl` files in `<data-dir>/drivers/<name>/`. Move binary path and lifecycle defaults from per-instance Pkl into per-driver manifests; per-instance Pkl gains `enabled` and a nullable `lifecycle` override.
 
-**Architecture:** A `driverModuleReader` (Pkl `ModuleReader`) reads `<drivers-root>/<name>/manifest.pkl`. A `driverRegistry` in `internal/config/` scans the drivers root at Manager construction (rebuilt on `Manager.Validate`) and caches `name → {binaryPath, lifecycleDefaults}`. `Manager.Apply` resolves each instance's effective binary path and lifecycle (defaults ← manifest ← per-instance) before calling the carport supervisor — the supervisor is unchanged. A new `switchyard:driver` Pkl base module is what each driver's `manifest.pkl` `amends`.
+**Architecture:** A `driverModuleReader` (Pkl `ModuleReader`) reads `<drivers-root>/<name>/manifest.pkl`. A `driverRegistry` in `internal/config/` scans the drivers root at Manager construction (rebuilt on `Manager.Validate`) and caches `name → {binaryPath, lifecycleDefaults}`. `Manager.Apply` resolves each instance's effective binary path and lifecycle (defaults ← manifest ← per-instance) before calling the carport supervisor — the supervisor is unchanged. A new `switchyard:driver` Pkl base module is what each driver's `manifest.pkl` `extends` (Pkl rejects in-module class declarations under `amends`; verified before implementation).
 
 **Tech Stack:** Go 1.23+, Apple `pkl-go` (already a dep), Pkl 0.27+, Cobra (CLI), gRPC/protobuf (existing), standard library only for the new reader/registry.
 
@@ -16,7 +16,7 @@
 
 | Path | Status | Responsibility |
 |---|---|---|
-| `internal/config/pkl/switchyard/driver.pkl` | **new** | Base module each driver's `manifest.pkl` amends. Declares `name`, `version`, `produces`, `lifecycleDefaults`, `binary?`, and the `Instance` mixin that auto-derives `driverName`. |
+| `internal/config/pkl/switchyard/driver.pkl` | **new** | Base `open module` each driver's `manifest.pkl` `extends`. Declares `const name`, `const version`, `produces`, `lifecycleDefaults`, `binary?`, and the abstract `Instance` class. |
 | `internal/config/driver_reader.go` | **new** | `driverModuleReader` (`pkl.ModuleReader`) for the `driver:` URI scheme; `validDriverName` helper. |
 | `internal/config/driver_registry.go` | **new** | `DriverRegistry` — scans `<root>/*/manifest.pkl`, evaluates each, caches name → resolved binary path + lifecycle defaults. Detects directory-name vs `name`-field mismatches. |
 | `internal/config/pkl/switchyard/carport.pkl` | **modify** | Drop `binary` from `DriverInstance`; add `enabled`, `lifecycle`; add `LifecycleConfig`/`LifecycleOverride` classes. |
@@ -79,20 +79,10 @@ abstract class DriverInstance {
   lifecycle: LifecycleOverride? = null
 }
 
-class LifecycleConfig {
-  handshakeDeadline:       Duration = 5.s
-  healthProbeInterval:     Duration = 15.s
-  healthProbeTimeout:      Duration = 3.s
-  healthFailuresToRestart: Int(this >= 1) = 3
-  shutdownGrace:           Duration = 10.s
-  restartBackoffInitial:   Duration = 1.s
-  restartBackoffMax:       Duration = 60.s
-  restartBudgetWindow:     Duration = 10.min
-  restartBudgetMax:        Int(this >= 1) = 10
-}
-
-// Each field nullable — null means "inherit from manifest.lifecycleDefaults",
-// which in turn falls back to LifecycleConfig defaults above.
+// Used at every override layer (manifest defaults + per-instance). Each field
+// nullable. The Pkl JSON renderer omits null fields, so each layer's wire
+// format only carries what the author explicitly set. Concrete defaults live
+// in Go (carport.DefaultLifecycleConfig).
 class LifecycleOverride {
   handshakeDeadline:       Duration? = null
   healthProbeInterval:     Duration? = null
@@ -157,35 +147,39 @@ later tasks."
 **Files:**
 - Create: `internal/config/pkl/switchyard/driver.pkl`
 
-Each driver's `manifest.pkl` will `amends` this. No Go consumers yet — purely additive.
+Each driver's `manifest.pkl` will `extends` this. No Go consumers yet — purely additive.
 
 - [ ] **Step 1: Create the file**
 
 ```pkl
 // internal/config/pkl/switchyard/driver.pkl
 //
-// Base module that every driver's manifest.pkl amends. Provides the typed
-// surface for the manifest itself plus the `Instance` mixin that auto-derives
-// `driverName` from the module-level `name` field.
+// Base module each driver's manifest.pkl extends. Provides the typed surface
+// for manifest fields plus the abstract Instance class subclasses extend.
+//
+// Pkl notes (verified empirically with 0.31.1):
+//  - `open module` + manifests using `extends` is required; an `amends` module
+//    cannot declare new non-local classes.
+//  - `name`/`version` must be `const` so per-driver instance classes can
+//    reference them in class-level defaults (e.g. `driverName = name`).
 
-module switchyard.driver
+open module switchyard.driver
 
 import "switchyard:carport" as carport
 
-// Module-level fields populated by each driver's manifest.pkl.
-name: String                                    // must equal containing directory name; daemon enforces
-version: String
+const name: String                              // must equal containing directory name; daemon enforces
+const version: String
 description: String?
 produces: Listing<String>                       // entity domain types this driver registers
 driverEventTypes: Listing<String> = new {}
 binary: String?                                 // null → "<name>-driver" (relative paths resolved against driver dir)
-lifecycleDefaults: carport.LifecycleConfig = new {}
+lifecycleDefaults: carport.LifecycleOverride = new {}
 
-// Driver-instance mixin. Every driver's instance class extends this; the
-// `driverName = name` default ties the instance to its source manifest so
-// consumers never write the string by hand.
+// Base for every driver's instance class. Each driver author extends this
+// in their manifest.pkl and adds typed fields plus `driverName = name`
+// (auto-derives the driver name from the module's name, must be written in
+// the manifest's lexical scope — Pkl can't inherit it from the base).
 abstract class Instance extends carport.DriverInstance {
-  driverName = name
 }
 ```
 
