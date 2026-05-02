@@ -21,7 +21,9 @@ Each installed driver ships a `manifest.pkl` next to its binary. The manifest te
 - The directory name is the import key. `import "driver:hue"` resolves to `<drivers-root>/hue/manifest.pkl`. switchyardd refuses the manifest if its `name` field doesn't match the directory name.
 - The default binary name is `<dir>/<name>-driver` (e.g. `hue/hue-driver`). Override via the manifest's `binary` field — absolute paths stay absolute, relative paths resolve against the driver dir.
 
-## Hue example
+## Full manifest example
+
+A complete, valid manifest. Each subsequent section on this page expands one piece of this in detail.
 
 ```pkl
 // drivers/hue/manifest.pkl
@@ -77,7 +79,7 @@ The manifest amends `switchyard:driver`'s typed surface. All fields are checked 
 
 Two Pkl semantics constraints shape the manifest's outer form:
 
-- **`open module` + `extends`.** The manifest needs to declare its own classes (like `HueInstance`). Pkl rejects non-local class declarations under `amends` — `Class needs a 'local' modifier. To define a non-local class, extend rather than amend the parent module (which must be 'open' for extension)`. So `switchyard:driver` is `open module` and manifests use `extends`.
+- **`open module` + `extends`.** The manifest needs to declare its own classes (like `HueInstance`). Pkl rejects non-local class declarations under `amends`, so `switchyard:driver` is `open module` and manifests use `extends`.
 
 - **`const name` and `const version`.** Pkl class-body identifier resolution uses the lexical scope of the class declaration. Each driver's instance class writes `driverName = name` to auto-derive the driver name from the module — and Pkl requires that `name` be declared `const` to be referenceable from a class default.
 
@@ -115,7 +117,7 @@ All fields are optional; unset fields fall through to switchyardd's `DefaultLife
 
 ```pkl
 lifecycleDefaults {
-  handshakeDeadline = 30.s     // CLIP v2 first-time discovery is slow
+  handshakeDeadline = 30.s
   restartBudgetMax  = 5
 }
 ```
