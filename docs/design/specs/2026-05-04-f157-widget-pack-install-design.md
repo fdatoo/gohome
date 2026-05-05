@@ -144,12 +144,10 @@ message InstalledPack {
   google.protobuf.Timestamp installed_at     = 11;
 }
 
-enum SignatureStatus {
-  SIGNATURE_STATUS_UNSPECIFIED = 0;
-  SIGNATURE_STATUS_VERIFIED    = 1;
-  SIGNATURE_STATUS_UNSIGNED    = 2;
-  SIGNATURE_STATUS_INVALID     = 3;
-}
+// SignatureStatus is reused from proto/switchyard/v1alpha1/dashboard.proto
+// (proto3 same-package enums must be unique). The existing enum's values
+// are SIGNATURE_UNKNOWN/VERIFIED/UNSIGNED/INVALID/EXPIRED — a strict superset.
+// SIGNATURE_EXPIRED maps to FAILED_PRECONDITION/signature_expired in §5.2.
 
 message WatchRequest {}
 message WatchEvent {
@@ -168,6 +166,7 @@ message UninstalledPack { string name = 1; string version = 2; }
 | Empty / malformed `ref` | `INVALID_ARGUMENT` | `bad_ref` |
 | Caller lacks `widget_pack.install` | `PERMISSION_DENIED` | (set by authz interceptor) |
 | Signature rejected by trust policy | `FAILED_PRECONDITION` | `signature_invalid` |
+| Signing certificate expired | `FAILED_PRECONDITION` | `signature_expired` |
 | `bundle.js` SHA256 ≠ `manifest.bundleHash` | `FAILED_PRECONDITION` | `hash_mismatch` |
 | `manifest.sdkVersion` major mismatch | `FAILED_PRECONDITION` | `sdk_incompatible` |
 | Class collision with builtin or installed pack | `FAILED_PRECONDITION` | `class_collision` |
