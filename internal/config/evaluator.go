@@ -131,11 +131,6 @@ type mcpConfigJSON struct {
 	TailMaxWaitSeconds       uint32 `json:"tailMaxWaitSeconds"`
 }
 
-type widgetPackPolicyJSON struct {
-	AllowedSigners []string `json:"allowedSigners"`
-	AllowUnsigned  bool     `json:"allowUnsigned"`
-}
-
 type configJSON struct {
 	DriverInstances  []json.RawMessage    `json:"driverInstances"`
 	Entities         []entityJSON         `json:"entities"`
