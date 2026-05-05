@@ -190,6 +190,40 @@ func (s *Store) Subscribe(ch chan WatchEvent) func() {
 	}
 }
 
+// PackClass is a snapshot of one widget class for the dashboard catalog.
+type PackClass struct {
+	Name       string
+	BundleURL  string
+	BundleHash string
+}
+
+// PackView is a snapshot of one installed pack's contributions to the catalog.
+type PackView struct {
+	Name    string
+	Version string
+	Classes []PackClass
+}
+
+// ClassesView returns a snapshot of all installed packs in a shape suitable
+// for joining into the dashboard catalog. Caller must not mutate the result.
+func (s *Store) ClassesView() []PackView {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make([]PackView, 0, len(s.packs))
+	for _, p := range s.packs {
+		classes := make([]PackClass, 0, len(p.Classes))
+		for _, c := range p.Classes {
+			classes = append(classes, PackClass{
+				Name:       c,
+				BundleURL:  "/widgets/" + p.Name + "/" + p.Version + "/bundle.js?h=" + p.SHA256,
+				BundleHash: p.SHA256,
+			})
+		}
+		out = append(out, PackView{Name: p.Name, Version: p.Version, Classes: classes})
+	}
+	return out
+}
+
 // persistLocked writes .registry.json atomically. Caller holds s.mu.
 func (s *Store) persistLocked() error {
 	on := disk{Packs: make([]InstalledPack, 0, len(s.packs))}

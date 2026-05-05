@@ -171,6 +171,25 @@ func TestStore_AddEventDoesNotAliasLiveState(t *testing.T) {
 	}
 }
 
+func TestStore_ClassesView(t *testing.T) {
+	s := widgetpack.NewStore(t.TempDir())
+	_ = s.Load(context.Background())
+	_ = s.Add(context.Background(), widgetpack.InstalledPack{
+		Name: "bar", Version: "1.0.0", SHA256: "sha256:abc",
+		Classes: []string{"BarChart", "PieChart"},
+	})
+	view := s.ClassesView()
+	if len(view) != 1 || view[0].Name != "bar" {
+		t.Fatalf("view = %+v", view)
+	}
+	if len(view[0].Classes) != 2 {
+		t.Errorf("classes = %d", len(view[0].Classes))
+	}
+	if view[0].Classes[0].BundleURL != "/widgets/bar/1.0.0/bundle.js?h=sha256:abc" {
+		t.Errorf("BundleURL = %q", view[0].Classes[0].BundleURL)
+	}
+}
+
 func fmtV(i int) string { return "1.0." + itoa(i) }
 
 func itoa(i int) string {

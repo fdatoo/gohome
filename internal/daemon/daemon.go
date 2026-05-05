@@ -412,7 +412,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	}
 
 	packInstaller := widgetpack.NewInstaller(
-		packStore, packVerifier, trustPolicy, packFetcher, dataDir, dashboard.BuiltinClassIDs,
+		packStore, packVerifier, trustPolicy, packFetcher, dashboard.BuiltinClassIDs, nil,
 	)
 	packService := widgetpack.NewService(packInstaller, packStore)
 	packBundleHandler := widgetpack.NewBundleHandler(packStore)
@@ -429,7 +429,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 		Automation: api.NewAutomationService(autoCtl),
 		Script:     api.NewScriptService(scriptRun, &eventAppenderAdapter{store: d.store}, sysBE),
 		Scene:      api.NewSceneService(),
-		Dashboard:  dashboard.NewService(newDashboardBackend(), dashboard.NewCatalog(nil)),
+		Dashboard:  dashboard.NewService(newDashboardBackend(packStore), dashboard.NewCatalog(nil)),
 		WidgetPack: packService,
 		Auth: api.NewAuthService(api.AuthDeps{
 			Identity:   identityStore,
