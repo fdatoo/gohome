@@ -110,9 +110,15 @@ func TestBundleHandler_IfNoneMatch(t *testing.T) {
 	h := widgetpack.NewBundleHandler(store)
 	srv := httptest.NewServer(h)
 	defer srv.Close()
-	req, _ := http.NewRequest("GET", srv.URL+"/widgets/bar/1.0.0/bundle.js", nil)
+	req, err := http.NewRequest("GET", srv.URL+"/widgets/bar/1.0.0/bundle.js", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
 	req.Header.Set("If-None-Match", `"sha256:hashval"`)
-	resp, _ := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 304 {
 		t.Errorf("status=%d, want 304", resp.StatusCode)
