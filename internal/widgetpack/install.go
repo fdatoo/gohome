@@ -256,7 +256,10 @@ func (i *Installer) checkCollisions(ctx context.Context, m *Manifest) error {
 	for _, b := range i.builtinClasses {
 		taken[b] = true
 	}
-	packs, _ := i.store.List(ctx)
+	packs, err := i.store.List(ctx)
+	if err != nil {
+		return fmt.Errorf("list packs: %w", err)
+	}
 	for _, p := range packs {
 		if p.Name == m.Name && p.Version == m.Version {
 			continue
