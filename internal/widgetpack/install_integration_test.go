@@ -73,7 +73,7 @@ func TestInstall_Integration_UnsignedRejected(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewFetcher: %v", err)
 	}
-	inst := widgetpack.NewInstaller(store, nil, pol, fetcher, dataDir, nil)
+	inst := widgetpack.NewInstaller(store, nil, pol, fetcher, nil, nil)
 
 	ref := buildAndPushTestPack(t, regHost, "bar-widgets", "1.0.0", false)
 
@@ -113,7 +113,7 @@ func TestInstall_Integration_UnsignedAllowed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewFetcher: %v", err)
 	}
-	inst := widgetpack.NewInstaller(store, nil, pol, fetcher, dataDir, []string{"Gauge", "EntityToggle"})
+	inst := widgetpack.NewInstaller(store, nil, pol, fetcher, []string{"Gauge", "EntityToggle"}, nil)
 
 	ref := buildAndPushTestPack(t, regHost, "bar-widgets", "1.0.0", false)
 
@@ -192,7 +192,7 @@ func TestInstall_Integration_HashMismatch(t *testing.T) {
 	pol := &widgetpack.TrustPolicy{}
 	_ = pol.Set(nil, true)
 	fetcher, _ := widgetpack.NewFetcher(widgetpack.WithPlainHTTP(true))
-	inst := widgetpack.NewInstaller(store, nil, pol, fetcher, dataDir, nil)
+	inst := widgetpack.NewInstaller(store, nil, pol, fetcher, nil, nil)
 
 	// Build a pack whose manifest lies about the bundle hash.
 	bundleJS := []byte("export default {}\n")
@@ -246,8 +246,7 @@ func TestInstall_Integration_ClassCollisionWithBuiltin(t *testing.T) {
 	pol := &widgetpack.TrustPolicy{}
 	_ = pol.Set(nil, true)
 	fetcher, _ := widgetpack.NewFetcher(widgetpack.WithPlainHTTP(true))
-	inst := widgetpack.NewInstaller(store, nil, pol, fetcher, dataDir,
-		[]string{"Gauge", "EntityToggle"})
+	inst := widgetpack.NewInstaller(store, nil, pol, fetcher, []string{"Gauge", "EntityToggle"}, nil)
 
 	bundleJS := []byte("export default {}\n")
 	bundleSHA := sha256Hex(bundleJS)
@@ -297,7 +296,7 @@ func TestInstall_Integration_AlreadyExists(t *testing.T) {
 	pol := &widgetpack.TrustPolicy{}
 	_ = pol.Set(nil, true)
 	fetcher, _ := widgetpack.NewFetcher(widgetpack.WithPlainHTTP(true))
-	inst := widgetpack.NewInstaller(store, nil, pol, fetcher, dataDir, nil)
+	inst := widgetpack.NewInstaller(store, nil, pol, fetcher, nil, nil)
 
 	ref := buildAndPushTestPack(t, regHost, "bar-widgets", "1.0.0", false)
 

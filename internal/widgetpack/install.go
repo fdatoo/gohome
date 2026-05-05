@@ -95,7 +95,6 @@ type Installer struct {
 	verifier       *Verifier
 	policy         *TrustPolicy
 	fetcher        *Fetcher
-	dataDir        string
 	builtinClasses []string
 	dl             DashboardLister
 
@@ -108,23 +107,27 @@ type Installer struct {
 // builtin class IDs (e.g. "Gauge", "EntityToggle") used for collision checks
 // — packs may not register a class whose ID is already builtin.
 //
-// dataDir is reserved for future use (e.g. logging install transcripts);
-// staging happens under store.Root() today.
+// dl is the DashboardLister used by Uninstall to check whether a pack's
+// classes are in use. Pass nil to use the default empty lister (always
+// permits uninstall); F-156 will plumb the real lister.
 func NewInstaller(
 	store *Store,
 	verifier *Verifier,
 	policy *TrustPolicy,
 	fetcher *Fetcher,
-	dataDir string,
 	builtinClasses []string,
+	dl DashboardLister,
 ) *Installer {
+	if dl == nil {
+		dl = emptyDashboardLister{}
+	}
 	return &Installer{
 		store:          store,
 		verifier:       verifier,
 		policy:         policy,
 		fetcher:        fetcher,
-		dataDir:        dataDir,
 		builtinClasses: builtinClasses,
+		dl:             dl,
 	}
 }
 
@@ -308,9 +311,6 @@ func (i *Installer) checkCollisions(ctx context.Context, m *Manifest) error {
 	return nil
 }
 
-// SetDashboardLister wires a real lister once F-156 lands.
-func (i *Installer) SetDashboardLister(d DashboardLister) { i.dl = d }
-
 // Uninstall removes a pack. With force=false, returns an error if any
 // dashboard references one of the pack's classes.
 func (i *Installer) Uninstall(ctx context.Context, name, version string, force bool) error {
@@ -319,11 +319,7 @@ func (i *Installer) Uninstall(ctx context.Context, name, version string, force b
 		return err
 	}
 	if !force {
-		dl := i.dl
-		if dl == nil {
-			dl = emptyDashboardLister{}
-		}
-		refs, err := dl.ClassRefs(ctx)
+		refs, err := i.dl.ClassRefs(ctx)
 		if err != nil {
 			return fmt.Errorf("widgetpack: list class refs: %w", err)
 		}

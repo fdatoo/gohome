@@ -14,7 +14,7 @@ import (
 func TestService_List_Empty(t *testing.T) {
 	store := widgetpack.NewStore(t.TempDir())
 	_ = store.Load(context.Background())
-	inst := widgetpack.NewInstaller(store, nil, nil, nil, "", nil)
+	inst := widgetpack.NewInstaller(store, nil, nil, nil, nil, nil)
 	svc := widgetpack.NewService(inst, store)
 	resp, err := svc.List(context.Background(), connect.NewRequest(&v1.ListWidgetPacksRequest{}))
 	if err != nil {
@@ -28,7 +28,7 @@ func TestService_List_Empty(t *testing.T) {
 func TestService_Uninstall_NotFound(t *testing.T) {
 	store := widgetpack.NewStore(t.TempDir())
 	_ = store.Load(context.Background())
-	inst := widgetpack.NewInstaller(store, nil, nil, nil, "", nil)
+	inst := widgetpack.NewInstaller(store, nil, nil, nil, nil, nil)
 	svc := widgetpack.NewService(inst, store)
 	_, err := svc.Uninstall(context.Background(), connect.NewRequest(&v1.UninstallWidgetPackRequest{Name: "ghost", Version: "1.0.0"}))
 	var ce *connect.Error
