@@ -35,6 +35,14 @@ func newPklEvaluator(ctx context.Context, driversRoot string) (*pklEvaluator, er
 	return &pklEvaluator{ev: ev}, nil
 }
 
+// SwitchyardSchemeReaderOption returns a Pkl evaluator option that registers
+// the switchyard: module reader, allowing external evaluators (e.g. the
+// widgetpack manifest evaluator) to resolve switchyard:* URIs from the
+// embedded Pkl FS.
+func SwitchyardSchemeReaderOption() func(*pkl.EvaluatorOptions) {
+	return pkl.WithModuleReader(&switchyardModuleReader{})
+}
+
 type configEvaluator interface {
 	Evaluate(ctx context.Context, configDir string) (*configpb.ConfigSnapshot, error)
 }

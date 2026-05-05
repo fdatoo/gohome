@@ -29,6 +29,10 @@ const cameraStream: String = "CameraStream"
 const entityList:   String = "EntityList"
 const groupCard:    String = "GroupCard"
 
+// Top-level manifest property: pack manifest.pkl files amend this module and
+// populate this property so the Pkl evaluator can render the manifest as JSON.
+manifest: PackManifest?
+
 class PackManifest {
   name:        String(!isEmpty)
   version:     String(!isEmpty)
