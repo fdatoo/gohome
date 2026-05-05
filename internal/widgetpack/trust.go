@@ -46,7 +46,13 @@ type TrustPolicy struct {
 }
 
 // Set replaces the policy fields atomically. Safe for concurrent use with Verify.
-func (p *TrustPolicy) Set(signers []string, allowUnsigned bool) {
+// It returns an error if any signer pattern is not a valid path.Match glob.
+func (p *TrustPolicy) Set(signers []string, allowUnsigned bool) error {
+	for _, pat := range signers {
+		if _, err := path.Match(pat, ""); err != nil {
+			return fmt.Errorf("widgetpack: invalid signer pattern %q: %w", pat, err)
+		}
+	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if signers == nil {
@@ -55,6 +61,7 @@ func (p *TrustPolicy) Set(signers []string, allowUnsigned bool) {
 		p.allowedSigners = append(p.allowedSigners[:0], signers...)
 	}
 	p.allowUnsigned = allowUnsigned
+	return nil
 }
 
 // AllowUnsigned reports whether the policy permits unsigned packs.
@@ -105,6 +112,9 @@ type Verifier struct {
 // The verifier requires both a transparency log entry and an observer
 // timestamp on every bundle (the sigstore-go default for cosign keyless).
 func NewVerifier(tm root.TrustedMaterial) (*Verifier, error) {
+	if tm == nil {
+		return nil, errors.New("widgetpack: NewVerifier: tm must not be nil")
+	}
 	sev, err := verify.NewVerifier(tm,
 		verify.WithTransparencyLog(1),
 		verify.WithObserverTimestamps(1),
@@ -127,20 +137,24 @@ func NewProductionVerifier(_ context.Context) (*Verifier, error) {
 	return nil, errors.New("widgetpack: production verifier not yet wired; use NewVerifier with an injected trust root")
 }
 
-// Verify checks a payload + sigstore bundle against the policy.
+// Verify checks that signatureBundle is a valid cosign keyless signature over
+// payload (or, if signatureBundle is nil, applies the unsigned policy).
+//
+// pol must be non-nil. A signed bundle whose signer identity is not matched
+// by pol.allowedSigners is rejected; an unsigned payload is rejected unless
+// pol.AllowUnsigned() is true.
 //
 //   - payload: the bytes the bundle was signed over (the OCI artifact bytes).
 //   - signatureBundle: the sigstore JSON bundle blob (cosign pushes this to
 //     <ref>.sig). nil indicates no signature is present.
-//   - pol: the trust policy. May be nil only when signatureBundle is non-nil
-//     and the caller doesn't care about identity matching — pass an empty
-//     policy with AllowUnsigned=true for a "verify cryptographic only" mode.
 //
 // Returns:
 //   - {Status: "unsigned"} when signatureBundle == nil and pol.AllowUnsigned.
 //   - {Status: "verified", SignerIdentity: <SAN URI>} when the bundle verifies
 //     and the cert subject matches an allowed glob.
 //   - ErrUnsignedNotAllowed / ErrSignatureRejected (wrapped) on failure.
+//
+// ctx is reserved for future TUF refresh in NewProductionVerifier; not currently plumbed.
 func (v *Verifier) Verify(
 	ctx context.Context,
 	payload []byte,

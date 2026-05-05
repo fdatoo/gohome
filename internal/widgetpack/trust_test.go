@@ -28,7 +28,9 @@ func TestVerify_AllowedSignerGlob(t *testing.T) {
 	entity := root.signBlobEntity(t, payload, "https://github.com/myhandle/foo", testIssuer)
 
 	pol := &TrustPolicy{}
-	pol.Set([]string{"https://github.com/myhandle/*"}, false)
+	if err := pol.Set([]string{"https://github.com/myhandle/*"}, false); err != nil {
+		t.Fatal(err)
+	}
 
 	res, err := v.verifyEntity(context.Background(), payload, entity, pol)
 	if err != nil {
@@ -54,7 +56,9 @@ func TestVerify_SignerGlob_NoMatch_Rejected(t *testing.T) {
 	entity := root.signBlobEntity(t, payload, "https://github.com/randomattacker/foo", testIssuer)
 
 	pol := &TrustPolicy{}
-	pol.Set([]string{"https://github.com/myhandle/*"}, false)
+	if err := pol.Set([]string{"https://github.com/myhandle/*"}, false); err != nil {
+		t.Fatal(err)
+	}
 
 	res, err := v.verifyEntity(context.Background(), payload, entity, pol)
 	if err == nil {
@@ -74,7 +78,9 @@ func TestVerify_NoSignature_AllowUnsigned(t *testing.T) {
 	}
 
 	pol := &TrustPolicy{}
-	pol.Set(nil, true)
+	if err := pol.Set(nil, true); err != nil {
+		t.Fatal(err)
+	}
 
 	res, err := v.Verify(context.Background(), []byte("payload"), nil, pol)
 	if err != nil {
@@ -97,7 +103,9 @@ func TestVerify_NoSignature_DenyUnsigned(t *testing.T) {
 	}
 
 	pol := &TrustPolicy{}
-	pol.Set(nil, false)
+	if err := pol.Set(nil, false); err != nil {
+		t.Fatal(err)
+	}
 
 	res, err := v.Verify(context.Background(), []byte("payload"), nil, pol)
 	if err == nil {
@@ -121,7 +129,9 @@ func TestVerify_BundleMismatch_Rejected(t *testing.T) {
 	entity := root.signBlobEntity(t, payloadA, "https://github.com/myhandle/foo", testIssuer)
 
 	pol := &TrustPolicy{}
-	pol.Set([]string{"https://github.com/myhandle/*"}, false)
+	if err := pol.Set([]string{"https://github.com/myhandle/*"}, false); err != nil {
+		t.Fatal(err)
+	}
 
 	// Verify against a different payload than what was signed.
 	res, err := v.verifyEntity(context.Background(), payloadB, entity, pol)
@@ -144,7 +154,9 @@ func TestVerify_GarbageBundle_Rejected(t *testing.T) {
 	}
 
 	pol := &TrustPolicy{}
-	pol.Set([]string{"https://github.com/myhandle/*"}, false)
+	if err := pol.Set([]string{"https://github.com/myhandle/*"}, false); err != nil {
+		t.Fatal(err)
+	}
 
 	_, err = v.Verify(context.Background(), []byte("payload"), []byte("not a bundle"), pol)
 	if err == nil {
@@ -152,5 +164,12 @@ func TestVerify_GarbageBundle_Rejected(t *testing.T) {
 	}
 	if !errors.Is(err, ErrSignatureRejected) {
 		t.Errorf("error = %v, want wraps ErrSignatureRejected", err)
+	}
+}
+
+func TestTrustPolicy_Set_RejectsBadPattern(t *testing.T) {
+	pol := &TrustPolicy{}
+	if err := pol.Set([]string{"https://github.com/[unclosed"}, false); err == nil {
+		t.Error("expected error for malformed glob pattern")
 	}
 }
