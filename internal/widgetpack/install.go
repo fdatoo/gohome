@@ -148,9 +148,28 @@ func (i *Installer) Install(ctx context.Context, req InstallRequest) (*Installed
 
 	// Step 2. Verify signature against trust policy. The verifier handles
 	// the "no signature + AllowUnsigned" case internally.
-	vres, err := i.verifier.Verify(ctx, art.LayerBlob, art.SignatureBundle, i.policy)
-	if err != nil {
-		return nil, &FailureError{Reason: ReasonSignatureInvalid, Err: err}
+	//
+	// A nil verifier is tolerated: it lets the daemon start when the production
+	// trust root is not yet wired (NewProductionVerifier is currently stubbed).
+	// In that mode, unsigned packs are still installable when the policy allows
+	// them; signed packs are rejected with ReasonSignatureInvalid.
+	var vres *VerificationResult
+	if i.verifier != nil {
+		vres, err = i.verifier.Verify(ctx, art.LayerBlob, art.SignatureBundle, i.policy)
+		if err != nil {
+			return nil, &FailureError{Reason: ReasonSignatureInvalid, Err: err}
+		}
+	} else {
+		if len(art.SignatureBundle) > 0 {
+			return nil, &FailureError{
+				Reason: ReasonSignatureInvalid,
+				Err:    errors.New("verifier not configured; cannot verify signed pack"),
+			}
+		}
+		if i.policy == nil || !i.policy.AllowUnsigned() {
+			return nil, &FailureError{Reason: ReasonSignatureInvalid, Err: ErrUnsignedNotAllowed}
+		}
+		vres = &VerificationResult{Status: "unsigned"}
 	}
 
 	// Step 3. Stage the tarball into <DataDir>/widgets/.staging/<rand>/.
