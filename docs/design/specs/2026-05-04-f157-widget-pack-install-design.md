@@ -243,6 +243,8 @@ Per-`(name@version)` mutex via `sync.Map`; concurrent installs of different pack
 - Anonymous by default; reads `~/.docker/config.json` for credentials so `docker login ghcr.io` flows through transparently.
 - Single-layer assumption checked explicitly; multi-layer artifacts rejected with `FAILED_PRECONDITION/bad_artifact`.
 
+**Known limitation — cosign signature lookup:** F-157 v1 reads cosign signatures only from the legacy tag-based layout (`<digest>.sig`). Cosign 2.x against OCI 1.1-capable registries (ghcr.io, AWS ECR, Docker Hub since 2024) defaults to attaching signatures as Referrers (manifest.subject), which this fetcher does not query. Modern-layout signed artifacts will appear unsigned to F-157. Tracked separately as **F-289** ("widget pack OCI 1.1 Referrers signature lookup").
+
 ### 6.4 Storage layout under `<DataDir>/widgets/`
 
 ```
