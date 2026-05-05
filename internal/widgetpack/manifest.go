@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 
 	"github.com/apple/pkl-go/pkl"
 
@@ -28,15 +29,30 @@ type Manifest struct {
 // returns the decoded Manifest. The Pkl module's class constraints (e.g.
 // protocol == "v1", bundleHash startsWith "sha256:") become evaluator errors
 // here, which is the validation we want.
+//
+// The evaluator is sandboxed: it omits WithOsEnv (so manifests cannot read
+// host environment variables via read("env:...")), and sets RootDir to the
+// manifest's directory (spec §6 step 4) to prevent file: reads outside the
+// staging area.
 func EvalManifest(ctx context.Context, manifestPath string) (*Manifest, error) {
-	ev, err := pkl.NewEvaluator(ctx, pkl.PreconfiguredOptions,
+	// Hand-composed options — deliberately omits WithOsEnv to prevent untrusted
+	// manifests from reading host environment variables.
+	manifestEvaluatorOptions := []func(*pkl.EvaluatorOptions){
+		pkl.WithDefaultAllowedResources,
+		pkl.WithDefaultAllowedModules,
+		pkl.WithDefaultCacheDir,
 		config.SwitchyardSchemeReaderOption(),
-		func(opts *pkl.EvaluatorOptions) { opts.OutputFormat = "json" },
-	)
+		func(opts *pkl.EvaluatorOptions) {
+			opts.OutputFormat = "json"
+			opts.RootDir = filepath.Dir(manifestPath)
+			opts.Logger = pkl.NoopLogger
+		},
+	}
+	ev, err := pkl.NewEvaluator(ctx, manifestEvaluatorOptions...)
 	if err != nil {
 		return nil, fmt.Errorf("widgetpack: pkl evaluator: %w", err)
 	}
-	defer ev.Close()
+	defer func() { _ = ev.Close() }()
 
 	text, err := ev.EvaluateOutputText(ctx, pkl.FileSource(manifestPath))
 	if err != nil {
@@ -44,13 +60,13 @@ func EvalManifest(ctx context.Context, manifestPath string) (*Manifest, error) {
 	}
 
 	var wrapper struct {
-		Manifest Manifest `json:"manifest"`
+		Manifest *Manifest `json:"manifest"`
 	}
 	if err := json.Unmarshal([]byte(text), &wrapper); err != nil {
 		return nil, fmt.Errorf("widgetpack: decode manifest %q: %w", manifestPath, err)
 	}
-	if wrapper.Manifest.Name == "" {
-		return nil, fmt.Errorf("widgetpack: manifest %q missing required field: name", manifestPath)
+	if wrapper.Manifest == nil {
+		return nil, fmt.Errorf("widgetpack: manifest %q: 'manifest' property is null or unset", manifestPath)
 	}
-	return &wrapper.Manifest, nil
+	return wrapper.Manifest, nil
 }

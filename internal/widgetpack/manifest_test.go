@@ -47,7 +47,9 @@ func TestEvalManifest_MissingRequired(t *testing.T) {
 	bad := strings.Replace(validManifest, "name = \"bar-widgets\"", "", 1)
 	dir := t.TempDir()
 	path := filepath.Join(dir, "manifest.pkl")
-	_ = os.WriteFile(path, []byte(bad), 0o600)
+	if err := os.WriteFile(path, []byte(bad), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := widgetpack.EvalManifest(context.Background(), path); err == nil {
 		t.Error("expected EvalManifest to fail on missing name")
 	}
@@ -57,7 +59,9 @@ func TestEvalManifest_BadProtocol(t *testing.T) {
 	bad := strings.Replace(validManifest, "protocol = \"v1\"", "protocol = \"v2\"", 1)
 	dir := t.TempDir()
 	path := filepath.Join(dir, "manifest.pkl")
-	_ = os.WriteFile(path, []byte(bad), 0o600)
+	if err := os.WriteFile(path, []byte(bad), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := widgetpack.EvalManifest(context.Background(), path); err == nil {
 		t.Error("expected EvalManifest to reject non-v1 protocol")
 	}
@@ -67,8 +71,45 @@ func TestEvalManifest_BadBundleHash(t *testing.T) {
 	bad := strings.Replace(validManifest, "bundleHash = \"sha256:abc\"", "bundleHash = \"md5:abc\"", 1)
 	dir := t.TempDir()
 	path := filepath.Join(dir, "manifest.pkl")
-	_ = os.WriteFile(path, []byte(bad), 0o600)
+	if err := os.WriteFile(path, []byte(bad), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	if _, err := widgetpack.EvalManifest(context.Background(), path); err == nil {
 		t.Error("expected EvalManifest to reject non-sha256 bundleHash")
+	}
+}
+
+func TestEvalManifest_NullManifest(t *testing.T) {
+	src := `
+@ModuleInfo { minPklVersion = "0.27.0" }
+amends "switchyard:widgets"
+// no manifest = ... assignment; defaults to null
+`
+	dir := t.TempDir()
+	path := filepath.Join(dir, "manifest.pkl")
+	if err := os.WriteFile(path, []byte(src), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := widgetpack.EvalManifest(context.Background(), path); err == nil {
+		t.Error("expected error when manifest property is null")
+	}
+}
+
+func TestEvalManifest_OptionalFields(t *testing.T) {
+	src := strings.Replace(validManifest,
+		"classes = new { \"BarChart\"; \"PieChart\" }",
+		"classes = new { \"BarChart\" }\n  description = \"Bar charts\"\n  homepage = \"https://example.org\"\n  license = \"MIT\"",
+		1)
+	dir := t.TempDir()
+	path := filepath.Join(dir, "manifest.pkl")
+	if err := os.WriteFile(path, []byte(src), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	m, err := widgetpack.EvalManifest(context.Background(), path)
+	if err != nil {
+		t.Fatalf("EvalManifest: %v", err)
+	}
+	if m.Description != "Bar charts" || m.Homepage != "https://example.org" || m.License != "MIT" {
+		t.Errorf("optional fields = (%q, %q, %q)", m.Description, m.Homepage, m.License)
 	}
 }
