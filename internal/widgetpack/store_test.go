@@ -141,6 +141,36 @@ func TestStore_ConcurrentAddRemove(t *testing.T) {
 	wg.Wait()
 }
 
+func TestStore_AddEventDoesNotAliasLiveState(t *testing.T) {
+	s := widgetpack.NewStore(t.TempDir())
+	_ = s.Load(context.Background())
+
+	ch := make(chan widgetpack.WatchEvent, 1)
+	unsub := s.Subscribe(ch)
+	defer unsub()
+
+	if err := s.Add(context.Background(), widgetpack.InstalledPack{
+		Name: "p", Version: "1.0.0", SHA256: "sha256:original",
+	}); err != nil {
+		t.Fatalf("Add: %v", err)
+	}
+
+	ev := <-ch
+	if ev.Installed == nil {
+		t.Fatal("expected Installed event")
+	}
+	// Mutate the event payload — must not affect the live store entry.
+	ev.Installed.SHA256 = "sha256:mutated"
+
+	got, err := s.Get(context.Background(), "p", "1.0.0")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got.SHA256 != "sha256:original" {
+		t.Errorf("live store SHA256 = %q after mutating event payload; want sha256:original", got.SHA256)
+	}
+}
+
 func fmtV(i int) string { return "1.0." + itoa(i) }
 
 func itoa(i int) string {

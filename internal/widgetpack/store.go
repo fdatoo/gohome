@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sync"
@@ -78,6 +79,7 @@ func (s *Store) Load(_ context.Context) error {
 	for _, p := range on.Packs {
 		if !s.dirExists(p.Name, p.Version) {
 			stale = true
+			slog.Warn("widgetpack: pruning stale registry entry", "name", p.Name, "version", p.Version)
 			continue
 		}
 		pp := p
@@ -100,7 +102,8 @@ func (s *Store) Add(_ context.Context, pack InstalledPack) error {
 	if pack.InstalledAt.IsZero() {
 		pack.InstalledAt = time.Now().UTC()
 	}
-	s.packs[pack.Name+"@"+pack.Version] = &pack
+	stored := pack // distinct copy for the map
+	s.packs[pack.Name+"@"+pack.Version] = &stored
 	if err := s.persistLocked(); err != nil {
 		delete(s.packs, pack.Name+"@"+pack.Version)
 		s.mu.Unlock()
@@ -111,9 +114,10 @@ func (s *Store) Add(_ context.Context, pack InstalledPack) error {
 		subs = append(subs, ch)
 	}
 	s.mu.Unlock()
+	snap := pack // distinct allocation for the event payload
 	for _, ch := range subs {
 		select {
-		case ch <- WatchEvent{Installed: &pack}:
+		case ch <- WatchEvent{Installed: &snap}:
 		default:
 		}
 	}
@@ -124,12 +128,14 @@ func (s *Store) Add(_ context.Context, pack InstalledPack) error {
 func (s *Store) Remove(_ context.Context, name, version string) error {
 	s.mu.Lock()
 	key := name + "@" + version
-	if _, ok := s.packs[key]; !ok {
+	old, ok := s.packs[key]
+	if !ok {
 		s.mu.Unlock()
 		return ErrPackNotFound
 	}
 	delete(s.packs, key)
 	if err := s.persistLocked(); err != nil {
+		s.packs[key] = old
 		s.mu.Unlock()
 		return err
 	}
