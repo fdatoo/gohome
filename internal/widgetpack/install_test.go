@@ -8,7 +8,7 @@ import (
 )
 
 func TestInstaller_Install(t *testing.T) {
-	store := widgetpack.NewStore()
+	store := widgetpack.NewStore(t.TempDir())
 	installer := widgetpack.NewInstaller(store)
 
 	pack, err := installer.Install(context.Background(), widgetpack.InstallRequest{
@@ -25,7 +25,7 @@ func TestInstaller_Install(t *testing.T) {
 }
 
 func TestInstaller_Install_MissingName(t *testing.T) {
-	store := widgetpack.NewStore()
+	store := widgetpack.NewStore(t.TempDir())
 	installer := widgetpack.NewInstaller(store)
 	_, err := installer.Install(context.Background(), widgetpack.InstallRequest{Ref: "ref"})
 	if err == nil {
@@ -34,7 +34,7 @@ func TestInstaller_Install_MissingName(t *testing.T) {
 }
 
 func TestInstaller_Install_MissingVersion(t *testing.T) {
-	store := widgetpack.NewStore()
+	store := widgetpack.NewStore(t.TempDir())
 	installer := widgetpack.NewInstaller(store)
 	_, err := installer.Install(context.Background(), widgetpack.InstallRequest{
 		Name: "my-widgets",
