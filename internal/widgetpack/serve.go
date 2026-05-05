@@ -1,7 +1,6 @@
 package widgetpack
 
 import (
-	"context"
 	"net/http"
 	"path"
 	"path/filepath"
@@ -25,10 +24,6 @@ func NewBundleHandler(store *Store) http.Handler {
 		}
 		rel := strings.TrimPrefix(r.URL.Path, prefix)
 		clean := path.Clean("/" + rel)
-		if !strings.HasPrefix(clean, "/") || strings.Contains(clean, "..") {
-			http.Error(w, "bad path", http.StatusBadRequest)
-			return
-		}
 		parts := strings.SplitN(strings.TrimPrefix(clean, "/"), "/", 3)
 		if len(parts) < 3 {
 			http.NotFound(w, r)
@@ -36,7 +31,7 @@ func NewBundleHandler(store *Store) http.Handler {
 		}
 		pack, version, file := parts[0], parts[1], parts[2]
 
-		p, err := store.Get(context.Background(), pack, version)
+		p, err := store.Get(r.Context(), pack, version)
 		if err != nil {
 			http.NotFound(w, r)
 			return

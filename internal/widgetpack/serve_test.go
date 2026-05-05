@@ -53,7 +53,10 @@ func TestBundleHandler_PathTraversal(t *testing.T) {
 	srv := httptest.NewServer(h)
 	defer srv.Close()
 
-	resp, _ := http.Get(srv.URL + "/widgets/bar/1.0.0/../../secret.txt")
+	resp, err := http.Get(srv.URL + "/widgets/bar/1.0.0/../../secret.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer resp.Body.Close()
 	if resp.StatusCode == 200 {
 		t.Error("path traversal not blocked")
@@ -67,7 +70,10 @@ func TestBundleHandler_UnknownPack(t *testing.T) {
 	h := widgetpack.NewBundleHandler(store)
 	srv := httptest.NewServer(h)
 	defer srv.Close()
-	resp, _ := http.Get(srv.URL + "/widgets/unknown/1.0.0/bundle.js")
+	resp, err := http.Get(srv.URL + "/widgets/unknown/1.0.0/bundle.js")
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 404 {
 		t.Errorf("status=%d, want 404", resp.StatusCode)
@@ -81,8 +87,14 @@ func TestBundleHandler_MethodNotAllowed(t *testing.T) {
 	h := widgetpack.NewBundleHandler(store)
 	srv := httptest.NewServer(h)
 	defer srv.Close()
-	req, _ := http.NewRequest("POST", srv.URL+"/widgets/bar/1.0.0/bundle.js", nil)
-	resp, _ := http.DefaultClient.Do(req)
+	req, err := http.NewRequest("POST", srv.URL+"/widgets/bar/1.0.0/bundle.js", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 405 {
 		t.Errorf("status=%d, want 405", resp.StatusCode)
