@@ -2,6 +2,7 @@ package eventstore_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/fdatoo/switchyard/internal/eventstore"
@@ -47,5 +48,42 @@ func TestReplay_RebuildsStateFromEvents(t *testing.T) {
 	}
 	if s.Attributes.GetLight().Brightness != 200 {
 		t.Fatalf("brightness = %d, want 200", s.Attributes.GetLight().Brightness)
+	}
+}
+
+func TestReplay_ReturnsReplayError(t *testing.T) {
+	ctx := context.Background()
+
+	// Populate the DB with one event using a store that has no failing projector.
+	f := newStoreFixture(t)
+	if err := f.store.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := f.store.Append(ctx, testutil.StateChanged("light.x", 1)); err != nil {
+		t.Fatal(err)
+	}
+	_ = f.store.Close(ctx)
+
+	// Replay on a fresh store with a projector that fails on the first Apply call.
+	f2 := newStoreFixtureOnDB(t, f.db)
+	if err := f2.store.RegisterProjector(&countingProjector{name: "boom", failAt: 1}, eventstore.ProjectorModeSync); err != nil {
+		t.Fatal(err)
+	}
+	err := f2.store.Replay(ctx)
+	if err == nil {
+		t.Fatal("expected replay to fail")
+	}
+	var re *eventstore.ReplayError
+	if !errors.As(err, &re) {
+		t.Fatalf("expected *eventstore.ReplayError, got %T: %v", err, err)
+	}
+	if re.Position == 0 {
+		t.Fatal("ReplayError.Position must be non-zero")
+	}
+	if re.Projector != "boom" {
+		t.Fatalf("ReplayError.Projector = %q, want %q", re.Projector, "boom")
+	}
+	if re.Err == nil {
+		t.Fatal("ReplayError.Err must not be nil")
 	}
 }

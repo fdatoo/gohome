@@ -10,6 +10,21 @@ import (
 
 const maxUint64 = ^uint64(0)
 
+// ReplayError is returned by Replay when a sync projector's Apply fails.
+// It carries the event position and projector name for recovery introspection.
+type ReplayError struct {
+	Position  uint64
+	Projector string
+	Err       error
+}
+
+func (e *ReplayError) Error() string {
+	return fmt.Sprintf("replay failed at position %d (projector %s): %v",
+		e.Position, e.Projector, e.Err)
+}
+
+func (e *ReplayError) Unwrap() error { return e.Err }
+
 // Replay restores each sync projector's snapshot, then applies pending
 // events in 1000-event batches. Call before Start; not safe after tailer is live.
 func (s *Store) Replay(ctx context.Context) error {
@@ -131,8 +146,11 @@ func (s *Store) replayBatch(ctx context.Context, after uint64, limit int) (uint6
 				continue
 			}
 			if err := reg.p.Apply(ctx, tx, e); err != nil {
-				return 0, fmt.Errorf("replay projector %s at position %d: %w",
-					reg.p.Name(), e.Position, err)
+				return 0, &ReplayError{
+					Position:  e.Position,
+					Projector: reg.p.Name(),
+					Err:       err,
+				}
 			}
 		}
 	}
