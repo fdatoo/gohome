@@ -93,8 +93,12 @@ func TestHandleRecoveryEvents_EmptyReturnsArray(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", w.Code)
 	}
-	if !strings.Contains(w.Body.String(), "[]") {
-		t.Fatalf("body should be empty JSON array, got: %s", w.Body.String())
+	var got []observability.RecoveryEvent
+	if err := json.NewDecoder(w.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("expected empty array, got %d events", len(got))
 	}
 }
 
@@ -150,6 +154,23 @@ func TestHandleProjectionCursors_Success(t *testing.T) {
 	}
 }
 
+func TestHandleProjectionCursors_EmptyReturnsArray(t *testing.T) {
+	p := &fakeRecoveryProvider{inRecovery: true, cursors: nil}
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodGet, "/projection-cursors", nil)
+	observability.HandleProjectionCursors(p).ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+	var got []observability.ProjectionCursor
+	if err := json.NewDecoder(w.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("expected empty array, got %d cursors", len(got))
+	}
+}
+
 // --- GET /skipped-events ---
 
 func TestHandleSkippedEvents_NotInRecovery(t *testing.T) {
@@ -181,6 +202,23 @@ func TestHandleSkippedEvents_Success(t *testing.T) {
 	}
 	if len(got) != 1 || got[0].Position != 5 {
 		t.Fatalf("unexpected skipped: %+v", got)
+	}
+}
+
+func TestHandleSkippedEvents_EmptyReturnsArray(t *testing.T) {
+	p := &fakeRecoveryProvider{inRecovery: true, skipped: nil}
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodGet, "/skipped-events", nil)
+	observability.HandleSkippedEvents(p).ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+	var got []observability.SkippedEvent
+	if err := json.NewDecoder(w.Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("expected empty array, got %d events", len(got))
 	}
 }
 

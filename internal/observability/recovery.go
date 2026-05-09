@@ -180,8 +180,9 @@ func HandleSkipEvent(p RecoveryProvider) http.HandlerFunc {
 			writeError(w, http.StatusUnprocessableEntity, "reason is required")
 			return
 		}
+		names := p.ProjectorNames()
 		known := false
-		for _, name := range p.ProjectorNames() {
+		for _, name := range names {
 			if name == body.Projector {
 				known = true
 				break
@@ -189,7 +190,7 @@ func HandleSkipEvent(p RecoveryProvider) http.HandlerFunc {
 		}
 		if !known {
 			writeError(w, http.StatusUnprocessableEntity,
-				fmt.Sprintf("unknown projector %q; known projectors: %v", body.Projector, p.ProjectorNames()))
+				fmt.Sprintf("unknown projector %q; known projectors: %v", body.Projector, names))
 			return
 		}
 		if err := p.SkipEvent(r.Context(), position, body.Projector, body.Reason, r.RemoteAddr); err != nil {
