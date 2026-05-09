@@ -27,6 +27,8 @@ func (e *ReplayError) Unwrap() error { return e.Err }
 
 // Replay restores each sync projector's snapshot, then applies pending
 // events in 1000-event batches. Call before Start; not safe after tailer is live.
+// On Apply failure, returns a *ReplayError which can be unwrapped with errors.As
+// to retrieve the failing position and projector name.
 func (s *Store) Replay(ctx context.Context) error {
 	if s.started.Load() {
 		return errors.New("Replay: store already started")

@@ -3,6 +3,7 @@ package eventstore_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/fdatoo/switchyard/internal/eventstore"
@@ -59,7 +60,8 @@ func TestReplay_ReturnsReplayError(t *testing.T) {
 	if err := f.store.Start(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := f.store.Append(ctx, testutil.StateChanged("light.x", 1)); err != nil {
+	pos, err := f.store.Append(ctx, testutil.StateChanged("light.x", 1))
+	if err != nil {
 		t.Fatal(err)
 	}
 	_ = f.store.Close(ctx)
@@ -69,7 +71,7 @@ func TestReplay_ReturnsReplayError(t *testing.T) {
 	if err := f2.store.RegisterProjector(&countingProjector{name: "boom", failAt: 1}, eventstore.ProjectorModeSync); err != nil {
 		t.Fatal(err)
 	}
-	err := f2.store.Replay(ctx)
+	err = f2.store.Replay(ctx)
 	if err == nil {
 		t.Fatal("expected replay to fail")
 	}
@@ -77,13 +79,17 @@ func TestReplay_ReturnsReplayError(t *testing.T) {
 	if !errors.As(err, &re) {
 		t.Fatalf("expected *eventstore.ReplayError, got %T: %v", err, err)
 	}
-	if re.Position == 0 {
-		t.Fatal("ReplayError.Position must be non-zero")
+	if re.Position != pos {
+		t.Fatalf("ReplayError.Position = %d, want %d", re.Position, pos)
 	}
 	if re.Projector != "boom" {
 		t.Fatalf("ReplayError.Projector = %q, want %q", re.Projector, "boom")
 	}
 	if re.Err == nil {
 		t.Fatal("ReplayError.Err must not be nil")
+	}
+	// Verify the inner error is accessible via the unwrap chain.
+	if re.Err == nil || !strings.Contains(re.Err.Error(), "intentional failure") {
+		t.Fatalf("expected inner error to contain 'intentional failure', got: %v", re.Err)
 	}
 }
