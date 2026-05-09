@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -65,13 +66,18 @@ type Daemon struct {
 	automationEngine *automation.Engine
 	configDir        string
 
-	phase        atomic.Int32
-	recoveryInfo atomic.Pointer[recoveryState]
+	phase          atomic.Int32
+	recoveryInfo   atomic.Pointer[recoveryState]
+	shutdownCancel atomic.Pointer[context.CancelFunc]
 }
 
 type recoveryState struct {
-	reason string
+	reason    string
+	failedPos uint64
 }
+
+// Compile-time assertion: *Daemon must satisfy RecoveryProvider.
+var _ observability.RecoveryProvider = (*Daemon)(nil)
 
 // Version, Commit, and GoVersion are set via -ldflags at build time.
 var (
@@ -88,6 +94,10 @@ func New(cfg Config, logger *slog.Logger, metrics *observability.Metrics) *Daemo
 
 // Run boots through phases 1-5 and blocks until ctx is done.
 func (d *Daemon) Run(ctx context.Context) error {
+	ctx, cancel := context.WithCancel(ctx)
+	d.shutdownCancel.Store(&cancel)
+	defer cancel()
+
 	d.metrics.SetBuildInfo(Version, Commit, GoVersion)
 	start := time.Now()
 
@@ -173,7 +183,12 @@ func (d *Daemon) Run(ctx context.Context) error {
 	d.metrics.StartupPhase.Set(3)
 
 	if err := store.Replay(ctx); err != nil {
-		d.enterRecovery(err.Error())
+		var replayErr *eventstore.ReplayError
+		var failedPos uint64
+		if errors.As(err, &replayErr) {
+			failedPos = replayErr.Position
+		}
+		d.enterRecovery(ctx, err.Error(), failedPos)
 		<-ctx.Done()
 		return nil
 	}
@@ -586,12 +601,124 @@ func (d *Daemon) healthStatus() (string, int) {
 	}
 }
 
-func (d *Daemon) enterRecovery(reason string) {
+func (d *Daemon) enterRecovery(ctx context.Context, reason string, failedPos uint64) {
 	d.metrics.RecoveryModeEntered.Inc()
 	d.phase.Store(-1)
 	d.metrics.StartupPhase.Set(-1)
-	d.recoveryInfo.Store(&recoveryState{reason: reason})
-	d.logger.Error("entering recovery mode", "reason", reason)
+	d.recoveryInfo.Store(&recoveryState{reason: reason, failedPos: failedPos})
+	d.logger.Error("entering recovery mode", "reason", reason, "failed_position", failedPos)
+	go func() {
+		t := time.NewTicker(30 * time.Second)
+		defer t.Stop()
+		for {
+			select {
+			case <-t.C:
+				d.logger.Error("daemon in recovery mode — operator action required",
+					"reason", reason,
+					"failed_position", failedPos,
+				)
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+}
+
+func (d *Daemon) InRecovery() bool {
+	return d.phase.Load() == -1
+}
+
+func (d *Daemon) RecoveryInfo() (string, uint64) {
+	if info := d.recoveryInfo.Load(); info != nil {
+		return info.reason, info.failedPos
+	}
+	return "", 0
+}
+
+// QueryEvents returns up to limit events starting from around position.
+// Uses position - limit as the exclusive lower bound so the failing event is included.
+func (d *Daemon) QueryEvents(ctx context.Context, position uint64, limit int) ([]observability.RecoveryEvent, error) {
+	var from uint64
+	if position > uint64(limit) {
+		from = position - uint64(limit) - 1
+	}
+	events, err := d.store.Query(ctx, eventstore.QueryOptions{
+		FromPosition: from,
+		Limit:        limit,
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := make([]observability.RecoveryEvent, len(events))
+	for i, e := range events {
+		out[i] = observability.RecoveryEvent{
+			Position:  e.Position,
+			Timestamp: e.Timestamp,
+			Kind:      e.Kind,
+			Entity:    e.Entity,
+			Source:    e.Source,
+		}
+	}
+	return out, nil
+}
+
+func (d *Daemon) QueryProjectionCursors(ctx context.Context) ([]observability.ProjectionCursor, error) {
+	rows, err := d.db.QueryContext(ctx,
+		`SELECT name, position, updated_at FROM projection_cursors ORDER BY name`)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	var out []observability.ProjectionCursor
+	for rows.Next() {
+		var c observability.ProjectionCursor
+		var updatedAtNano int64
+		if err := rows.Scan(&c.Name, &c.Position, &updatedAtNano); err != nil {
+			return nil, err
+		}
+		c.UpdatedAt = time.Unix(0, updatedAtNano)
+		out = append(out, c)
+	}
+	return out, rows.Err()
+}
+
+func (d *Daemon) QuerySkippedEvents(ctx context.Context) ([]observability.SkippedEvent, error) {
+	rows, err := d.db.QueryContext(ctx,
+		`SELECT position, projector, skipped_at, skipped_by, reason FROM skipped_events ORDER BY position, projector`)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	var out []observability.SkippedEvent
+	for rows.Next() {
+		var e observability.SkippedEvent
+		var skippedAtNano int64
+		if err := rows.Scan(&e.Position, &e.Projector, &skippedAtNano, &e.SkippedBy, &e.Reason); err != nil {
+			return nil, err
+		}
+		e.SkippedAt = time.Unix(0, skippedAtNano)
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}
+
+func (d *Daemon) SkipEvent(ctx context.Context, position uint64, projector, reason, skippedBy string) error {
+	_, err := d.db.ExecContext(ctx, `
+		INSERT INTO skipped_events (position, projector, skipped_at, skipped_by, reason)
+		VALUES (?, ?, ?, ?, ?)`,
+		position, projector, time.Now().UnixNano(), skippedBy, reason,
+	)
+	return err
+}
+
+func (d *Daemon) ProjectorNames() []string {
+	return d.store.ProjectorNames()
+}
+
+func (d *Daemon) Shutdown() {
+	if fn := d.shutdownCancel.Load(); fn != nil {
+		(*fn)()
+	}
 }
 
 func expandHome(path string) string {
