@@ -40,6 +40,11 @@ docs/site/
 # Superpowers scratch
 .superpowers/
 
+# AI tool local state
+.claude/*
+!.claude/settings.json
+.claire/
+
 # Driver binaries
 # go build ./drivers/hue/... drops the binary at the repo root
 /hue-driver
