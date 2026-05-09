@@ -93,6 +93,15 @@ func (s *Store) RegisterProjector(p Projector, mode ProjectorMode) error {
 	return nil
 }
 
+// ProjectorNames returns the names of all registered projectors in registration order.
+func (s *Store) ProjectorNames() []string {
+	names := make([]string, len(s.projectors))
+	for i, reg := range s.projectors {
+		names[i] = reg.p.Name()
+	}
+	return names
+}
+
 func (s *Store) LatestPosition() uint64 {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

@@ -170,3 +170,23 @@ func TestAppend_SyncProjectorFailureRollsBack(t *testing.T) {
 		t.Fatalf("rolled-back event still present: %+v", got)
 	}
 }
+
+func TestStore_ProjectorNames(t *testing.T) {
+	f := newStoreFixture(t)
+	if err := f.store.RegisterProjector(&countingProjector{name: "alpha"}, eventstore.ProjectorModeSync); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.store.RegisterProjector(&countingProjector{name: "beta"}, eventstore.ProjectorModeSync); err != nil {
+		t.Fatal(err)
+	}
+	got := f.store.ProjectorNames()
+	want := []string{"alpha", "beta"}
+	if len(got) != len(want) {
+		t.Fatalf("ProjectorNames() = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("ProjectorNames()[%d] = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
