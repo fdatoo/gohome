@@ -379,6 +379,28 @@ func TestSubscribe_DurableRequiresName(t *testing.T) {
 	}
 }
 
+func TestClose_WakesIdleTailer(t *testing.T) {
+	ctx := context.Background()
+	f := newStoreFixture(t)
+	if err := f.store.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		done <- f.store.Close(ctx)
+	}()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("Close: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Close timed out with idle tailer")
+	}
+}
+
 func TestReplay_WithProjectorAndEvents(t *testing.T) {
 	ctx := context.Background()
 
