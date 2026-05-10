@@ -167,8 +167,8 @@ func (s *Store) Append(ctx context.Context, e Event) (uint64, error) {
 	if position > s.latestPosition {
 		s.latestPosition = position
 	}
-	s.mu.Unlock()
 	s.cond.Broadcast()
+	s.mu.Unlock()
 
 	s.metrics.EventsAppended.WithLabelValues(e.Kind).Inc()
 	return position, nil
@@ -411,8 +411,8 @@ func (s *Store) AppendBatch(ctx context.Context, events []Event) ([]uint64, erro
 
 	s.mu.Lock()
 	s.latestPosition = events[len(events)-1].Position
-	s.mu.Unlock()
 	s.cond.Broadcast()
+	s.mu.Unlock()
 
 	for _, e := range events {
 		s.metrics.EventsAppended.WithLabelValues(e.Kind).Inc()
@@ -422,10 +422,13 @@ func (s *Store) AppendBatch(ctx context.Context, events []Event) ([]uint64, erro
 
 // Close releases the store.
 func (s *Store) Close(_ context.Context) error {
+	s.mu.Lock()
 	if s.cancel != nil {
 		s.cancel()
+		s.cancel = nil
 	}
 	s.cond.Broadcast()
+	s.mu.Unlock()
 	s.bgWG.Wait()
 	s.mu.Lock()
 	subs := make([]*subscriber, len(s.subs))
