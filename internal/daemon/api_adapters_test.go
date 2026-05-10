@@ -1,8 +1,13 @@
 package daemon
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -17,6 +22,7 @@ import (
 	"github.com/fdatoo/switchyard/internal/eventstore"
 	"github.com/fdatoo/switchyard/internal/observability"
 	ghstarlark "github.com/fdatoo/switchyard/internal/starlark"
+	"github.com/fdatoo/switchyard/internal/storage"
 	"github.com/fdatoo/switchyard/internal/testutil"
 )
 
@@ -161,6 +167,121 @@ func newTraceTestStore(t *testing.T) *eventstore.Store {
 	}
 	t.Cleanup(func() { _ = s.Close(context.Background()) })
 	return s
+}
+
+type diagnosticCursorProjector struct {
+	eventstore.NoSnapshot
+}
+
+func (diagnosticCursorProjector) Name() string { return "diagnostic_test" }
+func (diagnosticCursorProjector) Apply(context.Context, storage.Tx, eventstore.Event) error {
+	return nil
+}
+
+func TestSystemBackendAdapter_DiagnosticsBuildsZip(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	logger := observability.Init(observability.LogConfig{Level: slog.LevelInfo, Format: "json", Output: &bytes.Buffer{}})
+	metrics := observability.NewMetrics()
+	metrics.SetBuildInfo("test-version", "test-commit", "test-go")
+	store, err := eventstore.Open(context.Background(), eventstore.Config{}, db, logger, metrics)
+	if err != nil {
+		t.Fatalf("eventstore.Open: %v", err)
+	}
+	if err := store.RegisterProjector(diagnosticCursorProjector{}, eventstore.ProjectorModeSync); err != nil {
+		t.Fatalf("RegisterProjector: %v", err)
+	}
+	if err := store.Start(context.Background()); err != nil {
+		t.Fatalf("eventstore.Start: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close(context.Background()) })
+
+	_, err = store.Append(context.Background(), eventstore.Event{
+		Kind:      "system",
+		Source:    "test",
+		Timestamp: time.Unix(1700000000, 0).UTC(),
+		Payload: &eventv1.Payload{Kind: &eventv1.Payload_System{
+			System: &eventv1.SystemEvent{Kind: "startup"},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("Append: %v", err)
+	}
+
+	d := &Daemon{db: db, startTime: time.Now().Add(-time.Minute)}
+	d.phase.Store(5)
+	a := &systemBackendAdapter{store: store, metrics: metrics, phase: d}
+
+	bundle, configHash, generatedAt, err := a.Diagnostics(context.Background())
+	if err != nil {
+		t.Fatalf("Diagnostics: %v", err)
+	}
+	if len(bundle) == 0 {
+		t.Fatal("empty bundle")
+	}
+	if generatedAt.IsZero() {
+		t.Fatal("zero generatedAt")
+	}
+
+	files := readAdapterZip(t, bundle)
+	for _, name := range []string{
+		"build_info.json",
+		"metrics_dump.txt",
+		"events_tail.jsonl",
+		"projection_cursors.json",
+		"config_snapshot.json",
+		"health.json",
+		"goroutines.txt",
+	} {
+		if _, ok := files[name]; !ok {
+			t.Fatalf("missing %s", name)
+		}
+	}
+	if !bytes.Contains(files["metrics_dump.txt"], []byte("switchyard_build_info")) {
+		t.Fatalf("metrics dump missing build info: %s", files["metrics_dump.txt"])
+	}
+	if !bytes.Contains(files["events_tail.jsonl"], []byte(`"position":1`)) {
+		t.Fatalf("events tail missing appended event: %s", files["events_tail.jsonl"])
+	}
+	if !bytes.Contains(files["projection_cursors.json"], []byte(`"diagnostic_test"`)) {
+		t.Fatalf("projection cursors missing test projector: %s", files["projection_cursors.json"])
+	}
+
+	sum := sha256.Sum256(files["config_snapshot.json"])
+	if configHash != hex.EncodeToString(sum[:]) {
+		t.Fatalf("configHash = %q, want hash of config_snapshot.json", configHash)
+	}
+	var health struct {
+		Phase  int32  `json:"phase"`
+		Status string `json:"status"`
+	}
+	if err := json.Unmarshal(files["health.json"], &health); err != nil {
+		t.Fatalf("unmarshal health: %v", err)
+	}
+	if health.Phase != 5 || health.Status != "ready" {
+		t.Fatalf("health = %+v", health)
+	}
+}
+
+func readAdapterZip(t *testing.T, data []byte) map[string][]byte {
+	t.Helper()
+	zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		t.Fatalf("zip.NewReader: %v", err)
+	}
+	files := make(map[string][]byte, len(zr.File))
+	for _, f := range zr.File {
+		rc, err := f.Open()
+		if err != nil {
+			t.Fatalf("open %s: %v", f.Name, err)
+		}
+		body, err := io.ReadAll(rc)
+		_ = rc.Close()
+		if err != nil {
+			t.Fatalf("read %s: %v", f.Name, err)
+		}
+		files[f.Name] = body
+	}
+	return files
 }
 
 func mustAppendAutomationTriggered(t *testing.T, s *eventstore.Store, automationID string, corrID uuid.UUID) {
