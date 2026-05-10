@@ -2,6 +2,7 @@ package config
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -110,5 +111,35 @@ func TestManager_Current_NilBeforeApply(t *testing.T) {
 	mgr := &Manager{}
 	if mgr.Current() != nil {
 		t.Error("Current() should be nil before Apply")
+	}
+}
+
+func TestManager_Apply_StoresResolvedAndRedactedSnapshots(t *testing.T) {
+	t.Setenv("TEST_API_KEY", "secret-value")
+	snap := &configpb.ConfigSnapshot{
+		DriverInstances: []*configpb.DriverInstanceConfig{
+			{Id: "hue-main", DriverName: "hue", Params: []byte(`{"id":"hue-main","apiKey":"env:TEST_API_KEY"}`)},
+		},
+	}
+	mgr := &Manager{
+		configDir:  "/fake",
+		ev:         &fakeEval{snap: snap},
+		store:      &fakeStore{},
+		carportMgr: &fakeCarport{},
+		registry:   testRegistryWith("hue"),
+	}
+
+	if err := mgr.Apply(context.Background(), false); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if got := string(mgr.Current().DriverInstances[0].Params); !strings.Contains(got, "secret-value") {
+		t.Fatalf("Current params not resolved: %s", got)
+	}
+	redacted := string(mgr.CurrentRedacted().DriverInstances[0].Params)
+	if strings.Contains(redacted, "secret-value") || strings.Contains(redacted, "env:TEST_API_KEY") {
+		t.Fatalf("CurrentRedacted leaked secret material: %s", redacted)
+	}
+	if !strings.Contains(redacted, RedactedSecret) {
+		t.Fatalf("CurrentRedacted missing marker: %s", redacted)
 	}
 }

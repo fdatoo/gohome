@@ -39,6 +39,7 @@ type Manager struct {
 
 	mu           sync.RWMutex
 	current      *configpb.ConfigSnapshot
+	redacted     *configpb.ConfigSnapshot
 	appliedHooks []func(snap *configpb.ConfigSnapshot)
 }
 
@@ -98,6 +99,14 @@ func (m *Manager) Current() *configpb.ConfigSnapshot {
 	return m.current
 }
 
+// CurrentRedacted returns the most-recently-applied ConfigSnapshot with tagged
+// secrets replaced before resolution. Nil before first Apply.
+func (m *Manager) CurrentRedacted() *configpb.ConfigSnapshot {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.redacted
+}
+
 // Validate evaluates and cross-ref-validates config. Returns snapshot + diff with no side-effects.
 func (m *Manager) Validate(ctx context.Context) (*configpb.ConfigSnapshot, *ConfigDiff, error) {
 	snap, err := m.ev.Evaluate(ctx, m.configDir)
@@ -122,6 +131,11 @@ func (m *Manager) Apply(ctx context.Context, dryRun bool) error {
 	}
 	if dryRun {
 		return nil
+	}
+
+	redacted, err := RedactedSnapshot(snap)
+	if err != nil {
+		return fmt.Errorf("redact secrets: %w", err)
 	}
 
 	if err := ResolveSecrets(ctx, snap, m.keyring); err != nil {
@@ -151,6 +165,7 @@ func (m *Manager) Apply(ctx context.Context, dryRun bool) error {
 
 	m.mu.Lock()
 	m.current = snap
+	m.redacted = redacted
 	m.mu.Unlock()
 
 	_, err = m.store.Append(ctx, eventstore.Event{

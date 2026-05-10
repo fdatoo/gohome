@@ -65,6 +65,7 @@ type Daemon struct {
 	scriptEngine     *script.Engine
 	automationEngine *automation.Engine
 	configDir        string
+	startTime        time.Time
 
 	phase          atomic.Int32
 	recoveryInfo   atomic.Pointer[recoveryState]
@@ -89,11 +90,14 @@ var (
 // New constructs an unstarted Daemon.
 func New(cfg Config, logger *slog.Logger, metrics *observability.Metrics) *Daemon {
 	cfg.WithDefaults()
-	return &Daemon{cfg: cfg, logger: logger, metrics: metrics}
+	return &Daemon{cfg: cfg, logger: logger, metrics: metrics, startTime: time.Now()}
 }
 
 // Run boots through phases 1-5 and blocks until ctx is done.
 func (d *Daemon) Run(ctx context.Context) (err error) {
+	if d.startTime.IsZero() {
+		d.startTime = time.Now()
+	}
 	ctx, cancel := context.WithCancel(ctx)
 	d.shutdownCancel.Store(&cancel)
 	defer cancel()

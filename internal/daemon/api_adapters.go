@@ -26,6 +26,7 @@ import (
 	"github.com/fdatoo/switchyard/internal/automation"
 	"github.com/fdatoo/switchyard/internal/carport"
 	"github.com/fdatoo/switchyard/internal/config"
+	"github.com/fdatoo/switchyard/internal/diagnostics"
 	"github.com/fdatoo/switchyard/internal/eventstore"
 	"github.com/fdatoo/switchyard/internal/observability"
 	"github.com/fdatoo/switchyard/internal/policy"
@@ -79,9 +80,66 @@ func (a *systemBackendAdapter) MetricsText() (string, error) {
 	return buf.String(), nil
 }
 
-func (a *systemBackendAdapter) Diagnostics(_ context.Context) ([]byte, string, time.Time, error) {
-	// TODO: build a diagnostics bundle when required
-	return []byte("{}"), "", time.Now(), nil
+func (a *systemBackendAdapter) Diagnostics(ctx context.Context) ([]byte, string, time.Time, error) {
+	generatedAt := time.Now()
+
+	metricsDump, err := a.MetricsText()
+	if err != nil {
+		return nil, "", time.Time{}, err
+	}
+
+	var events []eventstore.Event
+	if a.store != nil {
+		latest := a.store.LatestPosition()
+		var from uint64
+		if latest > 1000 {
+			from = latest - 1000
+		}
+		events, err = a.store.Query(ctx, eventstore.QueryOptions{FromPosition: from, Limit: 1000})
+		if err != nil {
+			return nil, "", time.Time{}, fmt.Errorf("events tail: %w", err)
+		}
+	}
+
+	var cursors []observability.ProjectionCursor
+	var snap *configpb.ConfigSnapshot
+	health := diagnostics.HealthInfo{Status: "unknown"}
+	if a.phase != nil {
+		status, _ := a.phase.healthStatus()
+		health.Status = status
+		health.Phase = a.phase.phase.Load()
+		health.InRecovery = a.phase.InRecovery()
+		if !a.phase.startTime.IsZero() {
+			health.UptimeSeconds = generatedAt.Sub(a.phase.startTime).Seconds()
+		}
+		if health.InRecovery {
+			reason, failedPos := a.phase.RecoveryInfo()
+			health.Recovery = &diagnostics.RecoveryInfo{Reason: reason, FailedPosition: failedPos}
+		}
+		if a.phase.db != nil {
+			cursors, err = a.phase.QueryProjectionCursors(ctx)
+			if err != nil {
+				return nil, "", time.Time{}, fmt.Errorf("projection cursors: %w", err)
+			}
+		}
+		if a.phase.configMgr != nil {
+			snap = a.phase.configMgr.CurrentRedacted()
+		}
+	}
+
+	return diagnostics.Build(diagnostics.Options{
+		BuildInfo: diagnostics.BuildInfo{
+			Version:   Version,
+			Commit:    Commit,
+			GoVersion: GoVersion,
+		},
+		MetricsDump:       metricsDump,
+		EventsTail:        events,
+		ProjectionCursors: cursors,
+		ConfigSnapshot:    snap,
+		Health:            health,
+		GeneratedAt:       generatedAt,
+	})
 }
 
 func (a *systemBackendAdapter) CreateSnapshot(ctx context.Context, _, _ string) (uint64, time.Time, error) {
