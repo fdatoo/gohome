@@ -147,7 +147,7 @@ func (s *Store) replayBatch(ctx context.Context, after uint64, limit int) (uint6
 					"position", e.Position, "projector", reg.p.Name())
 				continue
 			}
-			if err := reg.p.Apply(ctx, tx, e); err != nil {
+			if err := applyProjector(ctx, tx, reg, e); err != nil {
 				return 0, &ReplayError{
 					Position:  e.Position,
 					Projector: reg.p.Name(),

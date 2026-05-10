@@ -116,14 +116,27 @@ func (s *Store) LatestPosition() uint64 {
 // Append writes a single event. Sync projectors run in the same transaction.
 // Returns the assigned position.
 func (s *Store) Append(ctx context.Context, e Event) (uint64, error) {
+	ctx, span := observability.StartSpan(ctx, "eventstore.Append")
+	span.SetAttr("kind", e.Kind)
+	if e.Entity != "" {
+		span.SetAttr("entity", e.Entity)
+	}
+	defer span.End()
+
 	if e.Kind == "" {
-		return 0, errors.New("Append: Kind required")
+		err := errors.New("Append: Kind required")
+		span.RecordError(err)
+		return 0, err
 	}
 	if e.Source == "" {
-		return 0, errors.New("Append: Source required")
+		err := errors.New("Append: Source required")
+		span.RecordError(err)
+		return 0, err
 	}
 	if e.Payload == nil {
-		return 0, errors.New("Append: Payload required")
+		err := errors.New("Append: Payload required")
+		span.RecordError(err)
+		return 0, err
 	}
 	if e.Timestamp.IsZero() {
 		e.Timestamp = time.Now()
@@ -134,7 +147,9 @@ func (s *Store) Append(ctx context.Context, e Event) (uint64, error) {
 
 	payload, err := proto.Marshal(e.Payload)
 	if err != nil {
-		return 0, fmt.Errorf("marshal payload: %w", err)
+		err = fmt.Errorf("marshal payload: %w", err)
+		span.RecordError(err)
+		return 0, err
 	}
 
 	start := time.Now()
@@ -144,6 +159,7 @@ func (s *Store) Append(ctx context.Context, e Event) (uint64, error) {
 	if err := s.withRetry(ctx, func() error {
 		return s.appendTx(ctx, e, payload, &position)
 	}); err != nil {
+		span.RecordError(err)
 		return 0, err
 	}
 
@@ -221,7 +237,7 @@ func (s *Store) appendTx(ctx context.Context, e Event, payload []byte, outPos *u
 			continue
 		}
 		projStart := time.Now()
-		if err := reg.p.Apply(ctx, tx, e); err != nil {
+		if err := applyProjector(ctx, tx, reg, e); err != nil {
 			s.metrics.ProjectorFailures.WithLabelValues(reg.p.Name(), "sync").Inc()
 			s.metrics.AppendFailures.WithLabelValues("projector").Inc()
 			return fmt.Errorf("projector %s apply: %w", reg.p.Name(), err)
@@ -286,6 +302,10 @@ func isSQLiteBusy(err error) bool {
 
 // AppendBatch writes multiple events atomically. All-or-nothing.
 func (s *Store) AppendBatch(ctx context.Context, events []Event) ([]uint64, error) {
+	ctx, span := observability.StartSpan(ctx, "eventstore.AppendBatch")
+	span.SetAttr("batch_size", len(events))
+	defer span.End()
+
 	if len(events) == 0 {
 		return nil, nil
 	}
@@ -354,7 +374,7 @@ func (s *Store) AppendBatch(ctx context.Context, events []Event) ([]uint64, erro
 				if reg.mode != ProjectorModeSync {
 					continue
 				}
-				if err := reg.p.Apply(ctx, tx, *e); err != nil {
+				if err := applyProjector(ctx, tx, reg, *e); err != nil {
 					return fmt.Errorf("projector %s: %w", reg.p.Name(), err)
 				}
 			}
@@ -385,6 +405,7 @@ func (s *Store) AppendBatch(ctx context.Context, events []Event) ([]uint64, erro
 		return nil
 	})
 	if err != nil {
+		span.RecordError(err)
 		return nil, err
 	}
 

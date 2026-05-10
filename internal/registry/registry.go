@@ -9,6 +9,7 @@ import (
 
 	eventv1 "github.com/fdatoo/switchyard/gen/switchyard/event/v1"
 	"github.com/fdatoo/switchyard/internal/eventstore"
+	"github.com/fdatoo/switchyard/internal/observability"
 	regMigrations "github.com/fdatoo/switchyard/internal/registry/migrations"
 	"github.com/fdatoo/switchyard/internal/storage"
 )
@@ -30,7 +31,15 @@ func New(ctx context.Context, db *sql.DB) (*Registry, error) {
 func (r *Registry) Name() string { return "registry" }
 
 // Apply implements eventstore.Projector. Runs inside the Append tx.
-func (r *Registry) Apply(ctx context.Context, tx storage.Tx, e eventstore.Event) error {
+func (r *Registry) Apply(ctx context.Context, tx storage.Tx, e eventstore.Event) (err error) {
+	ctx, span := observability.StartSpan(ctx, "registry.Apply")
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+		}
+		span.End()
+	}()
+
 	switch payload := e.Payload.GetKind().(type) {
 	case *eventv1.Payload_EntityRegistered:
 		return r.applyEntityRegistered(ctx, tx, e, payload.EntityRegistered)
