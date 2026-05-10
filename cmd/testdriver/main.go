@@ -84,6 +84,7 @@ func (s *server) Handshake(_ context.Context, req *carportpb.HandshakeRequest) (
 	if s.mode == "repeat_register" {
 		resp.InitialEntities = []*eventpb.EntityRegistered{{
 			DriverInstanceId: s.instanceID,
+			DeviceId:         "test_light",
 			EntityType:       "light",
 			FriendlyName:     "test_light",
 			Capabilities:     &entitypb.Attributes{},
@@ -104,7 +105,10 @@ func (s *server) Run(srv carportpb.Driver_RunServer) error {
 		for i := 0; i < 1000; i++ {
 			if err := srv.Send(&carportpb.DriverToHost{
 				Kind: &carportpb.DriverToHost_StateChanged{
-					StateChanged: &eventpb.StateChanged{Attributes: &entitypb.Attributes{}},
+					StateChanged: &eventpb.StateChanged{
+						EntityId:   "test_light",
+						Attributes: &entitypb.Attributes{},
+					},
 				},
 			}); err != nil {
 				return err
