@@ -138,8 +138,7 @@ type CapabilityCaller interface {
 	Call(ctx context.Context, entityID, capability string, params map[string]any) (CapabilityCallResult, error)
 }
 
-// EntityStreamSource is implemented in Task 17. Declared here so the field
-// type compiles; concrete impl is added later.
+// EntityStreamSource streams live entity changes from the daemon's eventstore.
 type EntityStreamSource interface {
 	// Subscribe returns a channel of EntityChange events filtered by sel,
 	// optionally replaying from fromCursor. The returned cancel func MUST be

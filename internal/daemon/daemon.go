@@ -400,7 +400,7 @@ func (d *Daemon) Run(ctx context.Context) (err error) {
 	wbApp := &webhookAppenderAdapter{store: d.store}
 
 	entSvc := api.NewEntityService(entRd, capCall)
-	// TODO: wire EntityStreamSource adapter when eventstore Subscribe is ready
+	entSvc.SetStreamSource(&entityStreamSourceAdapter{store: d.store, reader: entRd})
 
 	auditRecorder := audit.New(store)
 

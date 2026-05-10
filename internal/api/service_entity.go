@@ -17,8 +17,8 @@ type EntityService struct {
 	r      EntityReader
 	caller CapabilityCaller
 
-	// streamSource is plugged in by Task 17. Nil means Subscribe returns
-	// UNIMPLEMENTED.
+	// streamSource is wired by the daemon. Nil means Subscribe returns
+	// UNIMPLEMENTED for tests or partial embedders that do not provide streams.
 	streamSource EntityStreamSource
 
 	policyRuntime *policy.Runtime // nil until wired; filter passes through if nil
@@ -28,8 +28,7 @@ func NewEntityService(r EntityReader, caller CapabilityCaller) *EntityService {
 	return &EntityService{r: r, caller: caller}
 }
 
-// SetStreamSource wires the live subscription source after construction (used
-// by Task 17 to avoid breaking the constructor signature).
+// SetStreamSource wires the live subscription source after construction.
 func (s *EntityService) SetStreamSource(src EntityStreamSource) { s.streamSource = src }
 
 // SetPolicyRuntime wires the policy runtime after construction.

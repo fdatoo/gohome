@@ -14,9 +14,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/prometheus/common/expfmt"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/structpb"
 
 	configpb "github.com/fdatoo/switchyard/gen/switchyard/config/v1"
+	entityv1 "github.com/fdatoo/switchyard/gen/switchyard/entity/v1"
 	eventv1 "github.com/fdatoo/switchyard/gen/switchyard/event/v1"
 	"github.com/fdatoo/switchyard/internal/api"
 	"github.com/fdatoo/switchyard/internal/auth"
@@ -315,7 +317,11 @@ func (a *entityReaderAdapter) ListEntities(ctx context.Context, sel api.EntitySe
 	}
 	out := make([]api.Entity, 0, len(ents))
 	for _, e := range ents {
-		out = append(out, a.toAPIEntity(e))
+		ent := a.toAPIEntity(e)
+		if !entityMatchesSelector(ent, sel) {
+			continue
+		}
+		out = append(out, ent)
 	}
 	return paginateEntities(out, page)
 }
@@ -342,6 +348,114 @@ func (a *entityReaderAdapter) toAPIEntity(e registry.Entity) api.Entity {
 		}
 	}
 	return ent
+}
+
+// ---- entityStreamSourceAdapter ----
+
+type entityStreamSourceAdapter struct {
+	store  *eventstore.Store
+	reader api.EntityReader
+}
+
+func (a *entityStreamSourceAdapter) Subscribe(ctx context.Context, sel api.EntitySelector, fromCursor uint64) (<-chan api.EntityChange, func(), error) {
+	if a.store == nil {
+		return nil, nil, fmt.Errorf("eventstore not available for entity stream")
+	}
+	if a.reader == nil {
+		return nil, nil, fmt.Errorf("entity reader not available for entity stream")
+	}
+
+	subCtx, cancel := context.WithCancel(ctx)
+	sub, err := a.store.Subscribe(subCtx, eventstore.SubscribeOptions{
+		FromPosition: fromCursor,
+		Filter: eventstore.Filter{
+			Kinds:    []string{"state_changed"},
+			Entities: sel.EntityIDs,
+		},
+	})
+	if err != nil {
+		cancel()
+		return nil, nil, err
+	}
+
+	ch := make(chan api.EntityChange, 64)
+	go func() {
+		defer close(ch)
+		defer func() { _ = sub.Close() }()
+		for {
+			select {
+			case ev, ok := <-sub.C():
+				if !ok {
+					return
+				}
+				change, ok := a.entityChangeFromEvent(subCtx, sel, ev)
+				if !ok {
+					continue
+				}
+				select {
+				case ch <- change:
+				case <-subCtx.Done():
+					return
+				}
+			case <-subCtx.Done():
+				return
+			}
+		}
+	}()
+
+	return ch, cancel, nil
+}
+
+func (a *entityStreamSourceAdapter) entityChangeFromEvent(ctx context.Context, sel api.EntitySelector, ev eventstore.Event) (api.EntityChange, bool) {
+	payload := ev.Payload.GetStateChanged()
+	if payload == nil {
+		return api.EntityChange{}, false
+	}
+	entityID := ev.Entity
+	if entityID == "" {
+		entityID = payload.GetEntityId()
+	}
+	if entityID == "" {
+		return api.EntityChange{}, false
+	}
+
+	ent, err := a.reader.GetEntity(ctx, entityID)
+	if err != nil {
+		return api.EntityChange{}, false
+	}
+	if payload.Attributes != nil {
+		ent.State = proto.Clone(payload.Attributes).(*entityv1.Attributes)
+	}
+	if !entityMatchesSelector(ent, sel) {
+		return api.EntityChange{}, false
+	}
+
+	return api.EntityChange{
+		EntityID: entityID,
+		Cursor:   ev.Position,
+		AtUnixMs: ev.Timestamp.UnixMilli(),
+		Entity:   ent,
+	}, true
+}
+
+func entityMatchesSelector(e api.Entity, sel api.EntitySelector) bool {
+	return stringInSelector(sel.EntityIDs, e.ID) &&
+		stringInSelector(sel.DeviceIDs, e.DeviceID) &&
+		stringInSelector(sel.Areas, e.AreaID) &&
+		stringInSelector(sel.Zones, e.ZoneID) &&
+		stringInSelector(sel.Classes, e.Type)
+}
+
+func stringInSelector(values []string, got string) bool {
+	if len(values) == 0 {
+		return true
+	}
+	for _, v := range values {
+		if v == got {
+			return true
+		}
+	}
+	return false
 }
 
 // ---- capabilityCallerAdapter ----
