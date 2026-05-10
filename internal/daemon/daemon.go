@@ -93,17 +93,39 @@ func New(cfg Config, logger *slog.Logger, metrics *observability.Metrics) *Daemo
 }
 
 // Run boots through phases 1-5 and blocks until ctx is done.
-func (d *Daemon) Run(ctx context.Context) error {
+func (d *Daemon) Run(ctx context.Context) (err error) {
 	ctx, cancel := context.WithCancel(ctx)
 	d.shutdownCancel.Store(&cancel)
 	defer cancel()
+	baseCtx := ctx
+
+	var phaseSpan observability.Span
+	endStartupPhase := func() {
+		if phaseSpan == nil {
+			return
+		}
+		phaseSpan.End()
+		phaseSpan = nil
+	}
+	startStartupPhase := func(phase int32) {
+		endStartupPhase()
+		d.phase.Store(phase)
+		d.metrics.StartupPhase.Set(float64(phase))
+		ctx, phaseSpan = observability.StartSpan(baseCtx, "startup.phase")
+		phaseSpan.SetAttr("phase", int(phase))
+	}
+	defer func() {
+		if err != nil && phaseSpan != nil {
+			phaseSpan.RecordError(err)
+		}
+		endStartupPhase()
+	}()
 
 	d.metrics.SetBuildInfo(Version, Commit, GoVersion)
 	start := time.Now()
 
 	// Phase 1: cold open
-	d.phase.Store(1)
-	d.metrics.StartupPhase.Set(1)
+	startStartupPhase(1)
 
 	dataDir := expandHome(d.cfg.DataDir)
 	if err := os.MkdirAll(dataDir, 0o755); err != nil {
@@ -123,13 +145,12 @@ func (d *Daemon) Run(ctx context.Context) error {
 	d.db = db
 	defer func() { _ = db.Close() }()
 
-	go func() {
+	go func(ctx context.Context) {
 		_ = d.metrics.ServeMetrics(ctx, fmt.Sprintf(":%d", d.cfg.AdminPort), d.healthStatus, d)
-	}()
+	}(baseCtx)
 
 	// Phase 2: construct projectors
-	d.phase.Store(2)
-	d.metrics.StartupPhase.Set(2)
+	startStartupPhase(2)
 
 	d.cache = state.New()
 	reg, err := registry.New(ctx, db)
@@ -179,10 +200,10 @@ func (d *Daemon) Run(ctx context.Context) error {
 	}
 
 	// Phase 3: replay
-	d.phase.Store(3)
-	d.metrics.StartupPhase.Set(3)
+	startStartupPhase(3)
 
 	if err := store.Replay(ctx); err != nil {
+		phaseSpan.RecordError(err)
 		var replayErr *eventstore.ReplayError
 		var failedPos uint64
 		if errors.As(err, &replayErr) {
@@ -194,8 +215,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	}
 
 	// Phase 4: live transition
-	d.phase.Store(4)
-	d.metrics.StartupPhase.Set(4)
+	startStartupPhase(4)
 
 	if err := store.Start(ctx); err != nil {
 		return fmt.Errorf("start eventstore: %w", err)
@@ -526,8 +546,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	defer func() { _ = apiListener.Shutdown(context.Background()) }() //nolint:contextcheck
 
 	// Phase 5: all listeners up — health now returns 200.
-	d.phase.Store(5)
-	d.metrics.StartupPhase.Set(5)
+	startStartupPhase(5)
 	d.metrics.StartupDuration.Observe(time.Since(start).Seconds())
 
 	// Subscribe to config.applied events so the Starlark module cache is
@@ -559,9 +578,12 @@ func (d *Daemon) Run(ctx context.Context) error {
 			}},
 		}},
 	}); err != nil {
+		phaseSpan.RecordError(err)
 		d.logger.Error("failed to append startup event", "err", err)
 	}
 	d.logger.Info("switchyardd ready", "version", Version, "data_dir", dataDir, "admin_port", d.cfg.AdminPort)
+	endStartupPhase()
+	ctx = baseCtx
 
 	<-ctx.Done()
 	d.logger.Info("shutdown requested")

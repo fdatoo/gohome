@@ -17,6 +17,7 @@ import (
 	entityv1 "github.com/fdatoo/switchyard/gen/switchyard/entity/v1"
 	eventv1 "github.com/fdatoo/switchyard/gen/switchyard/event/v1"
 	"github.com/fdatoo/switchyard/internal/eventstore"
+	"github.com/fdatoo/switchyard/internal/observability"
 	"github.com/fdatoo/switchyard/internal/storage"
 )
 
@@ -76,7 +77,15 @@ func (c *Cache) SetSnapshotCorruptionReporter(fn func(owner string)) {
 
 // Apply mutates the pending HAMT. Callers MUST call Promote after the
 // enclosing transaction commits (or Discard on rollback).
-func (c *Cache) Apply(_ context.Context, _ storage.Tx, e eventstore.Event) error {
+func (c *Cache) Apply(ctx context.Context, _ storage.Tx, e eventstore.Event) (err error) {
+	_, span := observability.StartSpan(ctx, "state.Apply")
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+		}
+		span.End()
+	}()
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

@@ -8,6 +8,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/fdatoo/switchyard/internal/observability"
 )
 
 type SubscribeOptions struct {
@@ -152,7 +154,15 @@ func (s *Store) persistCursor(ctx context.Context, name string, position uint64)
 	return nil
 }
 
-func (s *Store) catchupAndRegister(ctx context.Context, sub *subscriber) error {
+func (s *Store) catchupAndRegister(ctx context.Context, sub *subscriber) (err error) {
+	ctx, span := observability.StartSpan(ctx, "eventstore.SubscriptionCatchup")
+	defer func() {
+		if err != nil {
+			span.RecordError(err)
+		}
+		span.End()
+	}()
+
 	for {
 		s.mu.RLock()
 		target := s.latestPosition
