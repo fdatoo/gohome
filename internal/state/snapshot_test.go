@@ -98,3 +98,96 @@ func TestCache_RestoreWithNoSnapshotReturnsZero(t *testing.T) {
 	}
 	_ = tx.Rollback()
 }
+
+func TestCache_RestoreReportsCorruptSnapshot(t *testing.T) {
+	ctx := context.Background()
+	db := testutil.NewTestDB(t)
+	_, err := db.ExecContext(ctx, `
+		INSERT INTO snapshots (position, ts, owner, encoding, state)
+		VALUES (7, ?, 'state_cache', 'protobuf+zstd', X'1234')`,
+		time.Now().UnixNano(),
+	)
+	if err != nil {
+		t.Fatalf("insert corrupt snapshot: %v", err)
+	}
+
+	c := state.New()
+	var reports []string
+	c.SetSnapshotCorruptionReporter(func(owner string) {
+		reports = append(reports, owner)
+	})
+
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pos, err := c.Restore(ctx, tx)
+	_ = tx.Rollback()
+	if err != nil {
+		t.Fatalf("Restore: %v", err)
+	}
+	if pos != 0 {
+		t.Fatalf("position = %d, want 0", pos)
+	}
+	if len(reports) != 1 || reports[0] != "state_cache" {
+		t.Fatalf("reports = %v, want [state_cache]", reports)
+	}
+}
+
+func TestCache_RestoreSkipsCorruptNewestSnapshot(t *testing.T) {
+	ctx := context.Background()
+	db := testutil.NewTestDB(t)
+
+	c1 := state.New()
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = c1.Apply(ctx, tx, mkStateChanged("light.valid", true, 64))
+	c1.Promote()
+	if err := c1.Snapshot(ctx, tx); err != nil {
+		t.Fatalf("Snapshot: %v", err)
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = db.ExecContext(ctx, `
+		INSERT INTO snapshots (position, ts, owner, encoding, state)
+		VALUES (99, ?, 'state_cache', 'protobuf+zstd', X'1234')`,
+		time.Now().UnixNano(),
+	)
+	if err != nil {
+		t.Fatalf("insert corrupt snapshot: %v", err)
+	}
+
+	c2 := state.New()
+	var reportCount int
+	c2.SetSnapshotCorruptionReporter(func(owner string) {
+		if owner == "state_cache" {
+			reportCount++
+		}
+	})
+	tx2, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pos, err := c2.Restore(ctx, tx2)
+	_ = tx2.Rollback()
+	if err != nil {
+		t.Fatalf("Restore: %v", err)
+	}
+	if pos != 1 {
+		t.Fatalf("position = %d, want 1", pos)
+	}
+	if reportCount != 1 {
+		t.Fatalf("reportCount = %d, want 1", reportCount)
+	}
+	got, ok := c2.Get("light.valid")
+	if !ok {
+		t.Fatal("light.valid missing after restore")
+	}
+	if got.Attributes.GetLight().Brightness != 64 {
+		t.Fatalf("brightness = %d, want 64", got.Attributes.GetLight().Brightness)
+	}
+}
