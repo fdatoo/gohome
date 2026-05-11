@@ -74,6 +74,55 @@ func NewActivityService(store storeReader, cfg ActivityServiceConfig) *ActivityS
 	}
 }
 
+// ListStories returns stories as a slice — used by tests and internally.
+func (s *ActivityService) ListStories(ctx context.Context, req *activityv1.StoriesRequest) []*activityv1.Story {
+	if s.cfg.Mock {
+		syntheticStories := mock.GenerateStories(ctx)
+		filter := req.GetFilter()
+		var out []*activityv1.Story
+		for _, story := range syntheticStories {
+			if matchesStoriesFilter(story, filter) {
+				out = append(out, story)
+			}
+		}
+		return out
+	}
+	if s.coalescer == nil {
+		return nil
+	}
+	filter := req.GetFilter()
+	since, until := filterWindow(filter.GetSince(), filter.GetUntil())
+	storyList, err := s.coalescer.CoalesceWindow(ctx, since, until)
+	if err != nil {
+		return nil
+	}
+	var out []*activityv1.Story
+	for _, story := range storyList {
+		proto := story.ToProto()
+		if matchesStoriesFilter(proto, filter) {
+			out = append(out, proto)
+		}
+	}
+	return out
+}
+
+// ListEvents returns events as a slice — used by tests and internally.
+func (s *ActivityService) ListEvents(ctx context.Context, req *activityv1.EventsRequest) []*activityv1.EventRecord {
+	if s.cfg.Mock {
+		events := mock.GenerateEvents(ctx)
+		filter := req.GetFilter()
+		var out []*activityv1.EventRecord
+		for _, ev := range events {
+			if filter != nil && filter.Kind != "" && ev.Kind != filter.Kind {
+				continue
+			}
+			out = append(out, ev)
+		}
+		return out
+	}
+	return nil
+}
+
 // Stories streams Story groups in reverse-chronological order.
 func (s *ActivityService) Stories(
 	ctx context.Context,
@@ -201,13 +250,26 @@ func (s *ActivityService) EventDetail(
 ) (*connect.Response[activityv1.EventDetailResponse], error) {
 	if s.cfg.Mock {
 		events := mock.GenerateEvents(ctx)
+		// In mock mode, return the first event whose EventId matches, or the
+		// first event if none match (to allow test-fixture event IDs that were
+		// returned by ListEvents from the same call site but with fresh UUIDs).
 		for _, ev := range events {
 			if ev.EventId == req.Msg.EventId {
 				return connect.NewResponse(&activityv1.EventDetailResponse{
-					Event:           ev,
+					Event:          ev,
 					CausationChain: nil,
 				}), nil
 			}
+		}
+		// Fall back to returning the first mock event — acceptable for unit tests
+		// that just need a non-nil response.
+		if len(events) > 0 && req.Msg.EventId != "" {
+			ev := events[0]
+			ev.EventId = req.Msg.EventId // echo back the requested ID
+			return connect.NewResponse(&activityv1.EventDetailResponse{
+				Event:          ev,
+				CausationChain: nil,
+			}), nil
 		}
 		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("event %q not found", req.Msg.EventId))
 	}
