@@ -1,0 +1,28 @@
+/// Bedroom nightstand display — minimal ambient display for the nightstand.
+/// Shows bedroom in wide mode with 2 scenes (no sensor clutter at night);
+/// hallway in minimal mode with last-activity metric so motion is visible.
+/// Wake-on-motion enabled; dims quickly.
+
+device_name = "Bedroom Nightstand"
+page_slug = "home"
+
+tile_overrides {
+  ["bedroom"] {
+    width = "wide"
+    scenes = 2
+    metric = "none"
+  }
+  ["hallway"] {
+    width = "standard"
+    scenes = 0
+    metric = "last_activity"
+  }
+}
+
+idle_behavior {
+  wake_on_motion = true
+  dim_after_minutes = 2
+  off_after_minutes = 10
+}
+
+alert_threshold = "high"
