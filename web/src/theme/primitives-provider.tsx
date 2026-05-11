@@ -15,6 +15,10 @@ import { AmbientButton } from "./primitives/ambient/button";
 import { AmbientChip } from "./primitives/ambient/chip";
 import { AmbientPill } from "./primitives/ambient/pill";
 import { AmbientSurface } from "./primitives/ambient/surface";
+import { DeveloperButton } from "./primitives/developer/button";
+import { DeveloperChip } from "./primitives/developer/chip";
+import { DeveloperPill } from "./primitives/developer/pill";
+import { DeveloperSurface } from "./primitives/developer/surface";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -43,14 +47,18 @@ const BUILT_IN_REGISTRY: PrimitiveRegistry = {
     Pill,
     Surface,
   },
-  // ambient: filled in by Plan 07
   ambient: {
     Button: AmbientButton,
     Chip: AmbientChip,
     Pill: AmbientPill,
     Surface: AmbientSurface,
   },
-  developer: {},
+  developer: {
+    Button: DeveloperButton,
+    Chip: DeveloperChip,
+    Pill: DeveloperPill,
+    Surface: DeveloperSurface,
+  },
 };
 
 // ---------------------------------------------------------------------------

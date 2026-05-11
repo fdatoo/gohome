@@ -75,7 +75,7 @@ describe("LanguagePrimitives provider", () => {
     expect(screen.getByTestId("surface-direct")).toHaveTextContent("hello");
   });
 
-  it("falls back to FallbackPrimitive (plain div) for developer language since developer has no registered Surface yet", () => {
+  it("renders developer Surface variant with data-variant=developer-surface", () => {
     // Override localStorage to return developer before rendering
     vi.stubGlobal("localStorage", makeLsStub("developer"));
 
@@ -85,10 +85,10 @@ describe("LanguagePrimitives provider", () => {
       </Wrapper>,
     );
 
-    // Developer has no registered Surface → FallbackPrimitive (plain div) renders children
+    // Developer now has a registered Surface variant
     const el = screen.getByTestId("surface-dev");
     expect(el).toBeInTheDocument();
-    expect(el.tagName).toBe("DIV");
+    expect(el).toHaveAttribute("data-variant", "developer-surface");
     expect(el).toHaveTextContent("content");
   });
 
@@ -123,5 +123,77 @@ describe("LanguagePrimitives provider", () => {
 
     const el = screen.getByTestId("btn-ambient");
     expect(el).toHaveAttribute("data-primitive", "ambient-button");
+  });
+
+  it("friendly language: Button renders without developer variant attribute", () => {
+    function ButtonConsumer() {
+      const Button = usePrimitive("Button");
+      return <Button data-testid="btn">click</Button>;
+    }
+    render(
+      <LanguageProvider initialLanguage="friendly">
+        <LanguagePrimitives>
+          <ButtonConsumer />
+        </LanguagePrimitives>
+      </LanguageProvider>,
+    );
+    expect(screen.getByTestId("btn")).not.toHaveAttribute(
+      "data-variant",
+      "developer-button",
+    );
+  });
+
+  it("developer language: Button renders with data-variant=developer-button", () => {
+    function ButtonConsumer() {
+      const Button = usePrimitive("Button");
+      return <Button data-testid="btn">click</Button>;
+    }
+    render(
+      <LanguageProvider initialLanguage="developer">
+        <LanguagePrimitives>
+          <ButtonConsumer />
+        </LanguagePrimitives>
+      </LanguageProvider>,
+    );
+    expect(screen.getByTestId("btn")).toHaveAttribute(
+      "data-variant",
+      "developer-button",
+    );
+  });
+
+  it("developer language: Chip renders with data-variant=developer-chip", () => {
+    function ChipConsumer() {
+      const Chip = usePrimitive("Chip");
+      return <Chip data-testid="chip">label</Chip>;
+    }
+    render(
+      <LanguageProvider initialLanguage="developer">
+        <LanguagePrimitives>
+          <ChipConsumer />
+        </LanguagePrimitives>
+      </LanguageProvider>,
+    );
+    expect(screen.getByTestId("chip")).toHaveAttribute(
+      "data-variant",
+      "developer-chip",
+    );
+  });
+
+  it("developer language: Pill renders with data-variant=developer-pill", () => {
+    function PillConsumer() {
+      const Pill = usePrimitive("Pill");
+      return <Pill data-testid="pill">status</Pill>;
+    }
+    render(
+      <LanguageProvider initialLanguage="developer">
+        <LanguagePrimitives>
+          <PillConsumer />
+        </LanguagePrimitives>
+      </LanguageProvider>,
+    );
+    expect(screen.getByTestId("pill")).toHaveAttribute(
+      "data-variant",
+      "developer-pill",
+    );
   });
 });
