@@ -15,8 +15,8 @@ describe("switchyard/no-raw-tokens", () => {
     tester.run("no-raw-tokens", rule, {
       valid: [
         { code: '<div className="surface-panel control-compact" />' },
-        { code: '<div className="bg-surface bg-token-danger text-[var(--gh-color-fg)] rounded-token-md p-token-sm gap-[var(--gh-pad-normal)]" />' },
-        { code: '<div style={{ color: "var(--gh-color-fg)", backgroundColor: "var(--gh-color-bg)" }} />' },
+        { code: '<div className="bg-surface bg-token-danger text-[var(--sy-color-fg)] rounded-token-md p-token-sm gap-[var(--sy-pad-normal)]" />' },
+        { code: '<div style={{ color: "var(--sy-color-fg)", backgroundColor: "var(--sy-color-bg)" }} />' },
       ],
       invalid: [
         {
