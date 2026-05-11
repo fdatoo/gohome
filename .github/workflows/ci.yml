@@ -176,10 +176,8 @@ jobs:
             path: ./internal/state
             coverpkg: ./internal/state/...
             profile: cover-state.out
-            # TODO(F-293): Raise this temporary floor to 85% after https://linear.app/fdatoo/issue/F-293 ships.
-            gate: "78.8"
+            gate: "85"
             target: "85"
-            exception: F-293
           - package: registry
             path: ./internal/registry
             coverpkg: ./internal/registry/...
