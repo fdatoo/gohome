@@ -1,0 +1,5 @@
+/// A Pkl file with an import statement — that line is file-only.
+import "switchyard:automations" as autos
+
+id = "import-auto"
+enabled = true
