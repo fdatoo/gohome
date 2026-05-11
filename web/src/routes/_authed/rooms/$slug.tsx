@@ -1,9 +1,9 @@
-import { PlaceholderPage } from "@/shell/PlaceholderPage";
+import { RoomDetailPage } from "@/pages/rooms/RoomDetailPage";
 
 interface Props {
   slug?: string;
 }
 
 export function RoomSlug({ slug = "unknown" }: Props) {
-  return <PlaceholderPage title={`Room: ${slug}`} plan="Plan 02" />;
+  return <RoomDetailPage slug={slug} />;
 }

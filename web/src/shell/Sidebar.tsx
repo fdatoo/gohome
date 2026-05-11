@@ -1,18 +1,28 @@
+import type { ComponentType, SVGProps } from "react";
 import { useAuthStore } from "@/data/auth-store";
 import { useVocab, type RouteId } from "../theme/vocab";
+import {
+  HomeIcon,
+  RoomsIcon,
+  ActivityIcon,
+  AutomationsIcon,
+  DevicesIcon,
+  SettingsIcon,
+} from "./icons";
 
 interface NavItem {
   id: RouteId;
   path: string;
+  Icon: ComponentType<SVGProps<SVGSVGElement> & { size?: number }>;
 }
 
 const PRIMARY_NAV: NavItem[] = [
-  { id: "home", path: "/_authed/home" },
-  { id: "rooms", path: "/_authed/rooms" },
-  { id: "activity", path: "/_authed/activity" },
-  { id: "automations", path: "/_authed/automations" },
-  { id: "devices", path: "/_authed/devices" },
-  { id: "settings", path: "/_authed/settings" },
+  { id: "home", path: "/_authed/home", Icon: HomeIcon },
+  { id: "rooms", path: "/_authed/rooms", Icon: RoomsIcon },
+  { id: "activity", path: "/_authed/activity", Icon: ActivityIcon },
+  { id: "automations", path: "/_authed/automations", Icon: AutomationsIcon },
+  { id: "devices", path: "/_authed/devices", Icon: DevicesIcon },
+  { id: "settings", path: "/_authed/settings", Icon: SettingsIcon },
 ];
 
 function isActive(navPath: string, currentPath: string): boolean {
@@ -79,6 +89,7 @@ export function Sidebar({ currentPath = typeof window !== "undefined" ? window.l
       {/* Primary nav */}
       {PRIMARY_NAV.map((item, index) => {
         const active = isActive(item.path, currentPath);
+        const Icon = item.Icon;
         return (
           <a
             key={item.id}
@@ -107,14 +118,13 @@ export function Sidebar({ currentPath = typeof window !== "undefined" ? window.l
             <span
               aria-hidden="true"
               style={{
-                width: "16px",
-                height: "16px",
-                borderRadius: "5px",
-                background: active ? "var(--sy-color-accent)" : "var(--sy-color-fg-5)",
+                display: "inline-flex",
+                color: active ? "var(--sy-color-accent)" : "var(--sy-color-fg-3)",
                 flexShrink: 0,
-                opacity: active ? 1 : 0.6,
               }}
-            />
+            >
+              <Icon size={18} />
+            </span>
             {vocab.label(item.id)}
             <kbd className="kbd-shortcut" aria-hidden="true">⌘{index + 1}</kbd>
           </a>

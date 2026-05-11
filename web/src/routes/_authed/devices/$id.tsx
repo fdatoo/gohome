@@ -1,9 +1,9 @@
-import { PlaceholderPage } from "@/shell/PlaceholderPage";
+import { DeviceDetailPage } from "@/pages/devices/DeviceDetailPage";
 
 interface Props {
   id?: string;
 }
 
 export function DeviceDetail({ id = "unknown" }: Props) {
-  return <PlaceholderPage title={`Device: ${id}`} plan="Plan 08" />;
+  return <DeviceDetailPage id={id} />;
 }

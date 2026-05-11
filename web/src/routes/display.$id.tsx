@@ -9,7 +9,7 @@
 import { useEffect, useState } from "react";
 import { AmbientRoot } from "@/ambient/AmbientRoot";
 import { AlertPill, AlertContext } from "@/ambient/AlertPill";
-import { PlaceholderPage } from "@/shell/PlaceholderPage";
+import { PageSlug } from "@/routes/_authed/pages/$slug";
 
 // ---------------------------------------------------------------------------
 // Display service client
@@ -108,9 +108,30 @@ export function DisplayPage({ id }: DisplayPageProps) {
           <AlertPill alertThreshold={alertThreshold} />
           <div style={{ paddingTop: "var(--sy-space-6, 2rem)" }}>
             {config.pageSlug ? (
-              <PlaceholderPage title={`Display: ${config.deviceName}`} plan="Plan 07 — ambient render TODO: wire PageService.Get" />
+              <PageSlug slug={config.pageSlug} />
             ) : (
-              <PlaceholderPage title={`Display: ${config.deviceName}`} plan="Plan 07 — no page assigned" />
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minHeight: "60dvh",
+                  color: "var(--sy-color-fg-2)",
+                  textAlign: "center",
+                  gap: "var(--sy-space-2)",
+                }}
+              >
+                <h1 style={{ margin: 0, fontSize: "1.5rem", fontWeight: 600 }}>
+                  {config.deviceName}
+                </h1>
+                <p style={{ margin: 0, color: "var(--sy-color-fg-3)" }}>
+                  No page assigned to this display.
+                </p>
+                <p style={{ margin: 0, color: "var(--sy-color-fg-4)", fontSize: "0.875rem" }}>
+                  Configure in <code>Settings › Displays</code>.
+                </p>
+              </div>
             )}
           </div>
         </div>

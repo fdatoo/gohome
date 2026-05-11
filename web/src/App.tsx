@@ -21,6 +21,7 @@ import { DisplaysIndex } from "./routes/_authed/displays/index";
 import { DisplaySlug } from "./routes/_authed/displays/$slug";
 import { DisplayPage } from "./routes/display.$id";
 import { PairPage } from "./routes/pair";
+import { AskPage } from "./routes/_authed/ask";
 
 // Pkl editor routes — lazy-loaded (Monaco is heavy)
 const PklEditorRoute = lazy(() => import("./pkl-editor/route"));
@@ -94,6 +95,7 @@ function resolveAuthedRoute(path: string): ReactNode | null {
     const base = path.startsWith("/_authed/displays/") ? "/_authed/displays/" : "/displays/";
     return <DisplaySlug slug={decodeURIComponent(path.slice(base.length))} />;
   }
+  if (path === "/ask" || path === "/_authed/ask") return <AskPage />;
   return null;
 }
 

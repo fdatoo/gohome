@@ -77,20 +77,25 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
-    // Proxy Connect-RPC and other daemon routes to a running switchyardd
-    // (default http://127.0.0.1:8080; override via SY_DAEMON_URL). Without
-    // this, `task ui:dev` 404s on every /switchyard.*.Service/Method call.
+    // Proxy daemon-served routes only. Everything else (/, /displays,
+    // /pair, /display/<id>, /home, …) is the SPA served by Vite during
+    // dev or the embedded bundle in production — these MUST NOT be
+    // proxied or the SPA breaks.
+    //
+    // Override the daemon URL with SY_DAEMON_URL (defaults to
+    // http://127.0.0.1:8080).
     proxy: (() => {
       const target = process.env.SY_DAEMON_URL ?? "http://127.0.0.1:8080";
       const opts = { target, changeOrigin: true };
       return {
-        "^/switchyard\\.": opts,
-        "/widgets": opts,
-        "/webhooks": opts,
-        "/mcp": opts,
-        "/healthz": opts,
-        "/display": opts,
-        "/pair": opts,
+        // Connect-RPC: every service path starts with /switchyard.<pkg>.
+        "^/switchyard\\..+/.+$": opts,
+        // Daemon-only HTTP routes (NOT prefix-matched against SPA paths).
+        "^/healthz$": opts,
+        "^/webhooks/": opts,
+        "^/mcp(/.*)?$": opts,
+        // Widget pack JS bundles (served from the daemon's on-disk cache).
+        "^/widgets/": opts,
       };
     })(),
   },
