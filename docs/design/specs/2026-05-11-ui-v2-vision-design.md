@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-11
 **Status:** Draft (vision spec, decomposes into multiple implementation plans)
-**Supersedes (partially):** [C10 — Web UI Architecture](./2026-04-26-c10-web-ui-architecture-design.md)
+**Supersedes:** [C10 — Web UI Architecture](./2026-04-26-c10-web-ui-architecture-design.md) (C10 shipped with zero users; v2 is greenfield)
 **Mockup screenshots:** `.superpowers/brainstorm/71337-1778492716/screenshots/` (paths cited inline)
 
 ---
@@ -739,30 +739,35 @@ A Playwright snapshot test renders each of the canonical pages (Home, Activity, 
 
 ---
 
-## 21. Migration from C10
+## 21. Relationship to C10 Code
 
-C10 shipped, so v2 is a migration, not a greenfield project. The migration strategy:
+C10 shipped, but **has zero users**. v2 is therefore treated as **greenfield** for everything visual: no compat shims, no migration prompts, no `LegacyGrid` Section, no preserving public URL paths or RPC names whose new names are better. The C10 code is a starting point we reuse selectively, not a corpus we must preserve.
 
-### 21.1 What survives
+### 21.1 What we reuse from C10
 
-- All RPC services and the Connect-ES generated client.
-- The multiplexer.
-- The login flow (`/login` page, passkey enrollment via C9).
-- The PWA service worker.
-- The Pkl mutator and regenerator for dashboards. *But the dashboard concept itself is repositioned — see below.*
-- The widget pack distribution mechanism (OCI, cosign, `/widgets/<pack>/<v>/<file>` serving, dynamic `import()`).
-- The design-token substrate (renamed `--gh-*` → `--sy-*` if not already done).
+- **Data layer:** Connect-ES transport, auth interceptor with 401 refresh, TanStack Query + Zustand setup. Survives unchanged.
+- **Multiplexer:** the two-stream subscribe + command-tracker. Survives unchanged.
+- **Login flow:** `/login` page, passkey enrollment via C9. Survives unchanged.
+- **PWA service worker:** survives; reconnect banner extends naturally to mobile.
+- **Pkl regenerator pipeline:** the deterministic Pkl serializer in `internal/dashboard/regen/` is reused for Pages/Displays/Automations; the two-file split pattern (`<slug>.pkl` + `<slug>.layout.pkl`) survives.
+- **Widget pack distribution:** OCI artifact format, sigstore signing, `/widgets/<pack>/<v>/<file>` serving, dynamic `import()` with content-hash cache keys. Survives.
+- **Design-token substrate:** the CSS-custom-property approach survives. Tokens are renamed `--gh-*` → `--sy-*` as part of plan 1.
 
-### 21.2 What's renamed
+### 21.2 What we throw away from C10
 
-- "Dashboards" → "Pages" (in the UI vocabulary; the underlying RPC names can stay `DashboardService` for now, or rename in a follow-up).
-- `gohome` → `switchyard` everywhere (this is a separate ongoing migration but converges here).
+- The 12-column grid renderer (`src/dashboard/render/Grid.tsx` and friends).
+- `react-grid-layout` dependency.
+- `WidgetInstance`-on-grid as the widget contract.
+- `Shell.tsx` as it currently stands (a one-line stub — gets rebuilt).
+- The C10 Home-page = WYSIWYG-dashboard assumption.
+- The eight C10 built-in widgets as currently shaped (they get rewritten as Sections/Tiles/Cells; the underlying React components can be cannibalized where useful).
 
-### 21.3 What's rebuilt
+### 21.3 What's renamed
 
-- The shell (`src/shell/Shell.tsx` is currently a one-line stub) is rebuilt to the v2 sidebar + top-bar layout.
-- The dashboard render path (`src/dashboard/render/`) is rebuilt around the section-based model. C10 widgets get adapter shims to render as Section, Tile, or Cell.
-- The dashboard edit path (`src/dashboard/edit/`) is rebuilt around the section-based edit model with right-rail section settings + Pkl preview.
+- `--gh-*` tokens → `--sy-*` (full sweep).
+- `DashboardService` → `PageService` (cleaner with the Pages + Displays split). RPC rename happens as part of plan 6.
+- "Dashboards" → "Pages" in all UI vocabulary, routes, and proto messages.
+- `gohome` → `switchyard` everywhere (separate ongoing migration but converges with v2 work).
 
 ### 21.4 What's added
 
@@ -774,20 +779,10 @@ C10 shipped, so v2 is a migration, not a greenfield project. The migration strat
 - In-app Pkl + Starlark editor (Monaco integration).
 - Displays sidebar section + pairing flow.
 - Mobile-specific shell (bottom tab bar, sheets).
-- `ambient` and `friendly` language presets (in addition to existing `developer`).
+- `ambient` and `friendly` language presets (in addition to a refreshed `developer`).
 - Token system formalization across all three languages.
 - Detector pipeline (`internal/interestingness/`).
 - Coalescer pipeline for Stories.
-
-### 21.5 What's deprecated/removed
-
-- `react-grid-layout` dependency (replaced with section stacking).
-- The C10 single-tier widget model (replaced with three tiers; existing widgets get shims).
-- The C10 Home-page = WYSIWYG-dashboard assumption.
-
-### 21.6 Existing C10 dashboards in the wild
-
-Any user-built C10 dashboards continue to work via a compat layer: the legacy grid layout renders inside a single `LegacyGrid` Section (which internally still uses `react-grid-layout`). The user is gently prompted to migrate to the new section model; the prompt offers a one-click conversion that maps each widget to its closest Section/Tile/Cell equivalent. The `LegacyGrid` Section ships in v2 and is deprecated in v3.
 
 ---
 
@@ -800,7 +795,7 @@ UI v2 is too large for one plan. The brainstorm decomposes into the following im
 3. **Activity v1** — Stories tab + All Events tab + Saved tab. Detector pipeline (`internal/interestingness/`) with all seven categories. Coalescer for Stories.
 4. **Time-machine** — full replay UX riding on C1 snapshots. Causation chain timeline. State-diff rendering.
 5. **Command palette** — verb registry RPC, parser, default + active states, recently-used + suggested + jump-to + ask. Configurable CLI preview.
-6. **Custom Pages + three-tier widget contract** — section model, edit mode, right-rail settings, Pkl two-file split (reusing C10's regenerator pipeline). Legacy-grid compat Section.
+6. **Custom Pages + three-tier widget contract** — section model, edit mode, right-rail settings, Pkl two-file split (reusing C10's regenerator pipeline). Renames `DashboardService` → `PageService`. Drops `react-grid-layout`. Rewrites the eight C10 built-in widgets as Sections/Tiles/Cells.
 7. **Displays + Ambient language** — pairing flow, per-tile fidelity, time-of-day gradient, alert state.
 8. **Developer language** — token override set, primitive variants, table layouts for rooms, technical vocabulary swap.
 9. **Settings sub-shell** — all sections (Account, Drivers, Pkl config, Widget packs, Displays, Theme & language, Diagnostics, About). Drivers section with expanded detail panel.
@@ -855,4 +850,3 @@ These can run in roughly the listed order. Plans 1–2 unblock everything visual
 - **Iframe sandboxing of widget pack JS.** Same-origin in v2; per C10.
 - **Plug-in language presets.** v2 ships three built-in; user-installable language packs are post-v2.
 - **Server-side animation of ambient gradient.** Client-side computed in v2.
-- **The `LegacyGrid` compatibility section** is deprecated in v3.
