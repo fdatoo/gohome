@@ -1,3 +1,5 @@
+import { usePalette } from "@/palette/use-palette";
+
 interface TopBarProps {
   currentPath?: string;
 }
@@ -14,10 +16,17 @@ function pathToLabel(path: string): string {
   return last.charAt(0).toUpperCase() + last.slice(1);
 }
 
+function isMac(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return navigator.platform.toLowerCase().includes("mac");
+}
+
 export function TopBar({
   currentPath = typeof window !== "undefined" ? window.location.pathname : "/",
 }: TopBarProps) {
   const label = pathToLabel(currentPath);
+  const { openPalette } = usePalette();
+  const shortcutLabel = isMac() ? "⌘K" : "Ctrl+K";
 
   return (
     <header
@@ -65,12 +74,11 @@ export function TopBar({
         }}
       />
 
-      {/* ⌘K palette button — clicking focuses hidden input (Plan 5 wires the palette) */}
+      {/* Command palette button */}
       <button
+        data-testid="topbar-palette-btn"
         aria-label="Open command palette"
-        onClick={() => {
-          // Plan 5 will route this to the full palette; for now, no-op
-        }}
+        onClick={openPalette}
         style={{
           display: "flex",
           alignItems: "center",
@@ -98,11 +106,9 @@ export function TopBar({
             border: "1px solid var(--sy-color-line)",
           }}
         >
-          ⌘K
+          {shortcutLabel}
         </kbd>
       </button>
-      {/* Hidden input for future palette wiring */}
-      <input type="text" aria-hidden="true" tabIndex={-1} style={{ position: "absolute", opacity: 0, pointerEvents: "none", width: 0, height: 0 }} />
     </header>
   );
 }

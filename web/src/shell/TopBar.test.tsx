@@ -1,6 +1,15 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { TopBar } from "./TopBar";
+
+// Mock the palette hook so TopBar tests don't need the full PaletteProvider stack.
+vi.mock("@/palette/use-palette", () => ({
+  usePalette: () => ({
+    openPalette: vi.fn(),
+    closePalette: vi.fn(),
+    isOpen: false,
+  }),
+}));
 
 describe("TopBar", () => {
   it("renders the breadcrumb with the current page name derived from the path", () => {
