@@ -1,18 +1,18 @@
 import { useAuthStore } from "@/data/auth-store";
+import { useVocab, type RouteId } from "../theme/vocab";
 
 interface NavItem {
-  id: string;
-  label: string;
+  id: RouteId;
   path: string;
 }
 
 const PRIMARY_NAV: NavItem[] = [
-  { id: "home", label: "Home", path: "/_authed/home" },
-  { id: "rooms", label: "Rooms", path: "/_authed/rooms" },
-  { id: "activity", label: "Activity", path: "/_authed/activity" },
-  { id: "automations", label: "Automations", path: "/_authed/automations" },
-  { id: "devices", label: "Devices", path: "/_authed/devices" },
-  { id: "settings", label: "Settings", path: "/_authed/settings" },
+  { id: "home", path: "/_authed/home" },
+  { id: "rooms", path: "/_authed/rooms" },
+  { id: "activity", path: "/_authed/activity" },
+  { id: "automations", path: "/_authed/automations" },
+  { id: "devices", path: "/_authed/devices" },
+  { id: "settings", path: "/_authed/settings" },
 ];
 
 function isActive(navPath: string, currentPath: string): boolean {
@@ -25,6 +25,7 @@ interface SidebarProps {
 
 export function Sidebar({ currentPath = typeof window !== "undefined" ? window.location.pathname : "/" }: SidebarProps) {
   const user = useAuthStore((s) => s.user);
+  const vocab = useVocab();
 
   return (
     <nav
@@ -76,7 +77,7 @@ export function Sidebar({ currentPath = typeof window !== "undefined" ? window.l
       </div>
 
       {/* Primary nav */}
-      {PRIMARY_NAV.map((item) => {
+      {PRIMARY_NAV.map((item, index) => {
         const active = isActive(item.path, currentPath);
         return (
           <a
@@ -114,7 +115,8 @@ export function Sidebar({ currentPath = typeof window !== "undefined" ? window.l
                 opacity: active ? 1 : 0.6,
               }}
             />
-            {item.label}
+            {vocab.label(item.id)}
+            <kbd className="kbd-shortcut" aria-hidden="true">⌘{index + 1}</kbd>
           </a>
         );
       })}

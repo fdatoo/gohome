@@ -1,6 +1,42 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Sidebar } from "./Sidebar";
+import { LanguageProvider } from "../theme/language-provider";
+
+function makeMatchMediaStub() {
+  return (query: string): MediaQueryList => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: () => undefined,
+    removeListener: () => undefined,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+    dispatchEvent: () => false,
+  });
+}
+
+function makeLsStub(): Storage {
+  return {
+    getItem: () => null,
+    setItem: () => undefined,
+    removeItem: () => undefined,
+    clear: () => undefined,
+    length: 0,
+    key: () => null,
+  } satisfies Storage;
+}
+
+beforeEach(() => {
+  vi.stubGlobal("localStorage", makeLsStub());
+  vi.stubGlobal("matchMedia", makeMatchMediaStub());
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  delete document.documentElement.dataset.theme;
+  delete document.documentElement.dataset.language;
+});
 
 describe("Sidebar", () => {
   it("marks Activity as active when currentPath is /_authed/activity", () => {
@@ -26,5 +62,40 @@ describe("Sidebar", () => {
     for (const id of ["home", "rooms", "activity", "automations", "devices", "settings"]) {
       expect(nav.querySelector(`[data-nav-id="${id}"]`)).toBeInTheDocument();
     }
+  });
+
+  it("developer language: sidebar nav item reads 'Overview' for home", () => {
+    render(
+      <LanguageProvider initialLanguage="developer">
+        <Sidebar currentPath="/_authed/home" />
+      </LanguageProvider>,
+    );
+    const nav = screen.getByRole("navigation", { name: /primary navigation/i });
+    const homeLink = nav.querySelector('[data-nav-id="home"]');
+    expect(homeLink).toBeInTheDocument();
+    expect(homeLink?.textContent).toContain("Overview");
+    expect(homeLink?.textContent).not.toContain("Home");
+  });
+
+  it("developer language: sidebar nav item reads 'Events' for activity", () => {
+    render(
+      <LanguageProvider initialLanguage="developer">
+        <Sidebar currentPath="/_authed/activity" />
+      </LanguageProvider>,
+    );
+    const nav = screen.getByRole("navigation", { name: /primary navigation/i });
+    const activityLink = nav.querySelector('[data-nav-id="activity"]');
+    expect(activityLink).toBeInTheDocument();
+    expect(activityLink?.textContent).toContain("Events");
+  });
+
+  it("kbd-shortcut elements are present in DOM for all six nav items", () => {
+    render(
+      <LanguageProvider initialLanguage="developer">
+        <Sidebar currentPath="/_authed/home" />
+      </LanguageProvider>,
+    );
+    const shortcuts = document.querySelectorAll(".kbd-shortcut");
+    expect(shortcuts).toHaveLength(6);
   });
 });

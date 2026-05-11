@@ -1,4 +1,5 @@
-import { useLanguage } from "../language-provider";
+import { useContext } from "react";
+import { LanguageContext } from "../language-provider";
 import { friendlyVocab } from "./friendly";
 import { developerVocab } from "./developer";
 import { ambientVocab } from "./ambient";
@@ -25,7 +26,9 @@ export interface VocabHandle {
 
 // eslint-disable-next-line react-refresh/only-export-components
 export function useVocab(): VocabHandle {
-  const { language } = useLanguage();
+  const ctx = useContext(LanguageContext);
+  // Fall back to friendly when rendered outside a LanguageProvider
+  const language = ctx?.language ?? "friendly";
   const map = vocabByLanguage[language];
   return {
     label: (routeId) => map[routeId],

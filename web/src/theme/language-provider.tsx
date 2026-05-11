@@ -24,7 +24,7 @@ interface LanguageContextValue {
   setMode: (m: ThemeMode) => void;
 }
 
-const LanguageContext = createContext<LanguageContextValue | null>(null);
+export const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 function readPrefs(): StoredPrefs {
   if (typeof localStorage === "undefined") {
