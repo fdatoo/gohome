@@ -37,6 +37,11 @@ func NewAuthenticate(chain auth.Authenticator, bearer *authn.Bearer, tokens *cre
 				HTTP:       httpRequestFromCtx(ctx),
 				PeerCred:   peerCred,
 			}
+			if isPublicAuthProcedure(req.Spec().Procedure) {
+				ctx = withRemoteAddr(ctx, authReq.RemoteAddr)
+				ctx = withUserAgent(ctx, authReq.Headers.Get("User-Agent"))
+				return next(ctx, req)
+			}
 
 			p, err := chain.Authenticate(ctx, authReq)
 			if errors.Is(err, auth.ErrUnauthenticated) {
@@ -64,6 +69,17 @@ func NewAuthenticate(chain auth.Authenticator, bearer *authn.Bearer, tokens *cre
 			}
 			return next(ctx, req)
 		}
+	}
+}
+
+func isPublicAuthProcedure(procedure string) bool {
+	switch procedure {
+	case "/switchyard.v1alpha1.AuthService/Login",
+		"/switchyard.v1alpha1.AuthService/Refresh",
+		"/switchyard.v1alpha1.AuthService/StartWebAuthnChallenge":
+		return true
+	default:
+		return false
 	}
 }
 

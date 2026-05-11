@@ -1,2 +1,10 @@
 import type { WidgetProps } from "@gohome/widget-sdk";
-export function EntityToggle(_: WidgetProps) { return <div className="widget entity-toggle">EntityToggle</div>; }
+export function EntityToggle({ id, pending }: WidgetProps) {
+  const state = pending?.state ?? "idle";
+  return (
+    <div className="widget entity-toggle" data-testid="widget-entity-toggle" data-widget-id={id} data-pending-state={state}>
+      <span>EntityToggle</span>
+      <span aria-label="command state">{state}</span>
+    </div>
+  );
+}

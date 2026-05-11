@@ -7,7 +7,7 @@ export type EntityState = {
 export type PendingState =
   | { state: "idle" }
   | { state: "pending"; commandId: string; sinceMs: number }
-  | { state: "failed"; commandId: string; error: string; ageMs: number };
+  | { state: "settled"; commandId: string; ok: boolean; error?: string; ageMs: number };
 
 export type WidgetProps = {
   id: string;

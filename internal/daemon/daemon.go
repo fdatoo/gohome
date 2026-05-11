@@ -171,6 +171,7 @@ func (d *Daemon) Run(ctx context.Context) (err error) {
 	if err != nil {
 		return fmt.Errorf("identity store: %w", err)
 	}
+	passwordStore := credentials.NewPassword(db, credentials.DefaultArgon2idParams())
 	policyRuntime := policy.NewRuntime(roleAdapter{store: identityStore})
 	sessKey := make([]byte, 32)
 	if _, err := rand.Read(sessKey); err != nil {
@@ -307,6 +308,9 @@ func (d *Daemon) Run(ctx context.Context) (err error) {
 			currentSnap = snap
 		}
 	}
+	if err := applyAuthSnapshot(ctx, identityStore, passwordStore, currentSnap); err != nil {
+		return fmt.Errorf("auth config: %w", err)
+	}
 	scriptMap, err := script.CompileScripts(currentSnap)
 	if err != nil {
 		d.logger.Error("script compile failed", "err", err)
@@ -351,6 +355,10 @@ func (d *Daemon) Run(ctx context.Context) (err error) {
 
 	if d.configMgr != nil {
 		d.configMgr.OnApplied(func(snap *configpb.ConfigSnapshot) { //nolint:contextcheck // Reload→registerTriggers closure captures lifecycle context; OnApplied callback receives no context
+			if err := applyAuthSnapshot(context.Background(), identityStore, passwordStore, snap); err != nil {
+				d.logger.Warn("auth config reload", "err", err)
+				return
+			}
 			if err := d.scriptEngine.Reload(snap); err != nil {
 				d.logger.Warn("script reload", "err", err)
 				return
@@ -483,7 +491,7 @@ func (d *Daemon) Run(ctx context.Context) (err error) {
 		WidgetPack: packService,
 		Auth: api.NewAuthService(api.AuthDeps{
 			Identity:   identityStore,
-			Password:   credentials.NewPassword(db, credentials.DefaultArgon2idParams()),
+			Password:   passwordStore,
 			Passkeys:   passkeys,
 			Tokens:     tokens,
 			Sessions:   sessStore,

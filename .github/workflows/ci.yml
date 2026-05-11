@@ -16,6 +16,7 @@ jobs:
       fuzz_eventstore: ${{ steps.filter.outputs.fuzz_eventstore }}
       fuzz_registry: ${{ steps.filter.outputs.fuzz_registry }}
       fuzz_carport: ${{ steps.filter.outputs.fuzz_carport }}
+      web: ${{ steps.filter.outputs.web }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -67,6 +68,63 @@ jobs:
               - 'go.work'
               - 'go.work.sum'
               - 'Taskfile.yml'
+            web:
+              - '.github/workflows/ci.yml'
+              - 'web/**'
+              - 'cmd/switchyardd/**'
+              - 'internal/api/**'
+              - 'internal/auth/**'
+              - 'internal/config/**'
+              - 'internal/daemon/**'
+              - 'internal/web/**'
+              - 'go.mod'
+              - 'go.sum'
+              - 'go.work'
+              - 'go.work.sum'
+
+  web-test:
+    needs: changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+      - name: Install web dependencies
+        run: npm ci --prefix web
+      - name: Test web
+        run: npm run test --prefix web
+
+  web-playwright:
+    needs: changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          cache: true
+          cache-dependency-path: go.sum
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+      - name: Install Pkl
+        run: |
+          sudo curl -fsSL -o /usr/local/bin/pkl "https://github.com/apple/pkl/releases/download/0.31.1/pkl-linux-amd64"
+          sudo chmod +x /usr/local/bin/pkl
+          pkl --version
+      - name: Install web dependencies
+        run: npm ci --prefix web
+      - name: Install Playwright browsers
+        run: npx --prefix web playwright install --with-deps chromium
+      - name: Run Playwright
+        run: npm run test:e2e --prefix web
 
   # ── switchyard ──────────────────────────────────────────────────────────────────
 

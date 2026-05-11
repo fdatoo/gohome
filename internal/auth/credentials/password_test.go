@@ -31,6 +31,24 @@ func TestPassword_SetThenVerify(t *testing.T) {
 	require.False(t, needsRehash)
 }
 
+func TestPassword_BootstrapHashOnlySetsMissingPassword(t *testing.T) {
+	db := setupAuthDB(t)
+	p := credentials.NewPassword(db, credentials.DefaultArgon2idParams())
+	ctx := context.Background()
+	hash := "$argon2id$v=19$m=64,t=1,p=1$dxLs8ar4jK98HpNH21oq7Q$P2u+gVsULLKHoY2Z/pScH5xfhKslCWwJHuLeJpA0CoM"
+
+	require.NoError(t, p.BootstrapHash(ctx, "fdatoo", hash, "system:bootstrap"))
+	ok, _, err := p.Verify(ctx, "fdatoo", "test-password")
+	require.NoError(t, err)
+	require.True(t, ok)
+
+	require.NoError(t, p.Set(ctx, "fdatoo", "changed", "self"))
+	require.NoError(t, p.BootstrapHash(ctx, "fdatoo", hash, "system:bootstrap"))
+	ok, _, err = p.Verify(ctx, "fdatoo", "changed")
+	require.NoError(t, err)
+	require.True(t, ok)
+}
+
 func TestPassword_Verify_WrongReturnsOkFalse(t *testing.T) {
 	db := setupAuthDB(t)
 	p := credentials.NewPassword(db, credentials.DefaultArgon2idParams())
