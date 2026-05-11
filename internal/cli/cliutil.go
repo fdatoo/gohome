@@ -95,17 +95,23 @@ func renderConnectErr(err error) error {
 		return nil
 	}
 	var ce *connect.Error
-	if !errors.As(err, &ce) {
-		return err
-	}
-	for _, d := range ce.Details() {
-		v, derr := d.Value()
-		if derr != nil {
-			continue
+	if errors.As(err, &ce) {
+		for _, d := range ce.Details() {
+			v, derr := d.Value()
+			if derr != nil {
+				continue
+			}
+			if ed, ok := v.(*errorv1.ErrorDetail); ok && ed.Reason != "" {
+				return fmt.Errorf("%s: %s (request_id=%s)", ce.Code(), ed.Reason, ed.RequestId)
+			}
 		}
-		if ed, ok := v.(*errorv1.ErrorDetail); ok && ed.Reason != "" {
-			return fmt.Errorf("%s: %s (request_id=%s)", ce.Code(), ed.Reason, ed.RequestId)
-		}
+		return fmt.Errorf("%s: %s", ce.Code(), ce.Message())
 	}
-	return fmt.Errorf("%s: %s", ce.Code(), ce.Message())
+	if errors.Is(err, context.DeadlineExceeded) {
+		return fmt.Errorf("%s: %w", connect.CodeDeadlineExceeded, err)
+	}
+	if errors.Is(err, context.Canceled) {
+		return fmt.Errorf("%s: %w", connect.CodeCanceled, err)
+	}
+	return err
 }
