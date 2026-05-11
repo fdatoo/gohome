@@ -1,0 +1,8 @@
+import "switchyard:pages" as p
+import "energy-climate.layout.pkl" as layout
+
+page = new p.Page {
+  slug = "energy-climate"
+  title = "Energy & Climate"
+  sections = layout.sections
+}
