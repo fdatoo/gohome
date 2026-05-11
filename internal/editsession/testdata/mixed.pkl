@@ -1,0 +1,7 @@
+/// Mixed file: plain field + starlark field. Only the starlark line is file-only.
+amends "switchyard:automations"
+
+id = "mixed-auto"
+enabled = true
+condition = starlark("entity('sensor.temp').state > 20")
+maxQueued = 2

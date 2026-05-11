@@ -37,6 +37,7 @@ import (
 	"github.com/fdatoo/switchyard/internal/carport"
 	"github.com/fdatoo/switchyard/internal/config"
 	"github.com/fdatoo/switchyard/internal/dashboard"
+	"github.com/fdatoo/switchyard/internal/editsession"
 	"github.com/fdatoo/switchyard/internal/eventstore"
 	"github.com/fdatoo/switchyard/internal/mcp"
 	"github.com/fdatoo/switchyard/internal/observability"
@@ -475,6 +476,13 @@ func (d *Daemon) Run(ctx context.Context) (err error) {
 	tokens := credentials.NewTokens(db)
 	bearer := authn.NewBearer(tokens)
 
+	// EditSession subsystem — file watcher and lock manager with TTL sweep.
+	editLockMgr := editsession.NewLockManager()
+	editLockMgr.StartSweep(ctx)
+	editFileWatcher := editsession.NewFileWatcher(0) // default poll interval
+	editFileWatcher.Start(ctx)
+	editSvc := editsession.NewService(editLockMgr, editFileWatcher, nil, d.logger)
+
 	services := listener.Services{
 		System:     api.NewSystemService(sysBE),
 		Area:       api.NewAreaService(areaRd),
@@ -502,6 +510,7 @@ func (d *Daemon) Run(ctx context.Context) (err error) {
 			Policy:     policyRuntime,
 			Metrics:    d.metrics,
 		}),
+		EditSession: editSvc,
 	}
 
 	authnChain := auth.Chain(auth.LocalPeerCred{}, bearer, authn.NewSessionCookie(sessStore), auth.RejectAll{})

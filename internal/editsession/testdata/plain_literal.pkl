@@ -1,0 +1,6 @@
+/// A simple Pkl file with only plain literal fields — fully regenerable.
+amends "switchyard:automations"
+
+id = "my-automation"
+enabled = true
+maxQueued = 1

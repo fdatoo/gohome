@@ -1,0 +1,7 @@
+/// A Pkl file with a let binding — that line is file-only.
+amends "switchyard:automations"
+
+local theId = "let-auto"
+
+id = theId
+enabled = false
