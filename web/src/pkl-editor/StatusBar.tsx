@@ -78,7 +78,7 @@ export default function StatusBar({
           padding: "2px 8px",
           cursor: "pointer",
           background: "var(--sy-color-accent)",
-          color: "#fff",
+          color: "var(--sy-color-bg)",
           border: "none",
           borderRadius: "var(--sy-radius-sm)",
         }}

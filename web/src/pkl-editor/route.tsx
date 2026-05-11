@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
+import type * as monacoTypes from "monaco-editor";
 import Monaco from "./Monaco";
 import FileTree, { type FileEntry } from "./FileTree";
 import Inspector from "./Inspector";
@@ -17,6 +18,7 @@ import { type FormBoundRegion } from "./form-bound-decorations";
 import { findStarlarkRegions } from "./embedded";
 import { registerPklLanguage } from "./languages/pkl";
 import { registerStarlarkLanguage, STARLARK_LANGUAGE_ID } from "./languages/starlark";
+import { AppRail } from "../shell/AppRail";
 import "./pkl-editor.css";
 
 export interface PklEditorRouteProps {
@@ -42,28 +44,29 @@ export default function PklEditorRoute({ filePath: propFilePath }: PklEditorRout
   >([]);
   const [cursorLine, setCursorLine] = useState(1);
   const [cursorCol, setCursorCol] = useState(1);
-  const editorRef = useRef<unknown>(null);
+  const editorRef =
+    useRef<monacoTypes.editor.IStandaloneCodeEditor | null>(null);
 
   const starlarkRegions = useMemo(() => findStarlarkRegions(content), [content]);
 
   // Register languages once Monaco loads.
   const handleEditorMount = useCallback(
-    (editor: unknown, monaco: unknown) => {
-      const m = monaco as typeof import("monaco-editor");
-      registerPklLanguage(m);
-      registerStarlarkLanguage(m);
+    (
+      editor: monacoTypes.editor.IStandaloneCodeEditor,
+      monaco: typeof monacoTypes
+    ) => {
+      registerPklLanguage(monaco);
+      registerStarlarkLanguage(monaco);
       editorRef.current = editor;
 
-      const ed = editor as import("monaco-editor").editor.IStandaloneCodeEditor;
-
-      ed.onDidChangeCursorPosition((e) => {
+      editor.onDidChangeCursorPosition((e) => {
         setCursorLine(e.position.lineNumber);
         setCursorCol(e.position.column);
       });
 
       // Register Starlark autocomplete provider (lazy import to avoid circular dep)
       import("../data/starlarkls-client").then(({ starlarkLsClient }) => {
-        m.languages.registerCompletionItemProvider(STARLARK_LANGUAGE_ID, {
+        monaco.languages.registerCompletionItemProvider(STARLARK_LANGUAGE_ID, {
           triggerCharacters: [".", "_"],
           provideCompletionItems: async (model, position) => {
             const source = model.getValue();
@@ -79,8 +82,8 @@ export default function PklEditorRoute({ filePath: propFilePath }: PklEditorRout
                   label: item.label,
                   kind:
                     item.kind === "function"
-                      ? m.languages.CompletionItemKind.Function
-                      : m.languages.CompletionItemKind.Variable,
+                      ? monaco.languages.CompletionItemKind.Function
+                      : monaco.languages.CompletionItemKind.Variable,
                   detail: item.detail,
                   insertText: item.insertText,
                   range: {
@@ -97,7 +100,7 @@ export default function PklEditorRoute({ filePath: propFilePath }: PklEditorRout
           },
         });
 
-        m.languages.registerHoverProvider(STARLARK_LANGUAGE_ID, {
+        monaco.languages.registerHoverProvider(STARLARK_LANGUAGE_ID, {
           provideHover: async (model, position) => {
             const source = model.getValue();
             try {
@@ -161,7 +164,8 @@ export default function PklEditorRoute({ filePath: propFilePath }: PklEditorRout
       data-testid="pkl-editor-root"
       style={{ display: "flex", height: "100vh", overflow: "hidden" }}
     >
-      {/* AppRail (56px) is rendered by the shell layout when on this route */}
+      {/* AppRail — rendered on pkl-editor routes per plan decision 3 */}
+      <AppRail />
       <FileTree
         files={files}
         activePath={filePath}

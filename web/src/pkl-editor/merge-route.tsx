@@ -39,7 +39,7 @@ export default function MergeRoute() {
           padding: "var(--sy-space-2) var(--sy-space-3)",
           fontSize: 12,
           background: "var(--sy-color-warn)",
-          color: "#000",
+          color: "var(--sy-color-bg)",
           flexShrink: 0,
         }}
       >
@@ -69,7 +69,7 @@ export default function MergeRoute() {
           onClick={() => handleSave(yourContent)}
           style={{
             background: "var(--sy-color-accent)",
-            color: "#fff",
+            color: "var(--sy-color-bg)",
             border: "none",
             padding: "4px 12px",
             borderRadius: "var(--sy-radius-sm)",
