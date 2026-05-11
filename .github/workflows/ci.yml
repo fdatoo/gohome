@@ -182,10 +182,8 @@ jobs:
             path: ./internal/registry
             coverpkg: ./internal/registry/...
             profile: cover-registry.out
-            # TODO(F-294): Raise this temporary floor to 85% after https://linear.app/fdatoo/issue/F-294 ships.
-            gate: "84.7"
+            gate: "85"
             target: "85"
-            exception: F-294
           - package: carport
             path: ./internal/carport
             coverpkg: ./internal/carport/...

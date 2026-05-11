@@ -210,6 +210,17 @@ func TestRegistry_GetDevice_NotFound(t *testing.T) {
 	}
 }
 
+func TestRegistry_GetEntity_NotFound(t *testing.T) {
+	ctx := context.Background()
+	db := testutil.NewTestDB(t)
+	reg, _ := registry.New(ctx, db)
+
+	_, err := reg.GetEntity(ctx, "nonexistent")
+	if err == nil {
+		t.Fatal("expected error for nonexistent entity")
+	}
+}
+
 func TestRegistry_ListEntities_Filters(t *testing.T) {
 	ctx := context.Background()
 	db := testutil.NewTestDB(t)
