@@ -6,6 +6,7 @@ import (
 	"github.com/fdatoo/switchyard/gen/switchyard/activity/v1/activityv1connect"
 	"github.com/fdatoo/switchyard/gen/switchyard/commandcatalog/v1/commandcatalogv1connect"
 	"github.com/fdatoo/switchyard/gen/switchyard/editsession/v1/editsessionv1connect"
+	pagev1connect "github.com/fdatoo/switchyard/gen/switchyard/page/v1/pagev1connect"
 	"github.com/fdatoo/switchyard/gen/switchyard/starlarkls/v1/starlarklsv1connect"
 	"github.com/fdatoo/switchyard/gen/switchyard/v1alpha1/switchyardv1alpha1connect"
 )
@@ -23,7 +24,7 @@ type Services struct {
 	Automation     switchyardv1alpha1connect.AutomationServiceHandler
 	Script         switchyardv1alpha1connect.ScriptServiceHandler
 	Scene          switchyardv1alpha1connect.SceneServiceHandler
-	Dashboard      switchyardv1alpha1connect.DashboardServiceHandler
+	Page           pagev1connect.PageServiceHandler
 	Auth           switchyardv1alpha1connect.AuthServiceHandler
 	WidgetPack     switchyardv1alpha1connect.WidgetPackServiceHandler
 	CommandCatalog commandcatalogv1connect.CommandCatalogServiceHandler
@@ -71,7 +72,7 @@ func BuildRoutes(svc Services, interceptors ...connect.Interceptor) []Route {
 	p, h = switchyardv1alpha1connect.NewSceneServiceHandler(svc.Scene, opts)
 	routes = append(routes, Route{Path: p, Handler: h})
 
-	p, h = switchyardv1alpha1connect.NewDashboardServiceHandler(svc.Dashboard, opts)
+	p, h = pagev1connect.NewPageServiceHandler(svc.Page, opts)
 	routes = append(routes, Route{Path: p, Handler: h})
 
 	p, h = switchyardv1alpha1connect.NewAuthServiceHandler(svc.Auth, opts)

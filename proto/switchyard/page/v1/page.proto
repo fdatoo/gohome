@@ -1,0 +1,101 @@
+// See docs/proto-hygiene.md for grouping conventions.
+
+syntax = "proto3";
+
+package switchyard.page.v1;
+
+import "google/protobuf/struct.proto";
+
+service PageService {
+  rpc List             (ListPagesRequest)           returns (ListPagesResponse);
+  rpc Get              (GetPageRequest)             returns (GetPageResponse);
+  rpc GetWidgetCatalog (GetWidgetCatalogRequest)    returns (GetWidgetCatalogResponse);
+  rpc Create           (CreatePageRequest)          returns (CreatePageResponse);
+  rpc Delete           (DeletePageRequest)          returns (DeletePageResponse);
+  rpc SaveLayout       (SavePageLayoutRequest)      returns (SavePageLayoutResponse);
+}
+
+// Page is the top-level custom page model.
+message Page {
+  string           slug       = 1;
+  string           title      = 2;
+  repeated Section sections   = 3;
+  string           source_pkl = 4;
+  string           layout_pkl = 5;
+  bool             writable   = 6;
+}
+
+// Tier distinguishes the three rendering contexts a widget can occupy.
+enum Tier {
+  TIER_UNSPECIFIED = 0;
+  TIER_SECTION     = 1;
+  TIER_TILE        = 2;
+  TIER_CELL        = 3;
+}
+
+// Section is a full-width content block inside a Page.
+message Section {
+  string                 id    = 1;
+  string                 type  = 2;
+  google.protobuf.Struct props = 3;
+  repeated Tile          tiles = 4;
+  repeated Cell          cells = 5;
+}
+
+// Tile is a square-ish action-oriented block inside a tile-hosting Section.
+message Tile {
+  string                 id    = 1;
+  string                 type  = 2;
+  google.protobuf.Struct props = 3;
+}
+
+// Cell is a row-shaped dense block inside a list-hosting Section.
+message Cell {
+  string                 id    = 1;
+  string                 type  = 2;
+  google.protobuf.Struct props = 3;
+}
+
+// SignatureStatus mirrors the v1alpha1 enum for widget pack signature state.
+enum SignatureStatus {
+  SIGNATURE_UNKNOWN  = 0;
+  SIGNATURE_VERIFIED = 1;
+  SIGNATURE_UNSIGNED = 2;
+  SIGNATURE_INVALID  = 3;
+  SIGNATURE_EXPIRED  = 4;
+}
+
+// WidgetClass describes one widget available in the catalog.
+message WidgetClass {
+  string          class_id     = 1;
+  repeated Tier   tiers        = 2;
+  bool            is_builtin   = 3;
+  string          pack_name    = 4;
+  string          pack_version = 5;
+  string          bundle_url   = 6;
+  string          bundle_hash  = 7;
+  SignatureStatus signature    = 8;
+}
+
+message WidgetCatalog { repeated WidgetClass classes = 1; }
+
+message PageRequest  { int32 page_size = 1; string page_token = 2; }
+message PageResponse { string next_page_token = 1; int32 total = 2; }
+
+message ListPagesRequest      { PageRequest page = 1; }
+message ListPagesResponse     { repeated Page pages = 1; PageResponse page = 2; }
+
+message GetPageRequest        { string slug = 1; }
+message GetPageResponse       { Page page = 1; }
+
+message GetWidgetCatalogRequest  {}
+message GetWidgetCatalogResponse { WidgetCatalog catalog = 1; }
+
+message CreatePageRequest     { string slug = 1; string title = 2; }
+message CreatePageResponse    { Page page = 1; }
+
+message DeletePageRequest     { string slug = 1; bool delete_source_too = 2; }
+message DeletePageResponse    {}
+
+message SavePageLayoutRequest  { Page page = 1; }
+message SavePageLayoutResponse { Page page = 1; string correlation_id = 2; }

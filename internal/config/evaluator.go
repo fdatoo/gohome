@@ -130,6 +130,40 @@ func (e *pklEvaluator) Evaluate(ctx context.Context, configDir string) (*configp
 	return parseConfigJSON(text, configDir)
 }
 
+// EvaluatePageFile evaluates a user-owned pages/<slug>.pkl file and returns
+// its raw JSON bytes so the caller can unmarshal the page model.
+func EvaluatePageFile(ctx context.Context, pagePath, driversRoot string) ([]byte, error) {
+	ev, err := newPklEvaluator(ctx, driversRoot)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = ev.ev.Close() }()
+	return ev.EvaluatePage(ctx, pagePath)
+}
+
+func (e *pklEvaluator) EvaluatePage(ctx context.Context, pagePath string) ([]byte, error) {
+	sourceURI := pkl.FileSource(pagePath).Uri.String()
+	text, err := e.ev.EvaluateOutputText(ctx, pkl.TextSource(fmt.Sprintf(`
+import %q as source
+
+page = source.page
+
+output {
+  renderer = new JsonRenderer {}
+}
+`, sourceURI)))
+	if err != nil {
+		return nil, &EvalError{Message: err.Error()}
+	}
+	var raw struct {
+		Page json.RawMessage `json:"page"`
+	}
+	if err := json.Unmarshal([]byte(text), &raw); err != nil {
+		return nil, fmt.Errorf("page json: %w", err)
+	}
+	return raw.Page, nil
+}
+
 // EvaluateDashboardFile evaluates a user-owned dashboards/<slug>.pkl file and
 // returns its typed dashboard payload as canonical JSON bytes.
 func EvaluateDashboardFile(ctx context.Context, dashboardPath, driversRoot string) (*configpb.DashboardConfig, error) {

@@ -12,7 +12,7 @@ import (
 	"github.com/fdatoo/switchyard/internal/automation"
 	"github.com/fdatoo/switchyard/internal/commandcatalog"
 	"github.com/fdatoo/switchyard/internal/config"
-	"github.com/fdatoo/switchyard/internal/dashboard"
+	"github.com/fdatoo/switchyard/internal/page"
 	"github.com/fdatoo/switchyard/internal/display"
 	"github.com/fdatoo/switchyard/internal/driver"
 	"github.com/fdatoo/switchyard/internal/entity"
@@ -120,7 +120,7 @@ func TestAllDomainVerbs(t *testing.T) {
 	driver.RegisterCommands(r)
 	config.RegisterCommands(r)
 	pkl.RegisterCommands(r)
-	dashboard.RegisterCommands(r)
+	page.RegisterCommands(r)
 	widgetpack.RegisterCommands(r)
 	auth.RegisterCommands(r)
 	display.RegisterCommands(r)
@@ -277,7 +277,7 @@ func TestAllDomainVerbs_ViaService(t *testing.T) {
 	driver.RegisterCommands(r)
 	config.RegisterCommands(r)
 	pkl.RegisterCommands(r)
-	dashboard.RegisterCommands(r)
+	page.RegisterCommands(r)
 	widgetpack.RegisterCommands(r)
 	auth.RegisterCommands(r)
 	display.RegisterCommands(r)

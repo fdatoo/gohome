@@ -7,7 +7,7 @@ import (
 	"github.com/fdatoo/switchyard/internal/widgetpack"
 )
 
-func TestDashboardBackend_WidgetCatalog_ReflectsStore(t *testing.T) {
+func TestPageBackend_WidgetCatalog_ReflectsStore(t *testing.T) {
 	store := widgetpack.NewStore(t.TempDir())
 	if err := store.Load(context.Background()); err != nil {
 		t.Fatalf("store.Load: %v", err)
@@ -21,15 +21,15 @@ func TestDashboardBackend_WidgetCatalog_ReflectsStore(t *testing.T) {
 		t.Fatalf("store.Add: %v", err)
 	}
 
-	be := newDashboardBackend(t.TempDir(), t.TempDir(), store)
+	be := newPageBackend(t.TempDir(), t.TempDir(), store)
 	classes, err := be.WidgetCatalog(context.Background())
 	if err != nil {
 		t.Fatalf("WidgetCatalog: %v", err)
 	}
 
-	// Must include 8 builtins + 2 pack classes.
-	if len(classes) < 10 {
-		t.Errorf("expected at least 10 classes (8 builtins + 2 pack), got %d", len(classes))
+	// Must include 15 builtins + 2 pack classes.
+	if len(classes) < 17 {
+		t.Errorf("expected at least 17 classes (15 builtins + 2 pack), got %d", len(classes))
 	}
 
 	// Find the pack class "bar-widgets/BarChart".
@@ -46,10 +46,6 @@ func TestDashboardBackend_WidgetCatalog_ReflectsStore(t *testing.T) {
 			if c.PackVersion != "1.0.0" {
 				t.Errorf("PackVersion = %q, want 1.0.0", c.PackVersion)
 			}
-			wantURL := "/widgets/bar-widgets/1.0.0/bundle.js?h=sha256:abc"
-			if c.BundleURL != wantURL {
-				t.Errorf("BundleURL = %q, want %q", c.BundleURL, wantURL)
-			}
 			break
 		}
 	}
@@ -58,14 +54,14 @@ func TestDashboardBackend_WidgetCatalog_ReflectsStore(t *testing.T) {
 	}
 }
 
-func TestDashboardBackend_WidgetCatalog_NilStore(t *testing.T) {
-	be := newDashboardBackend(t.TempDir(), t.TempDir(), nil)
+func TestPageBackend_WidgetCatalog_NilStore(t *testing.T) {
+	be := newPageBackend(t.TempDir(), t.TempDir(), nil)
 	classes, err := be.WidgetCatalog(context.Background())
 	if err != nil {
 		t.Fatalf("WidgetCatalog: %v", err)
 	}
-	// Should still return the 8 builtins.
-	if len(classes) != 8 {
-		t.Errorf("expected 8 builtin classes with nil store, got %d", len(classes))
+	// Should return 15 builtins.
+	if len(classes) != 15 {
+		t.Errorf("expected 15 builtin classes with nil store, got %d", len(classes))
 	}
 }

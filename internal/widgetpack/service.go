@@ -9,6 +9,7 @@ import (
 
 	v1 "github.com/fdatoo/switchyard/gen/switchyard/v1alpha1"
 	"github.com/fdatoo/switchyard/gen/switchyard/v1alpha1/switchyardv1alpha1connect"
+	pagev1 "github.com/fdatoo/switchyard/gen/switchyard/page/v1"
 )
 
 // Service implements WidgetPackServiceHandler.
@@ -94,16 +95,16 @@ func toProto(p *InstalledPack) *v1.InstalledPack {
 
 // sigToProto maps the Store's string status onto the proto enum.
 // Status values are "verified", "unsigned", "invalid".
-func sigToProto(s string) v1.SignatureStatus {
+func sigToProto(s string) pagev1.SignatureStatus {
 	switch s {
 	case "verified":
-		return v1.SignatureStatus_SIGNATURE_VERIFIED
+		return pagev1.SignatureStatus_SIGNATURE_VERIFIED
 	case "unsigned":
-		return v1.SignatureStatus_SIGNATURE_UNSIGNED
+		return pagev1.SignatureStatus_SIGNATURE_UNSIGNED
 	case "invalid":
-		return v1.SignatureStatus_SIGNATURE_INVALID
+		return pagev1.SignatureStatus_SIGNATURE_INVALID
 	default:
-		return v1.SignatureStatus_SIGNATURE_UNKNOWN
+		return pagev1.SignatureStatus_SIGNATURE_UNKNOWN
 	}
 }
 
