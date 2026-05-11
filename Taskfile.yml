@@ -12,6 +12,11 @@ tasks:
     cmds:
       - buf generate
 
+  gen:activity:
+    desc: Regenerate Go + TS bindings for activity/v1 proto only
+    cmds:
+      - PATH="$(go env GOPATH)/bin:$PATH" buf generate --path proto/switchyard/activity/v1/
+
   web:install:
     desc: Install web npm dependencies (idempotent)
     dir: web

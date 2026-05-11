@@ -1,0 +1,115 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.queryBar {
+  display: flex;
+  align-items: center;
+  gap: var(--sy-space-2);
+  padding: var(--sy-space-3) var(--sy-space-4);
+  border-bottom: 1px solid var(--sy-color-line);
+  background-color: var(--sy-color-surface-1);
+}
+
+.queryInput {
+  flex: 1;
+  padding: var(--sy-space-2) var(--sy-space-3);
+  border-radius: var(--sy-radius-sm);
+  border: 1px solid var(--sy-color-line);
+  background-color: var(--sy-color-surface-2);
+  color: var(--sy-color-fg);
+  font-size: 0.875rem;
+  font-family: var(--sy-font-body);
+  outline: none;
+}
+
+.queryInput:focus {
+  border-color: var(--sy-color-accent);
+}
+
+.clearBtn {
+  padding: var(--sy-space-1) var(--sy-space-2);
+  border: none;
+  background: none;
+  color: var(--sy-color-fg-4);
+  font-size: 1rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.tableWrapper {
+  overflow-y: auto;
+  flex: 1;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.th {
+  padding: var(--sy-space-2) var(--sy-space-3);
+  text-align: left;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--sy-color-fg-3);
+  background-color: var(--sy-color-surface-1);
+  border-bottom: 1px solid var(--sy-color-line);
+  position: sticky;
+  top: 0;
+}
+
+.row {
+  cursor: pointer;
+  transition: background-color var(--sy-motion-fast);
+}
+
+.row:hover {
+  background-color: var(--sy-color-surface-2);
+}
+
+.row[data-selected="true"] {
+  background-color: var(--sy-color-accent-soft);
+}
+
+.td {
+  padding: var(--sy-space-2) var(--sy-space-3);
+  border-bottom: 1px solid var(--sy-color-line-soft);
+  font-size: 0.8rem;
+  color: var(--sy-color-fg-2);
+  vertical-align: middle;
+}
+
+.emptyCell {
+  padding: var(--sy-space-6);
+  text-align: center;
+  color: var(--sy-color-fg-4);
+  font-size: 0.875rem;
+}
+
+.time {
+  font-family: var(--sy-font-numeric);
+  font-size: 0.75rem;
+  color: var(--sy-color-fg-3);
+}
+
+.kindPill {
+  display: inline-flex;
+  padding: 2px var(--sy-space-2);
+  border-radius: var(--sy-radius-pill);
+  font-size: 0.72rem;
+  font-weight: 600;
+  background-color: var(--sy-color-surface-3);
+  color: var(--sy-color-fg-3);
+}
+
+.seq {
+  font-family: var(--sy-font-numeric);
+  font-size: 0.72rem;
+  color: var(--sy-color-fg-4);
+}

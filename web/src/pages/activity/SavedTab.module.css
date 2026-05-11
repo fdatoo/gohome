@@ -1,0 +1,233 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sy-space-5);
+  padding: var(--sy-space-5) var(--sy-space-6);
+  max-width: 800px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.heading {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--sy-color-fg);
+  margin: 0;
+}
+
+.saveBtn {
+  padding: var(--sy-space-2) var(--sy-space-4);
+  border-radius: var(--sy-radius);
+  border: none;
+  background-color: var(--sy-color-accent);
+  color: var(--sy-color-bg);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity var(--sy-motion-fast);
+}
+
+.saveBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.empty {
+  color: var(--sy-color-fg-4);
+  font-size: 0.875rem;
+  padding: var(--sy-space-6) 0;
+}
+
+.queryList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sy-space-3);
+}
+
+.queryRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: var(--sy-space-4);
+  border-radius: var(--sy-radius);
+  border: 1px solid var(--sy-color-line);
+  background-color: var(--sy-color-surface-1);
+  gap: var(--sy-space-4);
+}
+
+.queryMain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sy-space-1);
+  flex: 1;
+  min-width: 0;
+}
+
+.queryName {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--sy-color-fg);
+}
+
+.queryFilter {
+  font-family: var(--sy-font-numeric);
+  font-size: 0.8rem;
+  color: var(--sy-color-fg-3);
+  background-color: var(--sy-color-surface-2);
+  padding: 2px var(--sy-space-2);
+  border-radius: var(--sy-radius-sm);
+  display: inline-block;
+}
+
+.queryMeta {
+  display: flex;
+  gap: var(--sy-space-4);
+  font-size: 0.75rem;
+  color: var(--sy-color-fg-4);
+}
+
+.queryActions {
+  display: flex;
+  gap: var(--sy-space-2);
+  align-items: center;
+}
+
+.runBtn {
+  padding: var(--sy-space-2) var(--sy-space-3);
+  border-radius: var(--sy-radius);
+  border: 1px solid var(--sy-color-accent);
+  background-color: transparent;
+  color: var(--sy-color-accent);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background-color var(--sy-motion-fast);
+}
+
+.runBtn:hover {
+  background-color: var(--sy-color-accent-soft);
+}
+
+.deleteBtn {
+  padding: var(--sy-space-2) var(--sy-space-3);
+  border-radius: var(--sy-radius);
+  border: 1px solid var(--sy-color-line);
+  background-color: transparent;
+  color: var(--sy-color-fg-3);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: color var(--sy-motion-fast), border-color var(--sy-motion-fast);
+}
+
+.deleteBtn:hover {
+  color: var(--sy-color-bad);
+  border-color: var(--sy-color-bad);
+}
+
+/* Save dialog */
+
+.dialogBackdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.dialog {
+  background-color: var(--sy-color-surface-1);
+  border-radius: var(--sy-radius-lg);
+  padding: var(--sy-space-6);
+  width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sy-space-4);
+  box-shadow: var(--sy-shadow-elevated);
+}
+
+.dialogTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--sy-color-fg);
+}
+
+.label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sy-space-1);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--sy-color-fg-2);
+}
+
+.required {
+  color: var(--sy-color-bad);
+}
+
+.optional {
+  font-weight: 400;
+  color: var(--sy-color-fg-4);
+}
+
+.input {
+  padding: var(--sy-space-2) var(--sy-space-3);
+  border-radius: var(--sy-radius-sm);
+  border: 1px solid var(--sy-color-line);
+  background-color: var(--sy-color-surface-2);
+  color: var(--sy-color-fg);
+  font-size: 0.875rem;
+  font-family: var(--sy-font-body);
+  outline: none;
+}
+
+.input:focus {
+  border-color: var(--sy-color-accent);
+}
+
+.cronError {
+  font-size: 0.8rem;
+  color: var(--sy-color-bad);
+  font-weight: 400;
+}
+
+.dialogFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sy-space-2);
+}
+
+.cancelBtn {
+  padding: var(--sy-space-2) var(--sy-space-4);
+  border-radius: var(--sy-radius);
+  border: 1px solid var(--sy-color-line);
+  background-color: transparent;
+  color: var(--sy-color-fg-2);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.confirmBtn {
+  padding: var(--sy-space-2) var(--sy-space-4);
+  border-radius: var(--sy-radius);
+  border: none;
+  background-color: var(--sy-color-accent);
+  color: var(--sy-color-bg);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity var(--sy-motion-fast);
+}
+
+.confirmBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
