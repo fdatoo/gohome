@@ -1155,20 +1155,6 @@ func protoRuleToRaw(r *configpb.CapabilityRule) policy.RawRule {
 	}
 }
 
-// ---- acceptAllAuthn ----
-
-// acceptAllAuthn is a fallback authenticator that accepts any request,
-// assigning a "local" anonymous principal. Used until SO_PEERCRED is wired.
-type acceptAllAuthn struct{}
-
-func (acceptAllAuthn) Authenticate(_ context.Context, _ auth.Request) (auth.Principal, error) {
-	return auth.Principal{
-		ID:          "system:local",
-		DisplayName: "local",
-		Kind:        "system",
-	}, nil
-}
-
 // ---- pagination helpers ----
 
 func paginateDevices(items []api.Device, page api.PageReq) ([]api.Device, api.Cursor, error) {

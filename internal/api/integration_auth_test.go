@@ -73,7 +73,7 @@ func TestAuthSmokeE2E(t *testing.T) {
 	})
 
 	// 3. CreateToken → RevokeToken round-trip.
-	// acceptAllAuthn assigns system:local principal; CreateToken uses TrimPrefix("user:") → "system:local"
+	// UDS peer credentials assign system:local; CreateToken uses TrimPrefix("user:") → "system:local"
 	// as the user_slug. auth_tokens has no FK constraint on user_slug, so this succeeds.
 	t.Run("CreateToken_RevokeToken", func(t *testing.T) {
 		cr, err := authSvc.CreateToken(ctx, connect.NewRequest(&authpb.CreateTokenRequest{

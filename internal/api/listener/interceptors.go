@@ -27,12 +27,15 @@ type peerCredKey struct{}
 // WithPeerCred attaches the Unix peer credentials to ctx. Called by the
 // UDS connection handler before the request is dispatched.
 func WithPeerCred(ctx context.Context, c *auth.PeerCred) context.Context {
-	return context.WithValue(ctx, peerCredKey{}, c)
+	ctx = context.WithValue(ctx, peerCredKey{}, c)
+	return auth.WithPeerCred(ctx, c)
 }
 
 func peerCredFromContext(ctx context.Context) *auth.PeerCred {
-	c, _ := ctx.Value(peerCredKey{}).(*auth.PeerCred)
-	return c
+	if c, _ := ctx.Value(peerCredKey{}).(*auth.PeerCred); c != nil {
+		return c
+	}
+	return auth.PeerCredFromContext(ctx)
 }
 
 // RequestIDInterceptor mints or echoes the X-Request-Id header and stores the

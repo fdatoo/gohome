@@ -24,6 +24,7 @@ message AuthEvent {
     TokenRejected          token_rejected          = 22;
     PolicyDenied           policy_denied           = 23;
     PolicyCompiled         policy_compiled         = 24;
+    PolicyBypassed         policy_bypassed         = 25;
   }
 }
 
@@ -127,4 +128,11 @@ message PolicyCompiled {
   uint32 policy_count             = 2;
   uint32 compile_duration_ms      = 3;
   string compiled_by_principal_id = 4;
+}
+
+message PolicyBypassed {
+  string action_service = 1;
+  string action_method  = 2;
+  string action_verb    = 3;
+  string reason         = 4; // "system_local"
 }

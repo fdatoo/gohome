@@ -27,10 +27,29 @@ type ProcedureCatalog interface {
 func NewAuthorize(rt *policy.Runtime, catalog ProcedureCatalog, recorder *audit.Recorder, metrics *observability.Metrics) connect.UnaryInterceptorFunc {
 	return func(next connect.UnaryFunc) connect.UnaryFunc {
 		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+			principal, _ := auth.PrincipalFromContext(ctx)
+			if principal.Kind == "system" {
+				if metrics != nil {
+					metrics.PolicyAuthorizeDurationSeconds.Observe(0)
+					metrics.PolicyAuthorizeTotal.WithLabelValues("allowed", "").Inc()
+				}
+				if recorder != nil {
+					action := auth.Action{}
+					if catalog != nil {
+						if resolved, _, ok := catalog.Resolve(req.Spec().Procedure, req.Any()); ok {
+							action = resolved
+						}
+					}
+					_ = recorder.PolicyBypassed(ctx, identityFromCtx(ctx), audit.PolicyBypassed{
+						ActionService: action.Service, ActionMethod: action.Method,
+						ActionVerb: action.Verb, Reason: "system_local",
+					})
+				}
+				return next(ctx, req)
+			}
 			if rt == nil || catalog == nil {
 				return next(ctx, req)
 			}
-			principal, _ := auth.PrincipalFromContext(ctx)
 			action, target, ok := catalog.Resolve(req.Spec().Procedure, req.Any())
 			if !ok {
 				return next(ctx, req)

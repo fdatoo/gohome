@@ -86,7 +86,8 @@ func (l *Listener) Start(ctx context.Context) error {
 	}
 
 	l.srv = &http.Server{
-		Handler: newH2CServer(mux),
+		Handler:     newH2CServer(mux),
+		ConnContext: withConnPeerCred,
 	}
 
 	tcpLis, err := net.Listen("tcp", l.cfg.TCPBind)
@@ -120,7 +121,7 @@ func (l *Listener) Start(ctx context.Context) error {
 		_ = udsLis.Close()
 		return fmt.Errorf("listener: chmod uds: %w", err)
 	}
-	l.udsLis = udsLis
+	l.udsLis = peerCredListener{Listener: udsLis}
 
 	go l.serve(l.tcpLis)
 	go l.serve(l.udsLis)

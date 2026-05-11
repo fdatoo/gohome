@@ -394,6 +394,7 @@ var (
 	dnsResolverRE      = regexp.MustCompile(`lookup example\.invalid on [^:]+:[0-9]+: no such host`)
 	driverSpawnedPIDRE = regexp.MustCompile(`"detail":"[0-9]+","driverInstanceId":"testdriver-main","kind":"spawned"`)
 	goVersionRE        = regexp.MustCompile(`"go_version":"go[0-9.]+`)
+	jsonFieldSpaceRE   = regexp.MustCompile(`("[A-Za-z0-9_]+"):[ \t]{2,}`)
 )
 
 func normalizeCLIGolden(s, dataDir, sock string) string {
@@ -417,6 +418,7 @@ func normalizeCLIGolden(s, dataDir, sock string) string {
 	s = streamBannerRE.ReplaceAllString(s, "")
 	s = driverSpawnedPIDRE.ReplaceAllString(s, `"detail":"<PID>","driverInstanceId":"testdriver-main","kind":"spawned"`)
 	s = goVersionRE.ReplaceAllString(s, `"go_version":"<GO_VERSION>`)
+	s = jsonFieldSpaceRE.ReplaceAllString(s, `$1: `)
 	s = deadlineRE.ReplaceAllString(s, "deadline_exceeded: <DEADLINE>")
 	if !strings.HasSuffix(s, "\n") {
 		s += "\n"

@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"strconv"
 )
 
 type LocalPeerCred struct{}
@@ -15,6 +16,11 @@ func (LocalPeerCred) Authenticate(_ context.Context, req Request) (Principal, er
 		ID:          "system:local",
 		DisplayName: "local",
 		Kind:        "system",
+		Metadata: map[string]string{
+			"uid": strconv.FormatUint(uint64(req.PeerCred.Uid), 10),
+			"gid": strconv.FormatUint(uint64(req.PeerCred.Gid), 10),
+			"pid": strconv.FormatInt(int64(req.PeerCred.Pid), 10),
+		},
 	}, nil
 }
 

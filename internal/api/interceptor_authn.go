@@ -20,10 +20,18 @@ import (
 func NewAuthenticate(chain auth.Authenticator, bearer *authn.Bearer, tokens *credentials.Tokens) connect.UnaryInterceptorFunc {
 	return func(next connect.UnaryFunc) connect.UnaryFunc {
 		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+			peerCred := auth.PeerCredFromContext(ctx)
+			scheme := "bearer"
+			if peerCred != nil {
+				scheme = "uds:peercred"
+			}
 			authReq := auth.Request{
+				Scheme:     scheme,
 				Headers:    req.Header(),
 				RemoteAddr: req.Peer().Addr,
 				Method:     req.Spec().Procedure,
+				HTTP:       httpRequestFromCtx(ctx),
+				PeerCred:   peerCred,
 			}
 
 			p, err := chain.Authenticate(ctx, authReq)

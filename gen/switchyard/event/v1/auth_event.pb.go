@@ -43,6 +43,7 @@ type AuthEvent struct {
 	//	*AuthEvent_TokenRejected
 	//	*AuthEvent_PolicyDenied
 	//	*AuthEvent_PolicyCompiled
+	//	*AuthEvent_PolicyBypassed
 	Kind          isAuthEvent_Kind `protobuf_oneof:"kind"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -227,6 +228,15 @@ func (x *AuthEvent) GetPolicyCompiled() *PolicyCompiled {
 	return nil
 }
 
+func (x *AuthEvent) GetPolicyBypassed() *PolicyBypassed {
+	if x != nil {
+		if x, ok := x.Kind.(*AuthEvent_PolicyBypassed); ok {
+			return x.PolicyBypassed
+		}
+	}
+	return nil
+}
+
 type isAuthEvent_Kind interface {
 	isAuthEvent_Kind()
 }
@@ -293,6 +303,10 @@ type AuthEvent_PolicyCompiled struct {
 	PolicyCompiled *PolicyCompiled `protobuf:"bytes,24,opt,name=policy_compiled,json=policyCompiled,proto3,oneof"`
 }
 
+type AuthEvent_PolicyBypassed struct {
+	PolicyBypassed *PolicyBypassed `protobuf:"bytes,25,opt,name=policy_bypassed,json=policyBypassed,proto3,oneof"`
+}
+
 func (*AuthEvent_LoginSucceeded) isAuthEvent_Kind() {}
 
 func (*AuthEvent_LoginFailed) isAuthEvent_Kind() {}
@@ -322,6 +336,8 @@ func (*AuthEvent_TokenRejected) isAuthEvent_Kind() {}
 func (*AuthEvent_PolicyDenied) isAuthEvent_Kind() {}
 
 func (*AuthEvent_PolicyCompiled) isAuthEvent_Kind() {}
+
+func (*AuthEvent_PolicyBypassed) isAuthEvent_Kind() {}
 
 type Identity struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -1331,11 +1347,79 @@ func (x *PolicyCompiled) GetCompiledByPrincipalId() string {
 	return ""
 }
 
+type PolicyBypassed struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ActionService string                 `protobuf:"bytes,1,opt,name=action_service,json=actionService,proto3" json:"action_service,omitempty"`
+	ActionMethod  string                 `protobuf:"bytes,2,opt,name=action_method,json=actionMethod,proto3" json:"action_method,omitempty"`
+	ActionVerb    string                 `protobuf:"bytes,3,opt,name=action_verb,json=actionVerb,proto3" json:"action_verb,omitempty"`
+	Reason        string                 `protobuf:"bytes,4,opt,name=reason,proto3" json:"reason,omitempty"` // "system_local"
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PolicyBypassed) Reset() {
+	*x = PolicyBypassed{}
+	mi := &file_switchyard_event_v1_auth_event_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PolicyBypassed) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PolicyBypassed) ProtoMessage() {}
+
+func (x *PolicyBypassed) ProtoReflect() protoreflect.Message {
+	mi := &file_switchyard_event_v1_auth_event_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PolicyBypassed.ProtoReflect.Descriptor instead.
+func (*PolicyBypassed) Descriptor() ([]byte, []int) {
+	return file_switchyard_event_v1_auth_event_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *PolicyBypassed) GetActionService() string {
+	if x != nil {
+		return x.ActionService
+	}
+	return ""
+}
+
+func (x *PolicyBypassed) GetActionMethod() string {
+	if x != nil {
+		return x.ActionMethod
+	}
+	return ""
+}
+
+func (x *PolicyBypassed) GetActionVerb() string {
+	if x != nil {
+		return x.ActionVerb
+	}
+	return ""
+}
+
+func (x *PolicyBypassed) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
 var File_switchyard_event_v1_auth_event_proto protoreflect.FileDescriptor
 
 const file_switchyard_event_v1_auth_event_proto_rawDesc = "" +
 	"\n" +
-	"$switchyard/event/v1/auth_event.proto\x12\x13switchyard.event.v1\"\xad\n" +
+	"$switchyard/event/v1/auth_event.proto\x12\x13switchyard.event.v1\"\xfd\n" +
 	"\n" +
 	"\tAuthEvent\x129\n" +
 	"\bidentity\x18\x01 \x01(\v2\x1d.switchyard.event.v1.IdentityR\bidentity\x12N\n" +
@@ -1354,7 +1438,8 @@ const file_switchyard_event_v1_auth_event_proto_rawDesc = "" +
 	"\rtoken_revoked\x18\x15 \x01(\v2!.switchyard.event.v1.TokenRevokedH\x00R\ftokenRevoked\x12K\n" +
 	"\x0etoken_rejected\x18\x16 \x01(\v2\".switchyard.event.v1.TokenRejectedH\x00R\rtokenRejected\x12H\n" +
 	"\rpolicy_denied\x18\x17 \x01(\v2!.switchyard.event.v1.PolicyDeniedH\x00R\fpolicyDenied\x12N\n" +
-	"\x0fpolicy_compiled\x18\x18 \x01(\v2#.switchyard.event.v1.PolicyCompiledH\x00R\x0epolicyCompiledB\x06\n" +
+	"\x0fpolicy_compiled\x18\x18 \x01(\v2#.switchyard.event.v1.PolicyCompiledH\x00R\x0epolicyCompiled\x12N\n" +
+	"\x0fpolicy_bypassed\x18\x19 \x01(\v2#.switchyard.event.v1.PolicyBypassedH\x00R\x0epolicyBypassedB\x06\n" +
 	"\x04kind\"\x88\x01\n" +
 	"\bIdentity\x12!\n" +
 	"\fprincipal_id\x18\x01 \x01(\tR\vprincipalId\x12\x1b\n" +
@@ -1440,7 +1525,13 @@ const file_switchyard_event_v1_auth_event_proto_rawDesc = "" +
 	"generation\x12!\n" +
 	"\fpolicy_count\x18\x02 \x01(\rR\vpolicyCount\x12.\n" +
 	"\x13compile_duration_ms\x18\x03 \x01(\rR\x11compileDurationMs\x127\n" +
-	"\x18compiled_by_principal_id\x18\x04 \x01(\tR\x15compiledByPrincipalIdB\xd5\x01\n" +
+	"\x18compiled_by_principal_id\x18\x04 \x01(\tR\x15compiledByPrincipalId\"\x95\x01\n" +
+	"\x0ePolicyBypassed\x12%\n" +
+	"\x0eaction_service\x18\x01 \x01(\tR\ractionService\x12#\n" +
+	"\raction_method\x18\x02 \x01(\tR\factionMethod\x12\x1f\n" +
+	"\vaction_verb\x18\x03 \x01(\tR\n" +
+	"actionVerb\x12\x16\n" +
+	"\x06reason\x18\x04 \x01(\tR\x06reasonB\xd5\x01\n" +
 	"\x17com.switchyard.event.v1B\x0eAuthEventProtoP\x01Z<github.com/fdatoo/switchyard/gen/switchyard/event/v1;eventv1\xa2\x02\x03SEX\xaa\x02\x13Switchyard.Event.V1\xca\x02\x13Switchyard\\Event\\V1\xe2\x02\x1fSwitchyard\\Event\\V1\\GPBMetadata\xea\x02\x15Switchyard::Event::V1b\x06proto3"
 
 var (
@@ -1455,7 +1546,7 @@ func file_switchyard_event_v1_auth_event_proto_rawDescGZIP() []byte {
 	return file_switchyard_event_v1_auth_event_proto_rawDescData
 }
 
-var file_switchyard_event_v1_auth_event_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_switchyard_event_v1_auth_event_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_switchyard_event_v1_auth_event_proto_goTypes = []any{
 	(*AuthEvent)(nil),               // 0: switchyard.event.v1.AuthEvent
 	(*Identity)(nil),                // 1: switchyard.event.v1.Identity
@@ -1474,6 +1565,7 @@ var file_switchyard_event_v1_auth_event_proto_goTypes = []any{
 	(*TokenRejected)(nil),           // 14: switchyard.event.v1.TokenRejected
 	(*PolicyDenied)(nil),            // 15: switchyard.event.v1.PolicyDenied
 	(*PolicyCompiled)(nil),          // 16: switchyard.event.v1.PolicyCompiled
+	(*PolicyBypassed)(nil),          // 17: switchyard.event.v1.PolicyBypassed
 }
 var file_switchyard_event_v1_auth_event_proto_depIdxs = []int32{
 	1,  // 0: switchyard.event.v1.AuthEvent.identity:type_name -> switchyard.event.v1.Identity
@@ -1492,11 +1584,12 @@ var file_switchyard_event_v1_auth_event_proto_depIdxs = []int32{
 	14, // 13: switchyard.event.v1.AuthEvent.token_rejected:type_name -> switchyard.event.v1.TokenRejected
 	15, // 14: switchyard.event.v1.AuthEvent.policy_denied:type_name -> switchyard.event.v1.PolicyDenied
 	16, // 15: switchyard.event.v1.AuthEvent.policy_compiled:type_name -> switchyard.event.v1.PolicyCompiled
-	16, // [16:16] is the sub-list for method output_type
-	16, // [16:16] is the sub-list for method input_type
-	16, // [16:16] is the sub-list for extension type_name
-	16, // [16:16] is the sub-list for extension extendee
-	0,  // [0:16] is the sub-list for field type_name
+	17, // 16: switchyard.event.v1.AuthEvent.policy_bypassed:type_name -> switchyard.event.v1.PolicyBypassed
+	17, // [17:17] is the sub-list for method output_type
+	17, // [17:17] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_switchyard_event_v1_auth_event_proto_init() }
@@ -1520,6 +1613,7 @@ func file_switchyard_event_v1_auth_event_proto_init() {
 		(*AuthEvent_TokenRejected)(nil),
 		(*AuthEvent_PolicyDenied)(nil),
 		(*AuthEvent_PolicyCompiled)(nil),
+		(*AuthEvent_PolicyBypassed)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -1527,7 +1621,7 @@ func file_switchyard_event_v1_auth_event_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_switchyard_event_v1_auth_event_proto_rawDesc), len(file_switchyard_event_v1_auth_event_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   17,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
