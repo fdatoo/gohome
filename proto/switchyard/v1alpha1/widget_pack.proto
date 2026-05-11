@@ -5,7 +5,7 @@ syntax = "proto3";
 package switchyard.v1alpha1;
 
 import "google/protobuf/timestamp.proto";
-import "switchyard/v1alpha1/dashboard.proto";
+import "switchyard/page/v1/page.proto";
 
 service WidgetPackService {
   rpc Install   (InstallWidgetPackRequest)   returns (InstallWidgetPackResponse);
@@ -36,7 +36,7 @@ message InstalledPack {
   string                    name            = 1;
   string                    version         = 2;
   string                    sha256          = 3;
-  SignatureStatus           signature       = 4;
+  switchyard.page.v1.SignatureStatus signature = 4;
   string                    signer_identity = 5;
   repeated string           classes         = 6;
   string                    bundle_url      = 7;

@@ -3,42 +3,42 @@ package daemon
 import (
 	"context"
 
-	"github.com/fdatoo/switchyard/internal/dashboard"
-	"github.com/fdatoo/switchyard/internal/dashboard/pklfs"
+	"github.com/fdatoo/switchyard/internal/page"
+	pagepklfs "github.com/fdatoo/switchyard/internal/page/pklfs"
 	"github.com/fdatoo/switchyard/internal/widgetpack"
 )
 
-type dashboardBackend struct {
-	*pklfs.Backend
+type pageBackend struct {
+	*pagepklfs.Backend
 	packStore *widgetpack.Store
 }
 
-func newDashboardBackend(configDir, driversDir string, packStore *widgetpack.Store) *dashboardBackend {
-	return &dashboardBackend{
-		Backend:   pklfs.New(configDir, driversDir),
+func newPageBackend(configDir, driversDir string, packStore *widgetpack.Store) *pageBackend {
+	return &pageBackend{
+		Backend:   pagepklfs.New(configDir, driversDir),
 		packStore: packStore,
 	}
 }
 
-func (b *dashboardBackend) WidgetCatalog(_ context.Context) ([]dashboard.WidgetClassInfo, error) {
-	var packs []dashboard.InstalledPack
+func (b *pageBackend) WidgetCatalog(_ context.Context) ([]page.WidgetClassInfo, error) {
+	var packs []page.InstalledPack
 	if b.packStore != nil {
 		view := b.packStore.ClassesView()
 		for _, pv := range view {
-			classes := make([]dashboard.PackClass, 0, len(pv.Classes))
+			classes := make([]page.PackClass, 0, len(pv.Classes))
 			for _, c := range pv.Classes {
-				classes = append(classes, dashboard.PackClass{
+				classes = append(classes, page.PackClass{
 					Name:       c.Name,
 					BundleURL:  c.BundleURL,
 					BundleHash: c.BundleHash,
 				})
 			}
-			packs = append(packs, dashboard.InstalledPack{
+			packs = append(packs, page.InstalledPack{
 				Name:    pv.Name,
 				Version: pv.Version,
 				Classes: classes,
 			})
 		}
 	}
-	return dashboard.NewCatalog(packs).WidgetClasses(), nil
+	return page.NewCatalog(packs).WidgetClasses(), nil
 }

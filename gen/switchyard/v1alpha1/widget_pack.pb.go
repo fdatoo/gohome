@@ -9,6 +9,7 @@
 package switchyardv1alpha1
 
 import (
+	v1 "github.com/fdatoo/switchyard/gen/switchyard/page/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -463,7 +464,7 @@ type InstalledPack struct {
 	Name           string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	Version        string                 `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
 	Sha256         string                 `protobuf:"bytes,3,opt,name=sha256,proto3" json:"sha256,omitempty"`
-	Signature      SignatureStatus        `protobuf:"varint,4,opt,name=signature,proto3,enum=switchyard.v1alpha1.SignatureStatus" json:"signature,omitempty"`
+	Signature      v1.SignatureStatus     `protobuf:"varint,4,opt,name=signature,proto3,enum=switchyard.page.v1.SignatureStatus" json:"signature,omitempty"`
 	SignerIdentity string                 `protobuf:"bytes,5,opt,name=signer_identity,json=signerIdentity,proto3" json:"signer_identity,omitempty"`
 	Classes        []string               `protobuf:"bytes,6,rep,name=classes,proto3" json:"classes,omitempty"`
 	BundleUrl      string                 `protobuf:"bytes,7,opt,name=bundle_url,json=bundleUrl,proto3" json:"bundle_url,omitempty"`
@@ -526,11 +527,11 @@ func (x *InstalledPack) GetSha256() string {
 	return ""
 }
 
-func (x *InstalledPack) GetSignature() SignatureStatus {
+func (x *InstalledPack) GetSignature() v1.SignatureStatus {
 	if x != nil {
 		return x.Signature
 	}
-	return SignatureStatus_SIGNATURE_UNKNOWN
+	return v1.SignatureStatus(0)
 }
 
 func (x *InstalledPack) GetSignerIdentity() string {
@@ -586,7 +587,7 @@ var File_switchyard_v1alpha1_widget_pack_proto protoreflect.FileDescriptor
 
 const file_switchyard_v1alpha1_widget_pack_proto_rawDesc = "" +
 	"\n" +
-	"%switchyard/v1alpha1/widget_pack.proto\x12\x13switchyard.v1alpha1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a#switchyard/v1alpha1/dashboard.proto\",\n" +
+	"%switchyard/v1alpha1/widget_pack.proto\x12\x13switchyard.v1alpha1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1dswitchyard/page/v1/page.proto\",\n" +
 	"\x18InstallWidgetPackRequest\x12\x10\n" +
 	"\x03ref\x18\x01 \x01(\tR\x03ref\"S\n" +
 	"\x19InstallWidgetPackResponse\x126\n" +
@@ -606,12 +607,12 @@ const file_switchyard_v1alpha1_widget_pack_proto_rawDesc = "" +
 	"\x04kind\"?\n" +
 	"\x0fUninstalledPack\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
-	"\aversion\x18\x02 \x01(\tR\aversion\"\x92\x03\n" +
+	"\aversion\x18\x02 \x01(\tR\aversion\"\x91\x03\n" +
 	"\rInstalledPack\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\tR\aversion\x12\x16\n" +
-	"\x06sha256\x18\x03 \x01(\tR\x06sha256\x12B\n" +
-	"\tsignature\x18\x04 \x01(\x0e2$.switchyard.v1alpha1.SignatureStatusR\tsignature\x12'\n" +
+	"\x06sha256\x18\x03 \x01(\tR\x06sha256\x12A\n" +
+	"\tsignature\x18\x04 \x01(\x0e2#.switchyard.page.v1.SignatureStatusR\tsignature\x12'\n" +
 	"\x0fsigner_identity\x18\x05 \x01(\tR\x0esignerIdentity\x12\x18\n" +
 	"\aclasses\x18\x06 \x03(\tR\aclasses\x12\x1d\n" +
 	"\n" +
@@ -652,7 +653,7 @@ var file_switchyard_v1alpha1_widget_pack_proto_goTypes = []any{
 	(*WidgetPackEvent)(nil),             // 7: switchyard.v1alpha1.WidgetPackEvent
 	(*UninstalledPack)(nil),             // 8: switchyard.v1alpha1.UninstalledPack
 	(*InstalledPack)(nil),               // 9: switchyard.v1alpha1.InstalledPack
-	(SignatureStatus)(0),                // 10: switchyard.v1alpha1.SignatureStatus
+	(v1.SignatureStatus)(0),             // 10: switchyard.page.v1.SignatureStatus
 	(*timestamppb.Timestamp)(nil),       // 11: google.protobuf.Timestamp
 }
 var file_switchyard_v1alpha1_widget_pack_proto_depIdxs = []int32{
@@ -660,7 +661,7 @@ var file_switchyard_v1alpha1_widget_pack_proto_depIdxs = []int32{
 	9,  // 1: switchyard.v1alpha1.ListWidgetPacksResponse.packs:type_name -> switchyard.v1alpha1.InstalledPack
 	9,  // 2: switchyard.v1alpha1.WidgetPackEvent.installed:type_name -> switchyard.v1alpha1.InstalledPack
 	8,  // 3: switchyard.v1alpha1.WidgetPackEvent.uninstalled:type_name -> switchyard.v1alpha1.UninstalledPack
-	10, // 4: switchyard.v1alpha1.InstalledPack.signature:type_name -> switchyard.v1alpha1.SignatureStatus
+	10, // 4: switchyard.v1alpha1.InstalledPack.signature:type_name -> switchyard.page.v1.SignatureStatus
 	11, // 5: switchyard.v1alpha1.InstalledPack.installed_at:type_name -> google.protobuf.Timestamp
 	0,  // 6: switchyard.v1alpha1.WidgetPackService.Install:input_type -> switchyard.v1alpha1.InstallWidgetPackRequest
 	4,  // 7: switchyard.v1alpha1.WidgetPackService.List:input_type -> switchyard.v1alpha1.ListWidgetPacksRequest
@@ -682,7 +683,6 @@ func file_switchyard_v1alpha1_widget_pack_proto_init() {
 	if File_switchyard_v1alpha1_widget_pack_proto != nil {
 		return
 	}
-	file_switchyard_v1alpha1_dashboard_proto_init()
 	file_switchyard_v1alpha1_widget_pack_proto_msgTypes[7].OneofWrappers = []any{
 		(*WidgetPackEvent_Installed)(nil),
 		(*WidgetPackEvent_Uninstalled)(nil),

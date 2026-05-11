@@ -38,7 +38,7 @@ import (
 	"github.com/fdatoo/switchyard/internal/carport"
 	"github.com/fdatoo/switchyard/internal/commandcatalog"
 	"github.com/fdatoo/switchyard/internal/config"
-	"github.com/fdatoo/switchyard/internal/dashboard"
+	"github.com/fdatoo/switchyard/internal/page"
 	"github.com/fdatoo/switchyard/internal/display"
 	"github.com/fdatoo/switchyard/internal/driver"
 	"github.com/fdatoo/switchyard/internal/editsession"
@@ -434,7 +434,7 @@ func (d *Daemon) Run(ctx context.Context) (err error) {
 	driver.RegisterCommands(cmdCatalogReg)
 	config.RegisterCommands(cmdCatalogReg)
 	pkl.RegisterCommands(cmdCatalogReg)
-	dashboard.RegisterCommands(cmdCatalogReg)
+	page.RegisterCommands(cmdCatalogReg)
 	widgetpack.RegisterCommands(cmdCatalogReg)
 	auth.RegisterCommands(cmdCatalogReg)
 	display.RegisterCommands(cmdCatalogReg)
@@ -485,7 +485,7 @@ func (d *Daemon) Run(ctx context.Context) (err error) {
 	}
 
 	packInstaller := widgetpack.NewInstaller(
-		packStore, packVerifier, trustPolicy, packFetcher, dashboard.BuiltinClassIDs, nil,
+		packStore, packVerifier, trustPolicy, packFetcher, page.BuiltinClassIDs(), nil,
 	)
 	packService := widgetpack.NewService(packInstaller, packStore)
 	packBundleHandler := widgetpack.NewBundleHandler(packStore)
@@ -534,7 +534,7 @@ func (d *Daemon) Run(ctx context.Context) (err error) {
 		Automation: api.NewAutomationService(autoCtl),
 		Script:     api.NewScriptService(scriptRun, &eventAppenderAdapter{store: d.store}, sysBE),
 		Scene:      api.NewSceneService(),
-		Dashboard:  dashboard.NewService(newDashboardBackend(configDir, driversDir, packStore), dashboard.NewCatalog(nil)),
+		Page:       page.NewService(newPageBackend(configDir, driversDir, packStore), page.NewCatalog(nil)),
 		WidgetPack:     packService,
 		CommandCatalog: cmdCatalogSvc,
 		Auth: api.NewAuthService(api.AuthDeps{
