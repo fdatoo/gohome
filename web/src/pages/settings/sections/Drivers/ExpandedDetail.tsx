@@ -174,8 +174,8 @@ export function ExpandedDetail({
           style={{
             margin: 0,
             padding: "var(--sy-space-3)",
-            background: "#0d1117",
-            color: "#c9d1d9",
+            background: "var(--sy-color-terminal-bg)",
+            color: "var(--sy-color-terminal-fg)",
             borderRadius: "var(--sy-radius)",
             fontFamily: "var(--sy-font-numeric)",
             fontSize: "0.75rem",

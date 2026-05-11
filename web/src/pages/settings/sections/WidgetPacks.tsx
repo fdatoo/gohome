@@ -97,7 +97,7 @@ function InstallDialog({ onInstall, onClose }: InstallDialogProps) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "rgba(0,0,0,0.5)",
+        background: "var(--sy-color-overlay)",
         zIndex: 1000,
       }}
     >
