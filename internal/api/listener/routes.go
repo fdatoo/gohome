@@ -3,25 +3,27 @@ package listener
 import (
 	"connectrpc.com/connect"
 
+	"github.com/fdatoo/switchyard/gen/switchyard/editsession/v1/editsessionv1connect"
 	"github.com/fdatoo/switchyard/gen/switchyard/v1alpha1/switchyardv1alpha1connect"
 )
 
 // Services is the set of handler implementations the listener needs.
 type Services struct {
-	System     switchyardv1alpha1connect.SystemServiceHandler
-	Area       switchyardv1alpha1connect.AreaServiceHandler
-	Zone       switchyardv1alpha1connect.ZoneServiceHandler
-	Device     switchyardv1alpha1connect.DeviceServiceHandler
-	Entity     switchyardv1alpha1connect.EntityServiceHandler
-	Driver     switchyardv1alpha1connect.DriverServiceHandler
-	Event      switchyardv1alpha1connect.EventServiceHandler
-	Config     switchyardv1alpha1connect.ConfigServiceHandler
-	Automation switchyardv1alpha1connect.AutomationServiceHandler
-	Script     switchyardv1alpha1connect.ScriptServiceHandler
-	Scene      switchyardv1alpha1connect.SceneServiceHandler
-	Dashboard  switchyardv1alpha1connect.DashboardServiceHandler
-	Auth       switchyardv1alpha1connect.AuthServiceHandler
-	WidgetPack switchyardv1alpha1connect.WidgetPackServiceHandler
+	System      switchyardv1alpha1connect.SystemServiceHandler
+	Area        switchyardv1alpha1connect.AreaServiceHandler
+	Zone        switchyardv1alpha1connect.ZoneServiceHandler
+	Device      switchyardv1alpha1connect.DeviceServiceHandler
+	Entity      switchyardv1alpha1connect.EntityServiceHandler
+	Driver      switchyardv1alpha1connect.DriverServiceHandler
+	Event       switchyardv1alpha1connect.EventServiceHandler
+	Config      switchyardv1alpha1connect.ConfigServiceHandler
+	Automation  switchyardv1alpha1connect.AutomationServiceHandler
+	Script      switchyardv1alpha1connect.ScriptServiceHandler
+	Scene       switchyardv1alpha1connect.SceneServiceHandler
+	Dashboard   switchyardv1alpha1connect.DashboardServiceHandler
+	Auth        switchyardv1alpha1connect.AuthServiceHandler
+	WidgetPack  switchyardv1alpha1connect.WidgetPackServiceHandler
+	EditSession editsessionv1connect.EditSessionServiceHandler
 }
 
 // BuildRoutes returns the (path, handler) pairs to mount on the listener mux.
@@ -70,6 +72,9 @@ func BuildRoutes(svc Services, interceptors ...connect.Interceptor) []Route {
 	routes = append(routes, Route{Path: p, Handler: h})
 
 	p, h = switchyardv1alpha1connect.NewWidgetPackServiceHandler(svc.WidgetPack, opts)
+	routes = append(routes, Route{Path: p, Handler: h})
+
+	p, h = editsessionv1connect.NewEditSessionServiceHandler(svc.EditSession, opts)
 	routes = append(routes, Route{Path: p, Handler: h})
 
 	return routes
