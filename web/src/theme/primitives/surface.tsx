@@ -1,9 +1,9 @@
-import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
+import type { CSSProperties, ElementType, HTMLAttributes, ReactNode } from "react";
 
 export interface SurfaceProps extends HTMLAttributes<HTMLElement> {
   children?: ReactNode;
   style?: CSSProperties;
-  as?: keyof JSX.IntrinsicElements;
+  as?: ElementType;
 }
 
 /**
