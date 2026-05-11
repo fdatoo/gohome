@@ -72,6 +72,7 @@ jobs:
               - '.github/workflows/ci.yml'
               - 'web/**'
               - 'cmd/switchyardd/**'
+              - 'internal/activity/**'
               - 'internal/api/**'
               - 'internal/auth/**'
               - 'internal/config/**'
