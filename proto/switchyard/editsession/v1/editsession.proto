@@ -1,0 +1,153 @@
+// See docs/proto-hygiene.md for grouping conventions.
+
+syntax = "proto3";
+
+package switchyard.editsession.v1;
+
+import "google/protobuf/timestamp.proto";
+
+// EditSessionService manages long-lived Pkl file edit sessions.
+// The UI is canonical during a session; the on-disk file is unchanged until
+// CommitEdit. Multiple sessions on the same file are allowed; first-to-commit
+// wins.
+service EditSessionService {
+  // OpenForEdit opens a file for editing. Returns a lock token, file hash, raw
+  // Pkl text (ancestor_pkl), and a JSON-encoded AST for client hydration.
+  rpc OpenForEdit(OpenForEditRequest) returns (OpenForEditResponse);
+
+  // CommitEdit writes the regenerated Pkl to disk after validating the lock and
+  // checking that the file has not changed on disk since the session opened.
+  rpc CommitEdit(CommitEditRequest) returns (CommitEditResponse);
+
+  // AbandonEdit releases the session lock. Idempotent; safe to call on page unload.
+  rpc AbandonEdit(AbandonEditRequest) returns (AbandonEditResponse);
+
+  // SessionEvents is a server-sent stream of events for a session. Carries
+  // ExternalEditDetected when the watched file changes on disk while the session
+  // is open. A heartbeat (empty payload) resets the server-side TTL every 5
+  // minutes.
+  rpc SessionEvents(SessionEventsRequest) returns (stream SessionEvent);
+
+  // AnalyzeRegenerability returns a report of file-only regions that the
+  // regenerator cannot round-trip. Stateless; does not require an open session.
+  rpc AnalyzeRegenerability(AnalyzeRegenerabilityRequest) returns (RegenerabilityReport);
+}
+
+// ---------------------------------------------------------------------------
+// OpenForEdit
+// ---------------------------------------------------------------------------
+
+message OpenForEditRequest {
+  // 1-9: file target
+  string file_path = 1;
+}
+
+message OpenForEditResponse {
+  // 1-9: session identity
+  string session_id  = 1;
+  string lock_token  = 2;
+
+  // 10-19: file snapshot
+  string file_hash   = 10; // SHA-256 hex of file at open time
+  string ancestor_pkl = 11; // raw Pkl text snapshotted for 3-way merge
+  string ast_json    = 12; // JSON-encoded AST for client hydration
+}
+
+// ---------------------------------------------------------------------------
+// CommitEdit
+// ---------------------------------------------------------------------------
+
+message CommitEditRequest {
+  // 1-9: session identity
+  string file_path        = 1;
+  string lock_token       = 2;
+
+  // 10-19: content
+  string regenerated_pkl  = 10;
+  string expected_file_hash = 11; // SHA-256 hex of file when session opened
+
+  // 20-29: flags
+  bool force              = 20; // force overwrite even on hash mismatch
+}
+
+message CommitEditResponse {
+  oneof result {
+    CommitSuccess   success  = 1;
+    CommitConflict  conflict = 2;
+  }
+}
+
+message CommitSuccess {
+  // 1-9: result
+  string new_file_hash = 1; // SHA-256 hex after write
+}
+
+message CommitConflict {
+  // 1-9: disk state at conflict time
+  string disk_hash     = 1; // SHA-256 hex of current disk content
+  string disk_pkl      = 2; // current disk Pkl text (for merge UI)
+  string ancestor_pkl  = 3; // snapshotted Pkl from when the session opened
+}
+
+// ---------------------------------------------------------------------------
+// AbandonEdit
+// ---------------------------------------------------------------------------
+
+message AbandonEditRequest {
+  // 1-9: session identity
+  string file_path   = 1;
+  string lock_token  = 2;
+}
+
+message AbandonEditResponse {}
+
+// ---------------------------------------------------------------------------
+// SessionEvents
+// ---------------------------------------------------------------------------
+
+message SessionEventsRequest {
+  // 1-9: session identity
+  string session_id = 1;
+}
+
+message SessionEvent {
+  oneof kind {
+    ExternalEditDetected external_edit = 1;
+    SessionHeartbeat     heartbeat     = 2;
+  }
+}
+
+message ExternalEditDetected {
+  // 1-9: change info
+  string                    file_path   = 1;
+  string                    new_hash    = 2;
+  google.protobuf.Timestamp modified_at = 3;
+}
+
+message SessionHeartbeat {
+  // 1-9: timing
+  google.protobuf.Timestamp server_time = 1;
+}
+
+// ---------------------------------------------------------------------------
+// AnalyzeRegenerability
+// ---------------------------------------------------------------------------
+
+message AnalyzeRegenerabilityRequest {
+  // 1-9: file target
+  string file_path = 1;
+}
+
+message RegenerabilityReport {
+  // 1-9: regions
+  repeated FileOnlyRegion file_only_regions = 1;
+}
+
+message FileOnlyRegion {
+  // 1-9: location
+  int32  start_line = 1;
+  int32  end_line   = 2;
+
+  // 10-19: classification
+  string reason     = 10; // starlark_call | import | let_binding | nondeterministic
+}
