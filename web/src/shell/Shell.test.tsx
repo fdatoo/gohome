@@ -1,6 +1,15 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { Shell } from "./Shell";
+
+// Mock the palette hook so Shell tests don't need the full PaletteProvider stack.
+vi.mock("@/palette/use-palette", () => ({
+  usePalette: () => ({
+    openPalette: vi.fn(),
+    closePalette: vi.fn(),
+    isOpen: false,
+  }),
+}));
 
 describe("Shell", () => {
   it("renders sidebar with all 6 primary nav items in order, pages/displays empty states, and active Home", () => {

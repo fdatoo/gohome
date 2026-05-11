@@ -23,6 +23,7 @@ import (
 	configpb "github.com/fdatoo/switchyard/gen/switchyard/config/v1"
 	entityv1 "github.com/fdatoo/switchyard/gen/switchyard/entity/v1"
 	eventv1 "github.com/fdatoo/switchyard/gen/switchyard/event/v1"
+	"github.com/fdatoo/switchyard/internal/activity"
 	"github.com/fdatoo/switchyard/internal/api"
 	"github.com/fdatoo/switchyard/internal/api/listener"
 	"github.com/fdatoo/switchyard/internal/auth"
@@ -35,12 +36,17 @@ import (
 	"github.com/fdatoo/switchyard/internal/automation"
 	"github.com/fdatoo/switchyard/internal/automation/action"
 	"github.com/fdatoo/switchyard/internal/carport"
+	"github.com/fdatoo/switchyard/internal/commandcatalog"
 	"github.com/fdatoo/switchyard/internal/config"
 	"github.com/fdatoo/switchyard/internal/dashboard"
+	"github.com/fdatoo/switchyard/internal/display"
+	"github.com/fdatoo/switchyard/internal/driver"
 	"github.com/fdatoo/switchyard/internal/editsession"
+	"github.com/fdatoo/switchyard/internal/entity"
 	"github.com/fdatoo/switchyard/internal/eventstore"
 	"github.com/fdatoo/switchyard/internal/mcp"
 	"github.com/fdatoo/switchyard/internal/observability"
+	"github.com/fdatoo/switchyard/internal/pkl"
 	"github.com/fdatoo/switchyard/internal/policy"
 	"github.com/fdatoo/switchyard/internal/registry"
 	"github.com/fdatoo/switchyard/internal/script"
@@ -418,6 +424,20 @@ func (d *Daemon) Run(ctx context.Context) (err error) {
 	entSvc := api.NewEntityService(entRd, capCall)
 	entSvc.SetStreamSource(&entityStreamSourceAdapter{store: d.store, reader: entRd})
 
+	// Command catalog — register all domain verbs at startup (plan 05).
+	cmdCatalogReg := commandcatalog.NewRegistry()
+	activity.RegisterCommands(cmdCatalogReg)
+	entity.RegisterCommands(cmdCatalogReg)
+	automation.RegisterCommands(cmdCatalogReg)
+	driver.RegisterCommands(cmdCatalogReg)
+	config.RegisterCommands(cmdCatalogReg)
+	pkl.RegisterCommands(cmdCatalogReg)
+	dashboard.RegisterCommands(cmdCatalogReg)
+	widgetpack.RegisterCommands(cmdCatalogReg)
+	auth.RegisterCommands(cmdCatalogReg)
+	display.RegisterCommands(cmdCatalogReg)
+	cmdCatalogSvc := commandcatalog.NewCommandCatalogService(cmdCatalogReg)
+
 	auditRecorder := audit.New(store)
 
 	// Widget pack subsystem (F-157).
@@ -496,7 +516,8 @@ func (d *Daemon) Run(ctx context.Context) (err error) {
 		Script:     api.NewScriptService(scriptRun, &eventAppenderAdapter{store: d.store}, sysBE),
 		Scene:      api.NewSceneService(),
 		Dashboard:  dashboard.NewService(newDashboardBackend(configDir, driversDir, packStore), dashboard.NewCatalog(nil)),
-		WidgetPack: packService,
+		WidgetPack:     packService,
+		CommandCatalog: cmdCatalogSvc,
 		Auth: api.NewAuthService(api.AuthDeps{
 			Identity:   identityStore,
 			Password:   passwordStore,
