@@ -39,7 +39,51 @@ type Engine struct {
 	mu      sync.RWMutex
 	scripts map[string]*Script
 
+	runsMu sync.Mutex
+	runs   map[string]*scriptRun
+
 	inFlight sync.WaitGroup
+}
+
+const (
+	cancelWait            = 2 * time.Second
+	completedRunRetention = 5 * time.Minute
+)
+
+type scriptRun struct {
+	cancel context.CancelFunc
+	done   chan struct{}
+
+	cancelOnce sync.Once
+	doneOnce   sync.Once
+
+	mu         sync.Mutex
+	canceledBy string
+}
+
+func newScriptRun(cancel context.CancelFunc) *scriptRun {
+	return &scriptRun{cancel: cancel, done: make(chan struct{})}
+}
+
+func (r *scriptRun) Cancel(canceledBy string) {
+	if canceledBy != "" {
+		r.mu.Lock()
+		if r.canceledBy == "" {
+			r.canceledBy = canceledBy
+		}
+		r.mu.Unlock()
+	}
+	r.cancelOnce.Do(r.cancel)
+}
+
+func (r *scriptRun) Finish() {
+	r.doneOnce.Do(func() { close(r.done) })
+}
+
+func (r *scriptRun) CanceledBy() string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.canceledBy
 }
 
 // NewEngine constructs an engine with an initial script map. Nil runtime is
@@ -51,7 +95,7 @@ func NewEngine(scripts map[string]*Script, runtime *ghstarlark.Runtime, deps Dep
 	if deps.Logger == nil {
 		deps.Logger = slog.Default()
 	}
-	e := &Engine{runtime: runtime, deps: deps, scripts: scripts}
+	e := &Engine{runtime: runtime, deps: deps, scripts: scripts, runs: map[string]*scriptRun{}}
 	if deps.Metrics != nil {
 		deps.Metrics.ScriptRegistered.Set(float64(len(scripts)))
 	}
@@ -93,6 +137,7 @@ type CallResult struct {
 	Steps         uint64
 	Logs          []string
 	ReturnValue   string
+	CanceledBy    string
 }
 
 // Call executes the named script. `invokedBy` is a provenance string like
@@ -130,6 +175,12 @@ func (e *Engine) Call(
 		return nil, fmt.Errorf("%w: %v", ErrScriptArgs, err)
 	}
 
+	runCtx, cancel := context.WithCancel(ctx)
+	run := newScriptRun(cancel)
+	e.registerRun(corrID, run)
+	defer e.finishRun(corrID, run)
+	defer cancel()
+
 	e.inFlight.Add(1)
 	defer e.inFlight.Done()
 
@@ -157,7 +208,7 @@ func (e *Engine) Call(
 	}
 
 	start := time.Now()
-	execRes, execErr := e.runtime.Execute(ctx, ghstarlark.KindScript, s.Handler, extra)
+	execRes, execErr := e.runtime.Execute(runCtx, ghstarlark.KindScript, s.Handler, extra)
 	elapsed := time.Since(start)
 
 	result := &CallResult{
@@ -165,8 +216,11 @@ func (e *Engine) Call(
 		Elapsed:       elapsed,
 	}
 	if execErr != nil {
-		result.Outcome = classifyExecError(execErr, ctx)
+		result.Outcome = classifyExecError(execErr, runCtx)
 		result.Error = execErr.Error()
+		if result.Outcome == eventv1.RunOutcome_OUTCOME_CANCELLED {
+			result.CanceledBy = run.CanceledBy()
+		}
 	} else {
 		result.Outcome = eventv1.RunOutcome_OUTCOME_OK
 		if execRes != nil {
@@ -190,6 +244,7 @@ func (e *Engine) Call(
 					CorrelationId: corrID,
 					Outcome:       result.Outcome,
 					Error:         result.Error,
+					CanceledBy:    result.CanceledBy,
 					ElapsedMs:     result.Elapsed.Milliseconds(),
 					StarlarkSteps: result.Steps,
 					LogLines:      result.Logs,
@@ -210,6 +265,47 @@ func (e *Engine) Call(
 		return result, execErr
 	}
 	return result, nil
+}
+
+// Cancel requests cancellation of a running script and waits briefly for the
+// runner to emit its terminal event.
+func (e *Engine) Cancel(ctx context.Context, runID, canceledBy string) error {
+	e.runsMu.Lock()
+	run := e.runs[runID]
+	e.runsMu.Unlock()
+	if run == nil {
+		return ErrRunNotFound
+	}
+
+	run.Cancel(canceledBy)
+	timer := time.NewTimer(cancelWait)
+	defer timer.Stop()
+
+	select {
+	case <-run.done:
+		return nil
+	case <-timer.C:
+		return context.DeadlineExceeded
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (e *Engine) registerRun(runID string, run *scriptRun) {
+	e.runsMu.Lock()
+	e.runs[runID] = run
+	e.runsMu.Unlock()
+}
+
+func (e *Engine) finishRun(runID string, run *scriptRun) {
+	run.Finish()
+	time.AfterFunc(completedRunRetention, func() {
+		e.runsMu.Lock()
+		if e.runs[runID] == run {
+			delete(e.runs, runID)
+		}
+		e.runsMu.Unlock()
+	})
 }
 
 // scriptOutcomeLabel converts a RunOutcome to the lower-snake label string
@@ -242,6 +338,9 @@ func (e *Engine) Stop(ctx context.Context) error {
 	go func() { e.inFlight.Wait(); close(done) }()
 	select {
 	case <-done:
+		e.runsMu.Lock()
+		clear(e.runs)
+		e.runsMu.Unlock()
 		return nil
 	case <-ctx.Done():
 		return ctx.Err()

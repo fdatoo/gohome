@@ -151,6 +151,7 @@ message ScriptFinished {
   // 10-19: outcome
   RunOutcome outcome        = 10;
   string     error          = 11;
+  string     canceled_by    = 12;  // Principal that requested cancellation, if any.
   // 20-29: telemetry
   int64      elapsed_ms     = 20;
   uint64     starlark_steps = 21;

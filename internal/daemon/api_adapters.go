@@ -3,6 +3,7 @@ package daemon
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -916,8 +917,20 @@ func (a *scriptRunnerAdapter) Run(ctx context.Context, name string, args map[str
 	}, nil
 }
 
-func (a *scriptRunnerAdapter) Cancel(_ context.Context, _ string) error {
-	// TODO: script cancellation not yet implemented
+func (a *scriptRunnerAdapter) Cancel(ctx context.Context, runID string) error {
+	if a.eng == nil {
+		return fmt.Errorf("script engine not available")
+	}
+	canceledBy := "unknown"
+	if p, ok := auth.PrincipalFromContext(ctx); ok && p.ID != "" {
+		canceledBy = p.ID
+	}
+	if err := a.eng.Cancel(ctx, runID, canceledBy); err != nil {
+		if errors.Is(err, script.ErrRunNotFound) {
+			return api.ErrRunNotFound
+		}
+		return err
+	}
 	return nil
 }
 
