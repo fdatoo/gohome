@@ -22,7 +22,7 @@ export function useMcpConfigured(): boolean {
     // that the hook returns false when MCP is not configured.
     fetch("/api/mcp/configured")
       .then((res) => {
-        if (!res.ok) return false;
+        if (!res.ok) throw new Error("not configured");
         return res.json() as Promise<{ configured: boolean }>;
       })
       .then((data) => {
@@ -31,7 +31,7 @@ export function useMcpConfigured(): boolean {
         }
       })
       .catch(() => {
-        // Network error → not configured.
+        // Network error or non-OK response → not configured.
       });
     return () => {
       cancelled = true;
