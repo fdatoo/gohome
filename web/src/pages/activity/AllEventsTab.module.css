@@ -1,0 +1,31 @@
+.layout {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.sparklineRow {
+  padding: var(--sy-space-3) var(--sy-space-5);
+  border-bottom: 1px solid var(--sy-color-line);
+  background-color: var(--sy-color-surface-1);
+  overflow-x: auto;
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.loadingOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.1);
+  color: var(--sy-color-fg-3);
+  font-size: 0.875rem;
+}
