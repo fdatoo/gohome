@@ -53,3 +53,22 @@
 
   --sy-gradient-tod: none;
 }
+
+/* Keyboard shortcut labels: hidden by default, visible in developer language */
+.kbd-shortcut {
+  display: none;
+}
+
+:root[data-language="developer"] .kbd-shortcut {
+  display: inline;
+  margin-left: auto;
+  font-family: var(--sy-font-numeric);
+  font-size: 0.625rem;
+  color: var(--sy-color-fg-4);
+  padding: 1px 4px;
+  border-radius: var(--sy-radius-sm);
+  border: 1px solid var(--sy-color-line);
+  background: var(--sy-color-surface-2);
+  letter-spacing: 0;
+  pointer-events: none;
+}

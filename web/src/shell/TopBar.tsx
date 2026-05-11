@@ -1,19 +1,20 @@
 import { usePalette } from "@/palette/use-palette";
+import { useVocab, type RouteId } from "../theme/vocab";
 
 interface TopBarProps {
   currentPath?: string;
 }
 
 /**
- * Resolve a breadcrumb label from the current pathname.
- * Reads the last meaningful segment and capitalizes it.
+ * Extract the route segment from a pathname and cast to RouteId.
+ * e.g. "/_authed/activity" → "activity"
+ * Falls back to "home" for unknown segments.
  */
-function pathToLabel(path: string): string {
+function pathToRouteId(path: string): RouteId {
   const segments = path.replace(/\/_authed/, "").split("/").filter(Boolean);
-  if (segments.length === 0) return "Home";
-  const last = segments[segments.length - 1];
-  // Capitalize first letter
-  return last.charAt(0).toUpperCase() + last.slice(1);
+  const segment = segments[segments.length - 1] ?? "home";
+  const knownRoutes: RouteId[] = ["home", "rooms", "activity", "automations", "devices", "settings"];
+  return (knownRoutes.includes(segment as RouteId) ? segment : "home") as RouteId;
 }
 
 function isMac(): boolean {
@@ -24,7 +25,9 @@ function isMac(): boolean {
 export function TopBar({
   currentPath = typeof window !== "undefined" ? window.location.pathname : "/",
 }: TopBarProps) {
-  const label = pathToLabel(currentPath);
+  const vocab = useVocab();
+  const routeId = pathToRouteId(currentPath);
+  const label = vocab.label(routeId);
   const { openPalette } = usePalette();
   const shortcutLabel = isMac() ? "⌘K" : "Ctrl+K";
 

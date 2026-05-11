@@ -24,7 +24,8 @@ interface LanguageContextValue {
   setMode: (m: ThemeMode) => void;
 }
 
-const LanguageContext = createContext<LanguageContextValue | null>(null);
+// eslint-disable-next-line react-refresh/only-export-components
+export const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 function readPrefs(): StoredPrefs {
   if (typeof localStorage === "undefined") {
@@ -59,8 +60,18 @@ function getSystemDark(): boolean {
   return matchMedia("(prefers-color-scheme: dark)").matches;
 }
 
-export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [prefs, setPrefs] = useState<StoredPrefs>(() => readPrefs());
+export function LanguageProvider({
+  children,
+  initialLanguage,
+}: {
+  children: ReactNode;
+  initialLanguage?: Language;
+}) {
+  const [prefs, setPrefs] = useState<StoredPrefs>(() => {
+    const stored = readPrefs();
+    if (initialLanguage) return { ...stored, language: initialLanguage };
+    return stored;
+  });
   // Track system dark preference for re-renders when system changes
   const [systemDark, setSystemDark] = useState<boolean>(() => getSystemDark());
 
