@@ -1,9 +1,11 @@
 import { useEffect, useState, useCallback } from "react";
 import { systemClient } from "@/data/system-client";
+import { ConnectHTTPError } from "@/data/system-client";
 import type { HealthSummary, EventStoreStats } from "@/data/system-client";
 import { Button } from "@/theme/primitives/button";
 import { Chip } from "@/theme/primitives/chip";
 import { Surface } from "@/theme/primitives/surface";
+import { EmptyState } from "@/components/EmptyState";
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
@@ -202,6 +204,8 @@ function StatsCard({ stats }: StatsCardProps) {
   );
 }
 
+type DiagnosticsStatus = "loading" | "ready" | "empty" | "error-auth" | "error-server";
+
 /**
  * Diagnostics section — system health summary, event-store stats, and
  * an Export support bundle button.
@@ -209,27 +213,54 @@ function StatsCard({ stats }: StatsCardProps) {
 export function Diagnostics() {
   const [health, setHealth] = useState<HealthSummary | null>(null);
   const [stats, setStats] = useState<EventStoreStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<DiagnosticsStatus>("loading");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  const loadData = useCallback(() => {
+    setStatus("loading");
+    setErrorMessage(null);
+    Promise.all([systemClient.health(), systemClient.eventStoreStats()])
+      .then(([h, s]) => {
+        setHealth(h);
+        setStats(s);
+        // Both are "empty" if health is ok with no subsystems and event store is zero
+        const isEmpty =
+          h.subsystems.length === 0 && s.sizeBytes === 0 && s.snapshotCount === 0;
+        setStatus(isEmpty ? "empty" : "ready");
+      })
+      .catch((err: unknown) => {
+        if (err instanceof ConnectHTTPError && err.status === 401) {
+          setStatus("error-auth");
+        } else {
+          setErrorMessage(err instanceof Error ? err.message : "Failed to load diagnostics");
+          setStatus("error-server");
+        }
+      });
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    setStatus("loading");
+    setErrorMessage(null);
     Promise.all([systemClient.health(), systemClient.eventStoreStats()])
       .then(([h, s]) => {
-        if (!cancelled) {
-          setHealth(h);
-          setStats(s);
-        }
+        if (cancelled) return;
+        setHealth(h);
+        setStats(s);
+        const isEmpty =
+          h.subsystems.length === 0 && s.sizeBytes === 0 && s.snapshotCount === 0;
+        setStatus(isEmpty ? "empty" : "ready");
       })
       .catch((err: unknown) => {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load diagnostics");
+        if (cancelled) return;
+        if (err instanceof ConnectHTTPError && err.status === 401) {
+          setStatus("error-auth");
+        } else {
+          setErrorMessage(err instanceof Error ? err.message : "Failed to load diagnostics");
+          setStatus("error-server");
         }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
@@ -238,6 +269,7 @@ export function Diagnostics() {
 
   const handleExport = useCallback(async () => {
     setExporting(true);
+    setExportError(null);
     try {
       const { blob, filename } = await systemClient.exportSupportBundle();
       const url = URL.createObjectURL(blob);
@@ -247,7 +279,7 @@ export function Diagnostics() {
       a.click();
       URL.revokeObjectURL(url);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Export failed");
+      setExportError(err instanceof Error ? err.message : "Export failed");
     } finally {
       setExporting(false);
     }
@@ -266,19 +298,54 @@ export function Diagnostics() {
         Diagnostics
       </h1>
 
-      {loading && (
-        <p style={{ color: "var(--sy-color-fg-4)", fontStyle: "italic" }}>Loading…</p>
+      {status === "loading" && (
+        <EmptyState variant="loading" label="diagnostics" />
       )}
-      {error && (
-        <p style={{ color: "var(--sy-color-bad)" }}>Error: {error}</p>
+
+      {status === "error-auth" && (
+        <EmptyState
+          variant="error-auth"
+          label="Authentication required"
+          message="You must be signed in to view diagnostic information."
+        />
       )}
-      {!loading && !error && health && <HealthCard health={health} />}
-      {!loading && !error && stats && <StatsCard stats={stats} />}
+
+      {status === "error-server" && (
+        <EmptyState
+          variant="error-server"
+          label="Failed to load diagnostics"
+          message={errorMessage ?? undefined}
+          onRetry={loadData}
+        />
+      )}
+
+      {status === "empty" && (
+        <EmptyState
+          variant="empty"
+          label="No diagnostics available yet"
+          message="No events recorded yet — check the daemon log for startup information."
+        />
+      )}
+
+      {status === "ready" && health && <HealthCard health={health} />}
+      {status === "ready" && stats && <StatsCard stats={stats} />}
+
+      {exportError && (
+        <p
+          style={{
+            fontSize: "0.8125rem",
+            color: "var(--sy-color-bad)",
+            margin: "0 0 var(--sy-space-3)",
+          }}
+        >
+          {exportError}
+        </p>
+      )}
 
       <Button
         variant="secondary"
         onClick={() => void handleExport()}
-        disabled={exporting || loading}
+        disabled={exporting || status === "loading"}
       >
         {exporting ? "Exporting…" : "Export support bundle"}
       </Button>

@@ -3,6 +3,16 @@
  * Settings Diagnostics section.
  */
 
+export class ConnectHTTPError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = "ConnectHTTPError";
+  }
+}
+
 export interface SubsystemHealth {
   name: string;
   ok: boolean;
@@ -35,7 +45,7 @@ async function postConnect<TRequest, TResponse>(
     body: JSON.stringify(body),
   });
   if (!response.ok) {
-    throw new Error(`system-client: ${procedure} failed: ${response.status}`);
+    throw new ConnectHTTPError(`system-client: ${procedure} failed: ${response.status}`, response.status);
   }
   return response.json() as Promise<TResponse>;
 }
