@@ -1,0 +1,28 @@
+/// Kitchen wall display — wide ambient display above the kitchen counter.
+/// Assigned to the "home" custom page. Shows kitchen in wide-tile mode with
+/// full scene strip and sensor metrics; living room in standard mode with
+/// now-playing metric.
+
+device_name = "Kitchen Wall"
+page_slug = "home"
+
+tile_overrides {
+  ["kitchen"] {
+    width = "wide"
+    scenes = 4
+    metric = "sensor"
+  }
+  ["living"] {
+    width = "standard"
+    scenes = 2
+    metric = "now_playing"
+  }
+}
+
+idle_behavior {
+  wake_on_motion = false
+  dim_after_minutes = 5
+  off_after_minutes = 30
+}
+
+alert_threshold = "medium"

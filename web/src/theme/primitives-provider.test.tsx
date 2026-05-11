@@ -92,6 +92,39 @@ describe("LanguagePrimitives provider", () => {
     expect(el).toHaveTextContent("content");
   });
 
+  it("renders the ambient Surface with data-primitive=ambient-surface when language=ambient", () => {
+    vi.stubGlobal("localStorage", makeLsStub("ambient"));
+
+    render(
+      <Wrapper>
+        <SurfaceConsumer testId="surface-ambient" />
+      </Wrapper>,
+    );
+
+    const el = screen.getByTestId("surface-ambient");
+    expect(el).toBeInTheDocument();
+    expect(el).toHaveAttribute("data-primitive", "ambient-surface");
+    expect(el).toHaveTextContent("content");
+  });
+
+  it("usePrimitive('Button') returns ambient button when language=ambient", () => {
+    vi.stubGlobal("localStorage", makeLsStub("ambient"));
+
+    function ButtonConsumer() {
+      const ButtonComponent = usePrimitive("Button");
+      return <ButtonComponent data-testid="btn-ambient">Click</ButtonComponent>;
+    }
+
+    render(
+      <Wrapper>
+        <ButtonConsumer />
+      </Wrapper>,
+    );
+
+    const el = screen.getByTestId("btn-ambient");
+    expect(el).toHaveAttribute("data-primitive", "ambient-button");
+  });
+
   it("friendly language: Button renders without developer variant attribute", () => {
     function ButtonConsumer() {
       const Button = usePrimitive("Button");
