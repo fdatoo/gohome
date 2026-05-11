@@ -52,6 +52,20 @@ func (p *Password) Set(ctx context.Context, userSlug, plaintext, setBy string) e
 	return err
 }
 
+// BootstrapHash stores a precomputed password hash only when the user has no
+// password yet. It is intended for config-defined bootstrap credentials.
+func (p *Password) BootstrapHash(ctx context.Context, userSlug, encoded, setBy string) error {
+	if _, err := decode(encoded); err != nil {
+		return err
+	}
+	_, err := p.db.ExecContext(ctx, `
+		INSERT INTO auth_passwords (user_slug, argon2id_hash, set_at, set_by)
+		VALUES (?, ?, ?, ?)
+		ON CONFLICT(user_slug) DO NOTHING`,
+		userSlug, encoded, time.Now().Unix(), setBy)
+	return err
+}
+
 func (p *Password) Delete(ctx context.Context, userSlug string) error {
 	_, err := p.db.ExecContext(ctx, `DELETE FROM auth_passwords WHERE user_slug = ?`, userSlug)
 	return err

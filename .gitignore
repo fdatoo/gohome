@@ -21,6 +21,7 @@ var/
 web/node_modules/
 web/.vite/
 web/coverage/
+web/.playwright-daemon.json
 web/playwright-report/
 web/test-results/
 web/*.tsbuildinfo
