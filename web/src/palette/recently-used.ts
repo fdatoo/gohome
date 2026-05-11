@@ -55,6 +55,8 @@ export function recordRecentlyUsed(
   };
   const updated = [newEntry, ...deduped].slice(0, MAX_ENTRIES);
   writeRecentlyUsed(updated);
+  // Invalidate the cached snapshot so the next read picks up the change.
+  cachedRecentlyUsed = null;
   // Notify listeners.
   recentlyUsedListeners.forEach((l) => l());
 }
@@ -63,13 +65,37 @@ export function recordRecentlyUsed(
 
 const recentlyUsedListeners = new Set<() => void>();
 
+// useSyncExternalStore demands a stable snapshot reference across renders when
+// the underlying data hasn't changed. We cache the parsed list and invalidate
+// it on write (recordRecentlyUsed) and on subscribe (in case localStorage was
+// mutated externally — e.g. cross-tab). Without this, the hook returns a fresh
+// array on every call and React enters an infinite render loop.
+let cachedRecentlyUsed: RecentlyUsedRecord[] | null = null;
+
 function subscribeRecentlyUsed(onChange: () => void): () => void {
   recentlyUsedListeners.add(onChange);
-  return () => recentlyUsedListeners.delete(onChange);
+  const handler = (e: StorageEvent) => {
+    if (e.key === RECENTLY_USED_KEY) {
+      cachedRecentlyUsed = null;
+      onChange();
+    }
+  };
+  if (typeof window !== "undefined") {
+    window.addEventListener("storage", handler);
+  }
+  return () => {
+    recentlyUsedListeners.delete(onChange);
+    if (typeof window !== "undefined") {
+      window.removeEventListener("storage", handler);
+    }
+  };
 }
 
 function getRecentlyUsedSnapshot(): RecentlyUsedRecord[] {
-  return readRecentlyUsed();
+  if (cachedRecentlyUsed === null) {
+    cachedRecentlyUsed = readRecentlyUsed();
+  }
+  return cachedRecentlyUsed;
 }
 
 /**

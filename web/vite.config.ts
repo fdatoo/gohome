@@ -74,5 +74,24 @@ export default defineConfig({
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
     setupFiles: "./src/test/setup.ts",
   },
-  server: { port: 5173, strictPort: true },
+  server: {
+    port: 5173,
+    strictPort: true,
+    // Proxy Connect-RPC and other daemon routes to a running switchyardd
+    // (default http://127.0.0.1:8080; override via SY_DAEMON_URL). Without
+    // this, `task ui:dev` 404s on every /switchyard.*.Service/Method call.
+    proxy: (() => {
+      const target = process.env.SY_DAEMON_URL ?? "http://127.0.0.1:8080";
+      const opts = { target, changeOrigin: true };
+      return {
+        "^/switchyard\\.": opts,
+        "/widgets": opts,
+        "/webhooks": opts,
+        "/mcp": opts,
+        "/healthz": opts,
+        "/display": opts,
+        "/pair": opts,
+      };
+    })(),
+  },
 });
