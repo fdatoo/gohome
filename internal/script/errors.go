@@ -13,6 +13,7 @@ import (
 var (
 	ErrScriptNotFound = errors.New("script: unknown name")
 	ErrScriptArgs     = errors.New("script: invalid arguments")
+	ErrRunNotFound    = errors.New("script: unknown run")
 )
 
 // ItemError is one compilation error tied to a specific script and path.

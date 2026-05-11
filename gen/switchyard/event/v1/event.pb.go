@@ -1191,8 +1191,9 @@ type ScriptFinished struct {
 	ScriptName    string `protobuf:"bytes,1,opt,name=script_name,json=scriptName,proto3" json:"script_name,omitempty"`
 	CorrelationId string `protobuf:"bytes,2,opt,name=correlation_id,json=correlationId,proto3" json:"correlation_id,omitempty"`
 	// 10-19: outcome
-	Outcome RunOutcome `protobuf:"varint,10,opt,name=outcome,proto3,enum=switchyard.event.v1.RunOutcome" json:"outcome,omitempty"`
-	Error   string     `protobuf:"bytes,11,opt,name=error,proto3" json:"error,omitempty"`
+	Outcome    RunOutcome `protobuf:"varint,10,opt,name=outcome,proto3,enum=switchyard.event.v1.RunOutcome" json:"outcome,omitempty"`
+	Error      string     `protobuf:"bytes,11,opt,name=error,proto3" json:"error,omitempty"`
+	CanceledBy string     `protobuf:"bytes,12,opt,name=canceled_by,json=canceledBy,proto3" json:"canceled_by,omitempty"` // Principal that requested cancellation, if any.
 	// 20-29: telemetry
 	ElapsedMs     int64    `protobuf:"varint,20,opt,name=elapsed_ms,json=elapsedMs,proto3" json:"elapsed_ms,omitempty"`
 	StarlarkSteps uint64   `protobuf:"varint,21,opt,name=starlark_steps,json=starlarkSteps,proto3" json:"starlark_steps,omitempty"`
@@ -1256,6 +1257,13 @@ func (x *ScriptFinished) GetOutcome() RunOutcome {
 func (x *ScriptFinished) GetError() string {
 	if x != nil {
 		return x.Error
+	}
+	return ""
+}
+
+func (x *ScriptFinished) GetCanceledBy() string {
+	if x != nil {
+		return x.CanceledBy
 	}
 	return ""
 }
@@ -1822,14 +1830,16 @@ const file_switchyard_event_v1_event_proto_rawDesc = "" +
 	"\x04args\x18\v \x03(\v2,.switchyard.event.v1.ScriptInvoked.ArgsEntryR\x04args\x1a7\n" +
 	"\tArgsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xaf\x02\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xd0\x02\n" +
 	"\x0eScriptFinished\x12\x1f\n" +
 	"\vscript_name\x18\x01 \x01(\tR\n" +
 	"scriptName\x12%\n" +
 	"\x0ecorrelation_id\x18\x02 \x01(\tR\rcorrelationId\x129\n" +
 	"\aoutcome\x18\n" +
 	" \x01(\x0e2\x1f.switchyard.event.v1.RunOutcomeR\aoutcome\x12\x14\n" +
-	"\x05error\x18\v \x01(\tR\x05error\x12\x1d\n" +
+	"\x05error\x18\v \x01(\tR\x05error\x12\x1f\n" +
+	"\vcanceled_by\x18\f \x01(\tR\n" +
+	"canceledBy\x12\x1d\n" +
 	"\n" +
 	"elapsed_ms\x18\x14 \x01(\x03R\telapsedMs\x12%\n" +
 	"\x0estarlark_steps\x18\x15 \x01(\x04R\rstarlarkSteps\x12\x1b\n" +

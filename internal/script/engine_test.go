@@ -2,6 +2,7 @@ package script_test
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"testing"
 	"time"
@@ -35,6 +36,26 @@ func (f *fakeAppender) Events() []eventstore.Event {
 	out := make([]eventstore.Event, len(f.events))
 	copy(out, f.events)
 	return out
+}
+
+func (f *fakeAppender) WaitForKind(t *testing.T, kind string, timeout time.Duration) eventstore.Event {
+	t.Helper()
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		for _, ev := range f.Events() {
+			if ev.Kind == kind {
+				return ev
+			}
+		}
+		select {
+		case <-timer.C:
+			t.Fatalf("timed out waiting for %s", kind)
+		case <-ticker.C:
+		}
+	}
 }
 
 func newTestEngine(t *testing.T, snap *configpb.ConfigSnapshot) (*script.Engine, *fakeAppender) {
@@ -120,6 +141,73 @@ func TestCall_OK_EmitsEvents(t *testing.T) {
 		t.Errorf("outcome = %v", fin.GetOutcome())
 	}
 	_ = time.Second
+}
+
+func TestCancel_RunningScriptTerminatesAndEmitsCanceled(t *testing.T) {
+	snap := &configpb.ConfigSnapshot{Scripts: []*configpb.ScriptConfig{
+		{Name: "slow", Handler: `sleep(30.0)`},
+	}}
+	eng, ap := newTestEngine(t, snap)
+
+	type callOutcome struct {
+		res *script.CallResult
+		err error
+	}
+	done := make(chan callOutcome, 1)
+	go func() {
+		res, err := eng.Call(context.Background(), "slow", nil, "cli:test", "")
+		done <- callOutcome{res: res, err: err}
+	}()
+
+	invoked := ap.WaitForKind(t, "script_invoked", time.Second)
+	runID := invoked.Payload.GetScriptInvoked().GetCorrelationId()
+	if runID == "" {
+		t.Fatal("empty run id")
+	}
+
+	start := time.Now()
+	if err := eng.Cancel(context.Background(), runID, "user:alice"); err != nil {
+		t.Fatalf("cancel: %v", err)
+	}
+	if elapsed := time.Since(start); elapsed > 2500*time.Millisecond {
+		t.Fatalf("cancel took %s, want within about 2s", elapsed)
+	}
+	if err := eng.Cancel(context.Background(), runID, "user:alice"); err != nil {
+		t.Fatalf("second cancel should be idempotent: %v", err)
+	}
+
+	select {
+	case got := <-done:
+		if got.err == nil {
+			t.Fatal("call error = nil, want cancellation error")
+		}
+		if !errors.Is(got.err, context.Canceled) {
+			t.Fatalf("call error = %v, want context canceled", got.err)
+		}
+		if got.res == nil {
+			t.Fatal("nil call result")
+		}
+		if got.res.Outcome != eventv1.RunOutcome_OUTCOME_CANCELLED {
+			t.Fatalf("outcome = %v, want canceled", got.res.Outcome)
+		}
+		if got.res.CanceledBy != "user:alice" {
+			t.Fatalf("canceled_by = %q", got.res.CanceledBy)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("script did not exit after cancel returned")
+	}
+
+	finished := ap.WaitForKind(t, "script_finished", time.Second)
+	fin := finished.Payload.GetScriptFinished()
+	if fin == nil {
+		t.Fatal("not a ScriptFinished payload")
+	}
+	if fin.GetOutcome() != eventv1.RunOutcome_OUTCOME_CANCELLED {
+		t.Fatalf("event outcome = %v, want canceled", fin.GetOutcome())
+	}
+	if fin.GetCanceledBy() != "user:alice" {
+		t.Fatalf("event canceled_by = %q", fin.GetCanceledBy())
+	}
 }
 
 func TestCall_SharedCorrelation(t *testing.T) {
