@@ -1,0 +1,6 @@
+/// A Pkl file with a starlark() call — that line is file-only.
+amends "switchyard:automations"
+
+id = "starlark-auto"
+enabled = true
+condition = starlark("entity('light.hall').state == 'on'")

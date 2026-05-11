@@ -4,6 +4,7 @@ import (
 	"connectrpc.com/connect"
 
 	"github.com/fdatoo/switchyard/gen/switchyard/commandcatalog/v1/commandcatalogv1connect"
+	"github.com/fdatoo/switchyard/gen/switchyard/editsession/v1/editsessionv1connect"
 	"github.com/fdatoo/switchyard/gen/switchyard/v1alpha1/switchyardv1alpha1connect"
 )
 
@@ -24,6 +25,7 @@ type Services struct {
 	Auth           switchyardv1alpha1connect.AuthServiceHandler
 	WidgetPack     switchyardv1alpha1connect.WidgetPackServiceHandler
 	CommandCatalog commandcatalogv1connect.CommandCatalogServiceHandler
+	EditSession    editsessionv1connect.EditSessionServiceHandler
 }
 
 // BuildRoutes returns the (path, handler) pairs to mount on the listener mux.
@@ -78,6 +80,9 @@ func BuildRoutes(svc Services, interceptors ...connect.Interceptor) []Route {
 		p, h = commandcatalogv1connect.NewCommandCatalogServiceHandler(svc.CommandCatalog, opts)
 		routes = append(routes, Route{Path: p, Handler: h})
 	}
+
+	p, h = editsessionv1connect.NewEditSessionServiceHandler(svc.EditSession, opts)
+	routes = append(routes, Route{Path: p, Handler: h})
 
 	return routes
 }
