@@ -51,6 +51,7 @@ import (
 	"github.com/fdatoo/switchyard/internal/registry"
 	"github.com/fdatoo/switchyard/internal/script"
 	starlark "github.com/fdatoo/switchyard/internal/starlark"
+	"github.com/fdatoo/switchyard/internal/starlarkls"
 	"github.com/fdatoo/switchyard/internal/state"
 	"github.com/fdatoo/switchyard/internal/storage"
 	"github.com/fdatoo/switchyard/internal/web"
@@ -503,6 +504,14 @@ func (d *Daemon) Run(ctx context.Context) (err error) {
 	editFileWatcher.Start(ctx)
 	editSvc := editsession.NewService(editLockMgr, editFileWatcher, nil, d.logger)
 
+	// StarlarkLs subsystem — symbol extractor for scripts directory.
+	starSyms, err := starlarkls.ExtractSymbols(filepath.Join(configDir, "scripts"))
+	if err != nil {
+		d.logger.Warn("starlarkls: symbol extraction failed (scripts dir may not exist yet)", "err", err)
+		starSyms = map[string]starlarkls.SymbolInfo{}
+	}
+	starLsSvc := starlarkls.NewService(starSyms, filepath.Join(configDir, "scripts"))
+
 	services := listener.Services{
 		System:     api.NewSystemService(sysBE),
 		Area:       api.NewAreaService(areaRd),
@@ -532,6 +541,7 @@ func (d *Daemon) Run(ctx context.Context) (err error) {
 			Metrics:    d.metrics,
 		}),
 		EditSession: editSvc,
+		StarlarkLs:  starLsSvc,
 	}
 
 	authnChain := auth.Chain(auth.LocalPeerCred{}, bearer, authn.NewSessionCookie(sessStore), auth.RejectAll{})
