@@ -1,0 +1,10 @@
+.sparkline {
+  display: block;
+  overflow: visible;
+}
+
+.empty {
+  height: 48px;
+  background-color: var(--sy-color-surface-2);
+  border-radius: var(--sy-radius-sm);
+}

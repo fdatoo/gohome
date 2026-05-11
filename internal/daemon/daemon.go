@@ -511,6 +511,11 @@ func (d *Daemon) Run(ctx context.Context) (err error) {
 		starSyms = map[string]starlarkls.SymbolInfo{}
 	}
 	starLsSvc := starlarkls.NewService(starSyms, filepath.Join(configDir, "scripts"))
+	// Activity service (plan 03) — exposes Stories/Events/SavedQueries.
+	// When SY_ACTIVITY_MOCK=1 is set, returns synthetic data.
+	activitySvc := activity.NewActivityService(d.store, activity.ActivityServiceConfig{
+		SavedQueriesDir: filepath.Join(dataDir, "saved-queries"),
+	})
 
 	services := listener.Services{
 		System:     api.NewSystemService(sysBE),
@@ -542,6 +547,7 @@ func (d *Daemon) Run(ctx context.Context) (err error) {
 		}),
 		EditSession: editSvc,
 		StarlarkLs:  starLsSvc,
+		Activity:    activitySvc,
 	}
 
 	authnChain := auth.Chain(auth.LocalPeerCred{}, bearer, authn.NewSessionCookie(sessStore), auth.RejectAll{})

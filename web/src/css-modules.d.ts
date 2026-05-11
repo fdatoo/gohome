@@ -1,10 +1,9 @@
 /// <reference types="vite/client" />
 
-/**
- * TypeScript declaration for CSS Modules.
- * Allows `import styles from './Foo.module.css'` without type errors.
- */
+// Type declaration for CSS Module imports.
+// Vite processes *.module.css files at build time; this shim tells TypeScript
+// that each import is a record of class name → scoped string.
 declare module "*.module.css" {
-  const classes: Record<string, string>;
-  export default classes;
+  const styles: Record<string, string>;
+  export default styles;
 }
