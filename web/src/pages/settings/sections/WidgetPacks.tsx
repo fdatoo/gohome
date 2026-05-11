@@ -4,6 +4,7 @@ import type { InstalledPack, SignatureStatus } from "@/data/widget-pack-client";
 import { Button } from "@/theme/primitives/button";
 import { Chip } from "@/theme/primitives/chip";
 import { Surface } from "@/theme/primitives/surface";
+import { EmptyState } from "@/components/EmptyState";
 
 function signatureColor(status: SignatureStatus): string {
   switch (status) {
@@ -169,7 +170,7 @@ function InstallDialog({ onInstall, onClose }: InstallDialogProps) {
  * and an install dialog for adding new packs via OCI ref.
  */
 export function WidgetPacks() {
-  const { packs, loading, error, installPack } = useInstalledPacks();
+  const { packs, loading, error, errorStatus, installPack, refresh } = useInstalledPacks();
   const [dialogOpen, setDialogOpen] = useState(false);
 
   return (
@@ -197,37 +198,62 @@ export function WidgetPacks() {
         </Button>
       </div>
 
-      {loading && (
-        <p style={{ color: "var(--sy-color-fg-4)", fontStyle: "italic" }}>
-          Loading packs…
-        </p>
+      {loading && <EmptyState variant="loading" label="widget packs" />}
+
+      {!loading && error && errorStatus === 401 && (
+        <EmptyState
+          variant="error-auth"
+          label="Authentication required"
+          message="You must be signed in to view installed widget packs."
+        />
       )}
-      {error && (
-        <p style={{ color: "var(--sy-color-bad)" }}>Error: {error}</p>
+
+      {!loading && error && errorStatus !== 401 && (
+        <EmptyState
+          variant="error-server"
+          label="Failed to load widget packs"
+          message={error}
+          onRetry={refresh}
+        />
       )}
-      {!loading && !error && (
+
+      {!loading && !error && packs.length === 0 && (
+        <EmptyState
+          variant="empty"
+          label="No widget packs installed"
+          message={
+            <>
+              Install one with{" "}
+              <code
+                style={{ fontFamily: "var(--sy-font-numeric)", fontSize: "0.8125rem" }}
+              >
+                switchyard widget install &lt;oci-ref&gt;
+              </code>{" "}
+              or browse the{" "}
+              <a
+                href="https://docs.switchyard.io/widget-packs"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: "var(--sy-color-accent)", textDecoration: "none" }}
+              >
+                packs registry
+              </a>
+              .
+            </>
+          }
+        />
+      )}
+
+      {!loading && !error && packs.length > 0 && (
         <Surface
           style={{
             padding: "0 var(--sy-space-4)",
             border: "1px solid var(--sy-color-line)",
           }}
         >
-          {packs.length === 0 ? (
-            <p
-              style={{
-                color: "var(--sy-color-fg-4)",
-                fontStyle: "italic",
-                fontSize: "0.8125rem",
-                padding: "var(--sy-space-4) 0",
-              }}
-            >
-              No widget packs installed.
-            </p>
-          ) : (
-            packs.map((pack: InstalledPack) => (
-              <PackRow key={`${pack.name}@${pack.version}`} pack={pack} />
-            ))
-          )}
+          {packs.map((pack: InstalledPack) => (
+            <PackRow key={`${pack.name}@${pack.version}`} pack={pack} />
+          ))}
         </Surface>
       )}
 

@@ -3,6 +3,16 @@
  * (proto: switchyard/page/v1/page.proto).
  */
 
+export class ConnectHTTPError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = "ConnectHTTPError";
+  }
+}
+
 import type { PageModel, SectionDef, TileDef, CellDef } from "@/pages-system/model";
 
 interface RawProps {
@@ -52,7 +62,7 @@ async function postConnect<TRequest, TResponse>(
     body: JSON.stringify(body),
   });
   if (!response.ok) {
-    throw new Error(`page-client: ${procedure} failed: ${response.status}`);
+    throw new ConnectHTTPError(`page-client: ${procedure} failed: ${response.status}`, response.status);
   }
   return response.json() as Promise<TResponse>;
 }

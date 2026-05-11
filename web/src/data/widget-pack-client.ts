@@ -3,6 +3,16 @@
  * Calls widgetpack.ListWidgetPacks and widgetpack.Install RPCs.
  */
 
+export class ConnectHTTPError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = "ConnectHTTPError";
+  }
+}
+
 export type SignatureStatus = "verified" | "unverified" | "pending";
 
 export interface InstalledPack {
@@ -28,7 +38,7 @@ async function postConnect<TRequest, TResponse>(
     body: JSON.stringify(body),
   });
   if (!response.ok) {
-    throw new Error(`widget-pack-client: ${procedure} failed: ${response.status}`);
+    throw new ConnectHTTPError(`widget-pack-client: ${procedure} failed: ${response.status}`, response.status);
   }
   return response.json() as Promise<TResponse>;
 }
@@ -88,24 +98,31 @@ export function useInstalledPacks(): {
   packs: InstalledPack[];
   loading: boolean;
   error: string | null;
+  errorStatus: number | null;
   installPack: (ociRef: string) => Promise<void>;
   refresh: () => void;
 } {
   const [packs, setPacks] = useState<InstalledPack[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [errorStatus, setErrorStatus] = useState<number | null>(null);
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setError(null);
+    setErrorStatus(null);
     widgetPackClient
       .listInstalledPacks()
       .then((p) => {
         if (!cancelled) setPacks(p);
       })
       .catch((err: unknown) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load packs");
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to load packs");
+          setErrorStatus(err instanceof ConnectHTTPError ? err.status : null);
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -122,5 +139,5 @@ export function useInstalledPacks(): {
 
   const refresh = () => setTick((t) => t + 1);
 
-  return { packs, loading, error, installPack, refresh };
+  return { packs, loading, error, errorStatus, installPack, refresh };
 }
