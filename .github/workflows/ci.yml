@@ -170,10 +170,8 @@ jobs:
             path: ./internal/eventstore
             coverpkg: ./internal/eventstore/...
             profile: cover-eventstore.out
-            # TODO(F-292): Raise this temporary floor to 85% after https://linear.app/fdatoo/issue/F-292 ships.
-            gate: "82.6"
+            gate: "85"
             target: "85"
-            exception: F-292
           - package: state
             path: ./internal/state
             coverpkg: ./internal/state/...

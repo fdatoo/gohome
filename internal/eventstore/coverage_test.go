@@ -3,11 +3,13 @@ package eventstore_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 
+	eventv1 "github.com/fdatoo/switchyard/gen/switchyard/event/v1"
 	"github.com/fdatoo/switchyard/internal/eventstore"
 	"github.com/fdatoo/switchyard/internal/state"
 	"github.com/fdatoo/switchyard/internal/storage"
@@ -764,5 +766,85 @@ func TestSubscription_CloseWithMultipleSubscribers(t *testing.T) {
 	case <-sub2.C():
 	case <-time.After(time.Second):
 		t.Fatal("sub2 timed out after sub1 was closed")
+	}
+}
+
+func TestAppendAuth_WrapsAuditPayload(t *testing.T) {
+	ctx := context.Background()
+	f := newStoreFixture(t)
+
+	want := &eventv1.AuthEvent{
+		Kind: &eventv1.AuthEvent_LoginSucceeded{LoginSucceeded: &eventv1.LoginSucceeded{}},
+	}
+	if err := f.store.AppendAuth(ctx, want); err != nil {
+		t.Fatalf("AppendAuth: %v", err)
+	}
+
+	events, err := f.store.Query(ctx, eventstore.QueryOptions{})
+	if err != nil {
+		t.Fatalf("Query: %v", err)
+	}
+	if len(events) != 1 {
+		t.Fatalf("events len = %d, want 1", len(events))
+	}
+	if events[0].Kind != "auth_event" || events[0].Source != "auth.audit" {
+		t.Fatalf("unexpected audit envelope: kind=%q source=%q", events[0].Kind, events[0].Source)
+	}
+	if events[0].Payload.GetAuthEvent().GetLoginSucceeded() == nil {
+		t.Fatalf("payload = %#v, want login_succeeded auth event", events[0].Payload.GetAuthEvent())
+	}
+}
+
+func TestQueryBySourceSubstring(t *testing.T) {
+	ctx := context.Background()
+	f := newStoreFixture(t)
+	_, _ = f.store.Append(ctx, testutil.StateChanged("light.a", 1, testutil.WithSource("automation:alpha#123")))
+	_, _ = f.store.Append(ctx, testutil.StateChanged("light.b", 1, testutil.WithSource("driver:hue")))
+	_, _ = f.store.Append(ctx, testutil.StateChanged("light.c", 1, testutil.WithSource("automation:beta#456")))
+
+	events, err := f.store.QueryBySourceSubstring(ctx, "automation:")
+	if err != nil {
+		t.Fatalf("QueryBySourceSubstring: %v", err)
+	}
+	if len(events) != 2 {
+		t.Fatalf("events len = %d, want 2", len(events))
+	}
+	if events[0].Source != "automation:alpha#123" || events[1].Source != "automation:beta#456" {
+		t.Fatalf("unexpected source order: %q, %q", events[0].Source, events[1].Source)
+	}
+}
+
+func TestReplayErrorMetadata(t *testing.T) {
+	cause := errors.New("projector failed")
+	err := &eventstore.ReplayError{Position: 42, Projector: "state", Err: cause}
+	if !errors.Is(err, cause) {
+		t.Fatal("ReplayError should unwrap the original cause")
+	}
+	if got := err.Error(); !strings.Contains(got, "position 42") || !strings.Contains(got, "projector state") {
+		t.Fatalf("Error() = %q", got)
+	}
+}
+
+func TestDurableSubscription_AckMissingCursor(t *testing.T) {
+	ctx := context.Background()
+	f := newStoreFixture(t)
+	if err := f.store.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	sub, err := f.store.Subscribe(ctx, eventstore.SubscribeOptions{
+		Durable: true,
+		Name:    "deleted",
+	})
+	if err != nil {
+		t.Fatalf("Subscribe: %v", err)
+	}
+	defer func() { _ = sub.Close() }()
+
+	if _, err := f.db.ExecContext(ctx, `DELETE FROM event_subscriptions WHERE name = ?`, "deleted"); err != nil {
+		t.Fatalf("delete cursor: %v", err)
+	}
+	if err := sub.Ack(10); err == nil {
+		t.Fatal("expected Ack to fail when durable cursor row is missing")
 	}
 }
