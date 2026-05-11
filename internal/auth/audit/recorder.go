@@ -93,6 +93,11 @@ func (r *Recorder) emit(ctx context.Context, id Identity, kind interface{}) erro
 			Generation: k.Generation, PolicyCount: k.PolicyCount,
 			CompileDurationMs: k.CompileDurationMs, CompiledByPrincipalId: k.CompiledBy,
 		}}
+	case PolicyBypassed:
+		e.Kind = &eventv1.AuthEvent_PolicyBypassed{PolicyBypassed: &eventv1.PolicyBypassed{
+			ActionService: k.ActionService, ActionMethod: k.ActionMethod,
+			ActionVerb: k.ActionVerb, Reason: k.Reason,
+		}}
 	default:
 		panic("audit: unknown event kind")
 	}
@@ -144,6 +149,9 @@ func (r *Recorder) PolicyDenied(ctx context.Context, id Identity, k PolicyDenied
 func (r *Recorder) PolicyCompiled(ctx context.Context, id Identity, k PolicyCompiled) error {
 	return r.emit(ctx, id, k)
 }
+func (r *Recorder) PolicyBypassed(ctx context.Context, id Identity, k PolicyBypassed) error {
+	return r.emit(ctx, id, k)
+}
 
 // Domain types per kind, mirroring the proto messages but in plain Go.
 
@@ -181,4 +189,7 @@ type PolicyCompiled struct {
 	PolicyCount       uint32
 	CompileDurationMs uint32
 	CompiledBy        string
+}
+type PolicyBypassed struct {
+	ActionService, ActionMethod, ActionVerb, Reason string
 }

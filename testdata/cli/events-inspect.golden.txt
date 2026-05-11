@@ -10,10 +10,10 @@ Correlation: <UUID>
 
 Payload
 {
-  "configApplied":  {
+  "configApplied": {
     "appliedAtUnixMs":"<UNIX_MS>",
-    "driverInstancesAdded":  1,
-    "automationsChanged":  1
+    "driverInstancesAdded": 1,
+    "automationsChanged": 1
   }
 }
 stderr:

@@ -27,6 +27,7 @@ import (
 	"github.com/fdatoo/switchyard/internal/api/listener"
 	"github.com/fdatoo/switchyard/internal/auth"
 	"github.com/fdatoo/switchyard/internal/auth/audit"
+	"github.com/fdatoo/switchyard/internal/auth/authn"
 	"github.com/fdatoo/switchyard/internal/auth/credentials"
 	"github.com/fdatoo/switchyard/internal/auth/identity"
 	"github.com/fdatoo/switchyard/internal/auth/sessions"
@@ -463,6 +464,8 @@ func (d *Daemon) Run(ctx context.Context) (err error) {
 	}
 	passkeys := credentials.NewPasskeys(db, webAuthn)
 	webAuthnChallenges := credentials.NewChallengeStore(5 * time.Minute)
+	tokens := credentials.NewTokens(db)
+	bearer := authn.NewBearer(tokens)
 
 	services := listener.Services{
 		System:     api.NewSystemService(sysBE),
@@ -482,7 +485,7 @@ func (d *Daemon) Run(ctx context.Context) (err error) {
 			Identity:   identityStore,
 			Password:   credentials.NewPassword(db, credentials.DefaultArgon2idParams()),
 			Passkeys:   passkeys,
-			Tokens:     credentials.NewTokens(db),
+			Tokens:     tokens,
 			Sessions:   sessStore,
 			Enrollment: credentials.NewEnrollment(db),
 			Challenges: webAuthnChallenges,
@@ -493,9 +496,7 @@ func (d *Daemon) Run(ctx context.Context) (err error) {
 		}),
 	}
 
-	// TODO(C9): wire SO_PEERCRED into UDS connections so LocalPeerCred works.
-	// acceptAllAuthn remains as a fallback until token/session auth is fully wired.
-	authnChain := auth.Chain(auth.LocalPeerCred{}, acceptAllAuthn{})
+	authnChain := auth.Chain(auth.LocalPeerCred{}, bearer, authn.NewSessionCookie(sessStore), auth.RejectAll{})
 	interceptors := []connect.Interceptor{
 		listener.RecoverInterceptor(),
 		listener.RequestIDInterceptor(),
@@ -503,7 +504,7 @@ func (d *Daemon) Run(ctx context.Context) (err error) {
 		api.MCPInterceptor(d.metrics),
 		listener.SlogInterceptor(),
 		listener.MetricsInterceptor(d.metrics),
-		api.NewAuthenticate(authnChain, nil, nil),
+		api.NewAuthenticate(authnChain, bearer, tokens),
 		api.NewAuthorize(policyRuntime, nil, auditRecorder, d.metrics),
 	}
 
