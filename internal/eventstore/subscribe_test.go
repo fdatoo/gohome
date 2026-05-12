@@ -70,6 +70,53 @@ func TestSubscribe_CatchupReplaysHistory(t *testing.T) {
 	}
 }
 
+// TestSubscribe_CatchupBacklogLargerThanBufferDoesNotDeadlock is the
+// regression test for a real bug: catchupAndRegister used to send
+// events into sub.ch synchronously inside Subscribe(), so any backlog
+// larger than the channel buffer (default 256) hung Subscribe forever
+// — the consumer couldn't drain because they hadn't received the
+// Subscription handle yet.
+func TestSubscribe_CatchupBacklogLargerThanBufferDoesNotDeadlock(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	s := newStore(t)
+	if err := s.Start(ctx); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = s.Close(ctx) })
+
+	// Append 600 events — more than the 256-slot default channel buffer.
+	const n = 600
+	for i := 0; i < n; i++ {
+		_, _ = s.Append(ctx, testutil.StateChanged("light.a", uint32(i)))
+	}
+
+	// With a small buffer to make the test cheap; the bug repro doesn't
+	// require the default size, just backlog > buffer.
+	sub, err := s.Subscribe(ctx, eventstore.SubscribeOptions{
+		FromPosition:  0,
+		ChannelBuffer: 16,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = sub.Close() })
+
+	got := 0
+	timeout := time.After(5 * time.Second)
+	for got < n {
+		select {
+		case _, ok := <-sub.C():
+			if !ok {
+				t.Fatalf("subscription closed early after %d events", got)
+			}
+			got++
+		case <-timeout:
+			t.Fatalf("only received %d of %d backlog events — catchup likely deadlocked", got, n)
+		}
+	}
+}
+
 func TestSubscribe_FilterExcludesUnmatchedEvents(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

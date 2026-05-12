@@ -46,6 +46,51 @@ type subscriber struct {
 
 	closeOnce sync.Once
 	closed    chan struct{}
+
+	// sendMu serializes Close vs producer sends on `ch`. Producers
+	// (dispatch + catchup) take RLock + check isClosed before sending;
+	// Close takes Lock to flip the flag and close `ch`. Without this
+	// gate, a dispatch goroutine that snapshotted the subscribers list
+	// before Close ran would panic on `sub.ch <- e`.
+	sendMu   sync.RWMutex
+	isClosed atomic.Bool
+}
+
+// trySend pushes an event into sub.ch without blocking. Returns true on
+// success, false if the channel is full (backpressure) or the subscriber
+// has been closed. Safe to call concurrently with Close.
+func (sub *subscriber) trySend(e Event) (sent bool, dropped bool) {
+	sub.sendMu.RLock()
+	defer sub.sendMu.RUnlock()
+	if sub.isClosed.Load() {
+		return false, false
+	}
+	select {
+	case sub.ch <- e:
+		return true, false
+	default:
+		return false, true
+	}
+}
+
+// blockingSend pushes an event into sub.ch, blocking until accepted or
+// until ctx / sub.closed cancels. Used by catchup where backpressure must
+// hold the producer rather than drop events. Returns false on cancel or
+// after the subscriber has been closed.
+func (sub *subscriber) blockingSend(ctx context.Context, e Event) bool {
+	sub.sendMu.RLock()
+	defer sub.sendMu.RUnlock()
+	if sub.isClosed.Load() {
+		return false
+	}
+	select {
+	case sub.ch <- e:
+		return true
+	case <-ctx.Done():
+		return false
+	case <-sub.closed:
+		return false
+	}
 }
 
 func (sub *subscriber) C() <-chan Event { return sub.ch }
@@ -59,9 +104,20 @@ func (sub *subscriber) Ack(position uint64) error {
 
 func (sub *subscriber) Close() error {
 	sub.closeOnce.Do(func() {
+		// Order matters here. unregister first so dispatch stops adding
+		// us to its snapshot. Then signal closed so any in-flight
+		// blockingSend on `ch` returns false. Finally take sendMu.Lock
+		// to fence against producers that already RLocked and were
+		// about to send: they'll either see isClosed=true and bail, or
+		// they're already past the check and waiting on the channel,
+		// in which case the close(sub.closed) above unblocks them
+		// without panicking.
 		sub.store.unregisterSubscriber(sub)
 		close(sub.closed)
+		sub.sendMu.Lock()
+		sub.isClosed.Store(true)
 		close(sub.ch)
+		sub.sendMu.Unlock()
 	})
 	return nil
 }
@@ -111,9 +167,19 @@ func (s *Store) Subscribe(ctx context.Context, opts SubscribeOptions) (Subscript
 	}
 	sub.lastSent.Store(fromPos)
 
-	if err := s.catchupAndRegister(ctx, sub); err != nil {
-		return nil, err
-	}
+	// Catchup runs async. Doing it synchronously deadlocks when the
+	// historical backlog exceeds the channel buffer: the consumer can't
+	// drain because we haven't returned the Subscription handle yet, the
+	// catchup loop blocks on `sub.ch <- e`, Subscribe never returns. With
+	// the goroutine the consumer reads as catchup pushes; live dispatch
+	// is held off until catchup completes (registration happens at the
+	// end of catchupAndRegister) so order is preserved.
+	go func() {
+		if err := s.catchupAndRegister(ctx, sub); err != nil {
+			s.logger.Warn("subscriber catchup failed; closing", "name", sub.name, "err", err)
+			_ = sub.Close()
+		}
+	}()
 	return sub, nil
 }
 
@@ -191,15 +257,14 @@ func (s *Store) catchupAndRegister(ctx context.Context, sub *subscriber) (err er
 			return err
 		}
 		for _, e := range evts {
-			select {
-			case sub.ch <- e:
-				sub.delivered.Add(1)
-				sub.lastSent.Store(e.Position)
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-sub.closed:
-				return nil
+			if !sub.blockingSend(ctx, e) {
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
+				return nil // closed
 			}
+			sub.delivered.Add(1)
+			sub.lastSent.Store(e.Position)
 		}
 		if len(evts) == 0 {
 			sub.lastSent.Store(target)
@@ -236,19 +301,20 @@ func (s *Store) dispatch(e Event) {
 		if sub.lastSent.Load() >= e.Position {
 			continue
 		}
-		select {
-		case sub.ch <- e:
+		sent, dropped := sub.trySend(e)
+		if sent {
 			sub.delivered.Add(1)
 			sub.lastSent.Store(e.Position)
 			s.metrics.SubscriptionDelivered.WithLabelValues(sub.name).Inc()
-		default:
+		} else if dropped {
 			sub.dropped.Add(1)
 			s.metrics.SubscriptionDropped.WithLabelValues(sub.name).Inc()
 			s.logger.Warn("subscriber dropped, closing", "name", sub.name)
-			// Unregister synchronously so subsequent dispatch calls don't send to a
-			// closing channel. Close() will call unregisterSubscriber again (no-op).
+			// Unregister synchronously so subsequent dispatch calls don't
+			// send to a closing channel. Close() unregisters again — no-op.
 			s.unregisterSubscriber(sub)
 			go func() { _ = sub.Close() }()
 		}
+		// !sent && !dropped → subscriber already closed; skip silently.
 	}
 }
