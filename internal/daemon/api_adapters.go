@@ -732,6 +732,19 @@ type configApplierAdapter struct {
 	mgr *config.Manager
 }
 
+// managerReloaderApplier adapts *config.Manager to config.ReloaderApplier.
+// Apply uses Manager.Apply(ctx, false) (dry-run=false).
+type managerReloaderApplier struct {
+	mgr *config.Manager
+}
+
+func (m *managerReloaderApplier) Apply(ctx context.Context, source string) error {
+	// `source` is just telemetry for the debounce log line; Manager
+	// doesn't care about the reason.
+	_ = source
+	return m.mgr.Apply(ctx, false)
+}
+
 func (a *configApplierAdapter) Validate(ctx context.Context, _ []byte) (bool, []string, api.ConfigDiff, string, error) {
 	if a.mgr == nil {
 		return false, []string{"config manager not available"}, api.ConfigDiff{}, "", nil

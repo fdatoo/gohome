@@ -80,6 +80,8 @@ type Daemon struct {
 	automationEngine *automation.Engine
 	configDir        string
 	startTime        time.Time
+	configReloader   *config.Reloader
+	configPubsub     *config.ConfigPubsub
 
 	phase          atomic.Int32
 	recoveryInfo   atomic.Pointer[recoveryState]
@@ -365,6 +367,23 @@ func (d *Daemon) Run(ctx context.Context) (err error) {
 	}
 
 	if d.configMgr != nil {
+		// Reactive config subscription: pubsub + debouncing reloader.
+		configPubsub := config.NewConfigPubsub(16)
+		reloader := config.NewReloader(&managerReloaderApplier{mgr: d.configMgr}, 250*time.Millisecond)
+		reloader.Start(ctx)
+		d.configReloader = reloader
+		d.configPubsub = configPubsub
+
+		// Publish a ConfigChanged event on every successful Apply. v1 does not
+		// suppress no-op applies (no bundle_hash field on ConfigSnapshot yet);
+		// views re-fetching the same data is benign.
+		d.configMgr.OnApplied(func(snap *configpb.ConfigSnapshot) {
+			configPubsub.Publish(config.ConfigChangedEvent{
+				AtUnixMs:   snap.GetEvaluatedAtUnixMs(),
+				BundleHash: "",
+			})
+		})
+
 		// Apply the initial snapshot's areas synchronously so the registry
 		// has them by the time the API listener accepts requests. The
 		// OnApplied callback below handles subsequent reloads.
