@@ -981,8 +981,8 @@ const grouped = computed<{ root: FileEntry[]; subdirs: Record<string, FileEntry[
   return { root, subdirs };
 });
 
-function iconFor(kind: FileEntry["kind"]): "developer" | "automations" {
-  return kind === "pkl" ? "developer" : "automations";
+function iconFor(kind: FileEntry["kind"]): "plugin" | "automations" {
+  return kind === "pkl" ? "plugin" : "automations";
 }
 </script>
 
@@ -1704,7 +1704,7 @@ watch(() => props.kind, () => {
           title="Select a file"
           description="Pick a file from the tree to start editing."
         >
-          <template #icon><SyIcon :name="kind === 'pkl' ? 'developer' : 'automations'" :size="28" /></template>
+          <template #icon><SyIcon :name="kind === 'pkl' ? 'plugin' : 'automations'" :size="28" /></template>
         </SyEmptyState>
       </main>
     </div>

@@ -70,5 +70,10 @@ _None yet._
 
 ## Decision log
 
-_Substantive decisions made unattended will be recorded here so a
-human reading this after-the-fact knows what was chosen and why._
+- **2026-05-12 (T2.4):** Plan referenced icon name `"developer"` for the
+  Pkl file in `SyFileTree`. That name doesn't exist in
+  `SyIcon` — valid names include `plugin`, `automations`, `settings`,
+  `bulb`, etc. The T2.4 agent used `"plugin"` for `.pkl` files and
+  kept `"automations"` for `.star`. Plan updated in two places to
+  match (`SyFileTree.iconFor` and `SyCodeEditorPanel`'s empty-state
+  icon binding).
