@@ -21,6 +21,9 @@ import { listDrivers, type DriverSummary } from "@/data/driver-management";
 import { listAutomations, type Automation } from "@/data/automations";
 import { listAreas, type Area } from "@/data/areas";
 import { entityStore } from "@/stores/entity-store";
+import { configStore } from "@/stores/config-store";
+
+let unsubConfigChanged: (() => void) | null = null;
 
 const PRIMARY: SidebarNavItem[] = [
   { id: "home",        icon: "home",        label: "Home",        path: "/",            shortcut: "⌘1" },
@@ -183,11 +186,16 @@ onMounted(() => {
      the lifetime of the app). start() is fire-and-forget; the store
      handles its own retry/reconnect lifecycle internally. */
   void entityStore.start();
+  /* Config stream — refreshes the palette whenever configuration changes. */
+  void configStore.start();
+  unsubConfigChanged = configStore.onChanged(() => { void loadCatalog(); });
 });
 
 onBeforeUnmount(() => {
   document.removeEventListener("keydown", onKey);
   entityStore.stop();
+  unsubConfigChanged?.();
+  configStore.stop();
 });
 
 function onSearch(): void {
