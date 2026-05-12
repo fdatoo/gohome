@@ -218,6 +218,7 @@ type configJSON struct {
 	Entities         []entityJSON         `json:"entities"`
 	EntityAreas      map[string]string    `json:"entityAreas"`
 	Automations      []automationJSON     `json:"automations"`
+	Scenes           []sceneJSON          `json:"scenes"`
 	Scripts          []scriptJSON         `json:"scripts"`
 	Dashboards       []dashboardJSON      `json:"dashboards"`
 	Users            []userJSON           `json:"users"`
@@ -281,6 +282,12 @@ type automationJSON struct {
 	Conditions []json.RawMessage `json:"conditions"`
 	Actions    []json.RawMessage `json:"actions"`
 	Areas      []string          `json:"areas"`
+}
+
+type sceneJSON struct {
+	ID          string            `json:"id"`
+	DisplayName string            `json:"displayName"`
+	Actions     []json.RawMessage `json:"actions"`
 }
 
 type scriptJSON struct {
@@ -476,6 +483,21 @@ func parseConfigJSON(text, configDir string) (*configpb.ConfigSnapshot, error) {
 			acfg.Actions = append(acfg.Actions, ac)
 		}
 		snap.Automations = append(snap.Automations, acfg)
+	}
+
+	for _, s := range raw.Scenes {
+		scfg := &configpb.SceneConfig{
+			Id:          strings.TrimSpace(s.ID),
+			DisplayName: s.DisplayName,
+		}
+		for _, rawA := range s.Actions {
+			ac, err := decodeAction(rawA)
+			if err != nil {
+				return nil, fmt.Errorf("scene %q action: %w", s.ID, err)
+			}
+			scfg.Actions = append(scfg.Actions, ac)
+		}
+		snap.Scenes = append(snap.Scenes, scfg)
 	}
 
 	for _, s := range raw.Scripts {

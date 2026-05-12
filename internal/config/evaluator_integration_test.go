@@ -126,6 +126,43 @@ automations = new {
 	}
 }
 
+func TestEvaluate_ScenesDeclaredInline(t *testing.T) {
+	dir := t.TempDir()
+	writePkl(t, dir, "main.pkl", `
+amends "switchyard:config"
+
+import "switchyard:scenes" as sc
+import "switchyard:automations" as auto
+
+scenes = new {
+  new sc.Scene {
+    id = "movie-night"
+    displayName = "Movie Night"
+    actions = new {
+      new auto.CallServiceAction {
+        entity = "light.living_room"
+        capability = "turn_off"
+      }
+    }
+  }
+}
+`)
+	snap := mustEvaluate(t, dir)
+	if got := len(snap.GetScenes()); got != 1 {
+		t.Fatalf("want 1 scene, got %d", got)
+	}
+	s := snap.GetScenes()[0]
+	if s.GetId() != "movie-night" {
+		t.Errorf("id = %q", s.GetId())
+	}
+	if s.GetDisplayName() != "Movie Night" {
+		t.Errorf("displayName = %q", s.GetDisplayName())
+	}
+	if len(s.GetActions()) != 1 {
+		t.Errorf("want 1 action, got %d", len(s.GetActions()))
+	}
+}
+
 func TestEvaluate_TypedScript(t *testing.T) {
 	dir := t.TempDir()
 	writePkl(t, dir, "main.pkl", `

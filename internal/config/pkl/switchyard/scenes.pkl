@@ -1,0 +1,18 @@
+module switchyard.scenes
+
+import "switchyard:automations" as auto
+
+/// Scene is a named collection of actions invoked atomically
+/// (e.g. "movie night" turns off lights, dims TV bias light, lowers blinds).
+class Scene {
+  /// Stable identifier; appears in URLs and from `SceneAction.slug` calls.
+  id:          String(!isEmpty)
+
+  /// Human-readable name shown in the UI.
+  displayName: String
+
+  /// Actions executed when the scene is invoked. Reuses the Action type
+  /// from switchyard:automations so any automation action is a valid
+  /// scene action.
+  actions:     Listing<auto.Action>
+}

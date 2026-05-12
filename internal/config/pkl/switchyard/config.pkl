@@ -4,6 +4,7 @@ import "switchyard:areas" as ar
 import "switchyard:entities" as ent
 import "switchyard:carport" as cp
 import "switchyard:automations" as auto
+import "switchyard:scenes" as sc
 import "switchyard:scripts" as scr
 import "switchyard:pages" as pagesmod
 import "switchyard:auth" as authmod
@@ -21,6 +22,7 @@ entities: Listing<ent.Entity> = new {}
 /// assignment.
 entityAreas: Mapping<String, String> = new {}
 automations: Listing<auto.Automation> = new {}
+scenes: Listing<sc.Scene> = new {}
 scripts: Listing<scr.Script> = new {}
 pages: Listing<pagesmod.Page> = new {}
 users: Listing<authmod.User> = new {}
