@@ -80,8 +80,13 @@ function buildAst(): Record<string, unknown> {
 
 function triggerToProto(t: TriggerValue): Record<string, unknown> {
   switch (t.kind) {
-    case "state_changed":
-      return { stateChange: { entity: t.entity ?? "", from: t.from ?? "", to: t.to ?? "", holdSeconds: t.holdSeconds ?? 0 } };
+    case "state_changed": {
+      // Proto: StateChangeTrigger { entities (repeated), from, to, for_dur_ns }
+      // UI shape uses a single `entity` + `holdSeconds`; convert here.
+      const entities = t.entity ? [t.entity] : [];
+      const forDurNs = (t.holdSeconds ?? 0) * 1_000_000_000;
+      return { stateChange: { entities, from: t.from ?? "", to: t.to ?? "", forDurNs } };
+    }
     case "time":
       return { time: { cron: t.cron ?? "" } };
     case "event":
@@ -91,12 +96,23 @@ function triggerToProto(t: TriggerValue): Record<string, unknown> {
   }
 }
 
+/** Map UI operators (<, <=, =, >=, >) to proto strings (lt/lte/eq/gte/gt). */
+function numericOpToProto(op: ConditionValue["op"]): string {
+  switch (op) {
+    case "<":  return "lt";
+    case "<=": return "lte";
+    case ">=": return "gte";
+    case ">":  return "gt";
+    default:   return "eq";
+  }
+}
+
 function conditionToProto(c: ConditionValue): Record<string, unknown> {
   switch (c.kind) {
     case "state":
       return { state: { entity: c.entity ?? "", equals: c.equals ?? "", not: c.not ?? "" } };
     case "numeric":
-      return { numeric: { entity: c.numericEntity ?? "", op: c.op ?? "=", value: c.value ?? 0 } };
+      return { numeric: { entity: c.numericEntity ?? "", op: numericOpToProto(c.op), value: c.value ?? 0 } };
     case "unsupported":
       return {};
   }
