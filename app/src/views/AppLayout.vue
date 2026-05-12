@@ -20,6 +20,7 @@ import type { CommandItem } from "@/lib/components/command-palette/SyCommandPale
 import { listDrivers, type DriverSummary } from "@/data/driver-management";
 import { listAutomations, type Automation } from "@/data/automations";
 import { listAreas, type Area } from "@/data/areas";
+import { entityStore } from "@/stores/entity-store";
 
 const PRIMARY: SidebarNavItem[] = [
   { id: "home",        icon: "home",        label: "Home",        path: "/",            shortcut: "⌘1" },
@@ -177,10 +178,15 @@ onMounted(() => {
   document.addEventListener("keydown", onKey);
   /* Eagerly fetch the catalog so the first open is instant. */
   loadCatalog();
+  /* Live entity stream — runs for the lifetime of the AppLayout (i.e.,
+     the lifetime of the app). start() is fire-and-forget; the store
+     handles its own retry/reconnect lifecycle internally. */
+  void entityStore.start();
 });
 
 onBeforeUnmount(() => {
   document.removeEventListener("keydown", onKey);
+  entityStore.stop();
 });
 
 function onSearch(): void {
