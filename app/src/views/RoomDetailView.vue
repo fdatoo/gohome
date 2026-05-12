@@ -17,12 +17,16 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
   SyText, SySurface, SyButton, SyIcon, SyEmptyState,
-  SyEntityRow, SyScene, SyStoryRow,
+  SyEntityRow, SyScene, SyStoryRow, SyAutomationCard,
 } from "@/lib";
 import { listAreas, type Area } from "@/data/areas";
 import { listScenes, applyScene, type Scene } from "@/data/scenes";
 import { listStories, type Story } from "@/data/activity";
 import { formatEventTimestamp } from "@/data/event-display";
+import {
+  listAutomations, enableAutomation, disableAutomation, triggerAutomation,
+  type Automation,
+} from "@/data/automations";
 import { entityStore } from "@/stores/entity-store";
 import { RpcError } from "@/data/rpc";
 import type { Entity } from "@/data/entities";
@@ -143,10 +147,68 @@ function storyPresentation(s: Story): {
   return { icon: "activity", intent: "info" };
 }
 
+/* ---- Automations (scoped to this area) ----------------------------- */
+const automations = ref<Automation[]>([]);
+const automationsLoading = ref<boolean>(true);
+const automationsError = ref<string>("");
+const autoActionError = ref<string>("");
+
+async function loadAutomations(): Promise<void> {
+  automationsLoading.value = true;
+  automationsError.value = "";
+  try {
+    const r = await listAutomations({ areaId: areaId.value });
+    automations.value = r.automations;
+  } catch (err) {
+    automationsError.value = err instanceof Error ? err.message : String(err);
+  } finally {
+    automationsLoading.value = false;
+  }
+}
+
+async function refreshAutomations(): Promise<void> {
+  try {
+    const r = await listAutomations({ areaId: areaId.value });
+    automations.value = r.automations;
+  } catch { /* next refresh retries */ }
+}
+
+async function onToggleAutomation(a: Automation, next: boolean): Promise<void> {
+  const idx = automations.value.findIndex((x) => x.id === a.id);
+  if (idx === -1) return;
+  const prev = automations.value[idx];
+  // Optimistic flip.
+  automations.value[idx] = { ...prev, enabled: next };
+  autoActionError.value = "";
+  try {
+    if (next) await enableAutomation(a.id);
+    else      await disableAutomation(a.id);
+    await refreshAutomations();
+  } catch (err) {
+    automations.value[idx] = prev;
+    autoActionError.value = err instanceof Error ? err.message : String(err);
+  }
+}
+
+async function onAutomationMenu(a: Automation, id: string): Promise<void> {
+  autoActionError.value = "";
+  try {
+    if (id === "run") {
+      await triggerAutomation(a.id);
+      await refreshAutomations();
+    } else {
+      autoActionError.value = `${id} isn't wired yet`;
+    }
+  } catch (err) {
+    autoActionError.value = err instanceof Error ? err.message : String(err);
+  }
+}
+
 onMounted(() => {
   void loadAreas();
   void loadScenes();
   void loadStories();
+  void loadAutomations();
   // Keep relative timestamps fresh.
   tickHandle = window.setInterval(() => { tickNow.value = new Date(); }, 60_000);
 });
@@ -293,16 +355,56 @@ const isUnknownRoom = computed<boolean>(() =>
         </SySurface>
       </section>
 
-      <!-- Automations (Iteration 3) -->
+      <!-- Automations (scoped to this area) -->
       <section class="page__section">
         <SyText variant="title" weight="semibold">Automations</SyText>
-        <SySurface padding="none">
+
+        <SySurface v-if="automationsLoading" padding="none">
+          <SyEmptyState loading title="Loading automations…" />
+        </SySurface>
+
+        <SySurface v-else-if="automationsError" padding="none">
+          <SyEmptyState
+            intent="bad"
+            title="Couldn't load automations"
+            :description="automationsError"
+          >
+            <template #icon><SyIcon name="close" :size="28" /></template>
+            <template #actions>
+              <SyButton intent="secondary" @click="loadAutomations">Retry</SyButton>
+            </template>
+          </SyEmptyState>
+        </SySurface>
+
+        <SySurface v-else-if="automations.length === 0" padding="none">
           <SyEmptyState
             size="compact"
-            title="Coming soon"
-            description="Per-room automation scoping ships in iteration 3."
+            title="No automations for this room"
+            description="Tag an automation with this room's id in your Pkl config (areas = { ... })."
           />
         </SySurface>
+
+        <SySurface v-else padding="none" class="page__list">
+          <SyAutomationCard
+            v-for="a in automations"
+            :key="a.id"
+            :name="a.displayName"
+            :trigger="a.mode || 'manual'"
+            :enabled="a.enabled"
+            :running="a.inFlight > 0"
+            @toggle-enabled="(v: boolean) => onToggleAutomation(a, v)"
+            @menu-action="(id: string) => onAutomationMenu(a, id)"
+          />
+        </SySurface>
+
+        <SyText
+          v-if="autoActionError"
+          variant="caption"
+          tone="bad"
+          class="page__actionError"
+        >
+          {{ autoActionError }}
+        </SyText>
       </section>
     </template>
   </div>

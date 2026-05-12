@@ -15,6 +15,9 @@ export interface Automation {
   mode: string;
   enabled: boolean;
   inFlight: number;
+  /** Pkl `areas` declaration — rooms this automation operates on.
+   *  RoomDetailView uses this for the per-room scoping. */
+  areaIds: string[];
 }
 
 export interface ListAutomationsResponse {
@@ -27,6 +30,7 @@ interface RawAutomation {
   mode?: string;
   enabled?: boolean;
   in_flight?: number; inFlight?: number;
+  area_ids?: string[]; areaIds?: string[];
 }
 
 function decode(r: RawAutomation): Automation {
@@ -36,14 +40,20 @@ function decode(r: RawAutomation): Automation {
     mode:        r.mode ?? "",
     enabled:     r.enabled ?? false,
     inFlight:    r.inFlight ?? r.in_flight ?? 0,
+    areaIds:     r.areaIds ?? r.area_ids ?? [],
   };
 }
 
-export async function listAutomations(opts: RpcOptions = {}): Promise<ListAutomationsResponse> {
-  const res = await rpcCall<Record<string, never>, { automations?: RawAutomation[] }>(
+export async function listAutomations(
+  opts: RpcOptions & {
+    /** When set, filter to automations whose Pkl `areas` includes this id. */
+    areaId?: string;
+  } = {},
+): Promise<ListAutomationsResponse> {
+  const res = await rpcCall<{ areaId?: string }, { automations?: RawAutomation[] }>(
     "switchyard.v1alpha1.AutomationService/List",
-    {},
-    opts,
+    { areaId: opts.areaId },
+    { signal: opts.signal },
   );
   return { automations: (res.automations ?? []).map(decode) };
 }
