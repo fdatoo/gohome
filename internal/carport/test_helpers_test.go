@@ -67,6 +67,13 @@ func newHostForDispatch(t *testing.T, f *storeFixture, seed func(*storeFixture))
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Start the host so RestartInstance — which now relaunches lifecycle
+	// goroutines on h.ctx — doesn't panic when ctx is the zero value.
+	startCtx, startCancel := context.WithCancel(context.Background())
+	if err := h.Start(startCtx); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(startCancel)
 	return h
 }
 
