@@ -25,6 +25,7 @@ message ConfigSnapshot {
   ListenerConfig    listener      = 20;
   MCPConfig         mcp           = 21;
   AuthSettingsConfig auth_settings = 22;
+  repeated SceneConfig scenes = 23;
 
   // 30-39: assignments / overrides
   // entity_areas maps an entity id to an area id. Drivers register
@@ -37,6 +38,12 @@ message AreaConfig {
   string id           = 1;
   string display_name = 2;
   string parent_id    = 3;
+}
+
+message SceneConfig {
+  string                   id          = 1;
+  string                   display_name = 2;
+  repeated ActionConfig    actions     = 3;
 }
 
 message DriverInstanceConfig {
