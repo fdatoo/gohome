@@ -83,6 +83,21 @@ func Compile(snap *configpb.ConfigSnapshot, querier RegistryQuerier) []Validatio
 		}
 	}
 
+	// Scenes: dangling area_id references.
+	knownAreas := map[string]bool{}
+	for _, a := range snap.GetAreas() {
+		knownAreas[a.GetId()] = true
+	}
+	for _, sc := range snap.GetScenes() {
+		if aid := sc.GetAreaId(); aid != "" && !knownAreas[aid] {
+			errs = append(errs, ValidationError{
+				Code:    "dangling_area_ref",
+				Field:   fmt.Sprintf("scenes[%s].area_id", sc.GetId()),
+				Message: fmt.Sprintf("scene %q references unknown area %q", sc.GetId(), aid),
+			})
+		}
+	}
+
 	return errs
 }
 
