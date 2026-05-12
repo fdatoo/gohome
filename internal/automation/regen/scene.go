@@ -25,6 +25,9 @@ func RenderScene(s *configpb.SceneConfig) ([]byte, error) {
 	w.line("")
 	w.line(fmt.Sprintf("id = %q", s.GetId()))
 	w.line(fmt.Sprintf("displayName = %q", s.GetDisplayName()))
+	if aid := s.GetAreaId(); aid != "" {
+		w.line(fmt.Sprintf("areaId = %q", aid))
+	}
 	w.line("actions {")
 	for _, act := range s.GetActions() {
 		renderAction(w, act, 1)

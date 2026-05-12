@@ -59,3 +59,31 @@ func TestRenderScene_WithCallServiceAction(t *testing.T) {
 		}
 	}
 }
+
+func TestRenderScene_WithAreaId(t *testing.T) {
+	out, err := regen.RenderScene(&configpb.SceneConfig{
+		Id:          "kitchen-bright",
+		DisplayName: "Kitchen bright",
+		AreaId:      "kitchen",
+	})
+	if err != nil {
+		t.Fatalf("RenderScene: %v", err)
+	}
+	s := string(out)
+	if !strings.Contains(s, `areaId = "kitchen"`) {
+		t.Fatalf("output missing areaId line\n%s", s)
+	}
+}
+
+func TestRenderScene_NoAreaIdLineWhenAbsent(t *testing.T) {
+	out, err := regen.RenderScene(&configpb.SceneConfig{
+		Id:          "global-off",
+		DisplayName: "All off",
+	})
+	if err != nil {
+		t.Fatalf("RenderScene: %v", err)
+	}
+	if strings.Contains(string(out), "areaId") {
+		t.Fatalf("output unexpectedly contains areaId\n%s", out)
+	}
+}
