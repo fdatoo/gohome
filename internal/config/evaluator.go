@@ -44,7 +44,7 @@ func SwitchyardSchemeReaderOption() func(*pkl.EvaluatorOptions) {
 }
 
 type configEvaluator interface {
-	Evaluate(ctx context.Context, configDir string) (*configpb.ConfigSnapshot, error)
+	Evaluate(ctx context.Context, configDir string) (*configpb.ConfigSnapshot, []ValidationError, error)
 }
 
 // switchyardModuleReader serves switchyard:* modules from the embedded FS.
@@ -121,13 +121,23 @@ func (r *starlarkValidatorReader) Read(u url.URL) ([]byte, error) {
 	return []byte("true"), nil
 }
 
-func (e *pklEvaluator) Evaluate(ctx context.Context, configDir string) (*configpb.ConfigSnapshot, error) {
+func (e *pklEvaluator) Evaluate(ctx context.Context, configDir string) (*configpb.ConfigSnapshot, []ValidationError, error) {
 	mainPath := configDir + "/main.pkl"
 	text, err := e.ev.EvaluateOutputText(ctx, pkl.FileSource(mainPath))
 	if err != nil {
-		return nil, &EvalError{Message: err.Error()}
+		return nil, nil, &EvalError{Message: err.Error()}
 	}
-	return parseConfigJSON(text, configDir)
+	snap, err := parseConfigJSON(text, configDir)
+	if err != nil {
+		return nil, nil, err
+	}
+	disc, discErrs := discoverConfigDir(ctx, e, configDir)
+	merged, mergeErrs, mergeErr := mergeDiscovered(snap, disc)
+	allErrs := append(discErrs, mergeErrs...)
+	if mergeErr != nil {
+		return merged, allErrs, mergeErr
+	}
+	return merged, allErrs, nil
 }
 
 // EvaluatePageFile evaluates a user-owned pages/<slug>.pkl file and returns
@@ -615,10 +625,12 @@ func ValidateOffline(ctx context.Context, configDir, driversRoot string) (*confi
 	}
 	defer func() { _ = ev.ev.Close() }()
 
-	snap, err := ev.Evaluate(ctx, configDir)
+	snap, discErrs, err := ev.Evaluate(ctx, configDir)
 	if err != nil {
-		return nil, nil, err
+		// Even on hard error, propagate any soft errors we collected so
+		// callers can surface partial diagnostics.
+		return nil, discErrs, err
 	}
-	errs := Compile(snap, nil)
-	return snap, errs, nil
+	compileErrs := Compile(snap, nil)
+	return snap, append(discErrs, compileErrs...), nil
 }

@@ -15,7 +15,7 @@ func TestCompileIntegration_InvalidXref(t *testing.T) {
 		t.Fatalf("newPklEvaluator: %v", err)
 	}
 
-	snap, err := ev.Evaluate(ctx, testdataDir(t, "invalid-xref"))
+	snap, _, err := ev.Evaluate(ctx, testdataDir(t, "invalid-xref"))
 	if err != nil {
 		t.Fatalf("Evaluate: %v", err)
 	}

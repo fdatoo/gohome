@@ -14,7 +14,7 @@ func TestPklValidator_RejectsInvalidStarlark(t *testing.T) {
 	if err != nil {
 		t.Fatalf("newPklEvaluator: %v", err)
 	}
-	_, err = ev.Evaluate(ctx, testdataDir(t, "bad-starlark"))
+	_, _, err = ev.Evaluate(ctx, testdataDir(t, "bad-starlark"))
 	if err == nil {
 		t.Fatal("expected validation error for bad Starlark expression")
 	}

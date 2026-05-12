@@ -109,12 +109,12 @@ func (m *Manager) CurrentRedacted() *configpb.ConfigSnapshot {
 
 // Validate evaluates and cross-ref-validates config. Returns snapshot + diff with no side-effects.
 func (m *Manager) Validate(ctx context.Context) (*configpb.ConfigSnapshot, *ConfigDiff, error) {
-	snap, err := m.ev.Evaluate(ctx, m.configDir)
+	snap, discErrs, err := m.ev.Evaluate(ctx, m.configDir)
 	if err != nil {
 		return nil, nil, err
 	}
 	if errs := Compile(snap, nil); len(errs) != 0 {
-		return nil, nil, &compileErrors{errs: errs}
+		return nil, nil, &compileErrors{errs: append(discErrs, errs...)}
 	}
 	m.mu.RLock()
 	diff := Diff(m.current, snap)

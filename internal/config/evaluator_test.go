@@ -12,8 +12,8 @@ type fakeEval struct {
 	err  error
 }
 
-func (f *fakeEval) Evaluate(_ context.Context, _ string) (*configpb.ConfigSnapshot, error) {
-	return f.snap, f.err
+func (f *fakeEval) Evaluate(_ context.Context, _ string) (*configpb.ConfigSnapshot, []ValidationError, error) {
+	return f.snap, nil, f.err
 }
 
 func TestFakeEvalSatisfiesInterface(t *testing.T) {
