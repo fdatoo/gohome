@@ -116,8 +116,9 @@ async function onApplyScene(s: Scene): Promise<void> {
   }
 }
 
-const showScenesSection = computed<boolean>(() =>
-  !scenesUnimplemented.value && (scenesLoading.value || roomScenes.value.length > 0 || !!scenesError.value));
+/** Only hide the entire section if scenes are unimplemented. The header
+ *  and "+ New scene" button should always be reachable. */
+const showScenesSection = computed<boolean>(() => !scenesUnimplemented.value);
 
 /* ---- Recent activity (scoped to this area's entities) -------------- */
 const stories = ref<Story[]>([]);
@@ -273,8 +274,17 @@ const isUnknownRoom = computed<boolean>(() =>
             <SyIcon name="plus" :size="12" /> New scene
           </SyButton>
         </div>
+
         <SyText v-if="scenesLoading" variant="caption" tone="subtle">Loading…</SyText>
         <SyText v-else-if="scenesError" variant="caption" tone="bad">{{ scenesError }}</SyText>
+
+        <SyEmptyState
+          v-else-if="roomScenes.length === 0"
+          size="compact"
+          title="No scenes yet"
+          description="Create your first scene by clicking the + New scene button above."
+        />
+
         <div v-else class="page__sceneRow">
           <SyScene
             v-for="s in roomScenes"
@@ -284,6 +294,7 @@ const isUnknownRoom = computed<boolean>(() =>
             @apply="onApplyScene(s)"
           />
         </div>
+
         <SyText v-if="sceneError" variant="caption" tone="bad">{{ sceneError }}</SyText>
       </section>
 
