@@ -731,6 +731,7 @@ func (a *eventSourceAdapter) Subscribe(ctx context.Context, filter api.EventFilt
 type configApplierAdapter struct {
 	mgr      *config.Manager
 	reloader *config.Reloader
+	pubsub   *config.ConfigPubsub
 }
 
 // managerReloaderApplier adapts *config.Manager to config.ReloaderApplier.
@@ -797,6 +798,41 @@ func (a *configApplierAdapter) CurrentArtifact(_ context.Context) (*configpb.Con
 		return &configpb.ConfigSnapshot{}, nil
 	}
 	return snap, nil
+}
+
+func (a *configApplierAdapter) SubscribeConfig() (<-chan api.ConfigChangedEvent, func()) {
+	if a.pubsub == nil {
+		// Closed channel + no-op cancel — Subscribe will see EOS and return.
+		ch := make(chan api.ConfigChangedEvent)
+		close(ch)
+		return ch, func() {}
+	}
+	ch, unsubscribe := a.pubsub.Subscribe()
+	out := make(chan api.ConfigChangedEvent, cap(ch))
+	done := make(chan struct{})
+	go func() {
+		defer close(out)
+		for {
+			select {
+			case <-done:
+				return
+			case ev, ok := <-ch:
+				if !ok {
+					return
+				}
+				select {
+				case out <- api.ConfigChangedEvent{AtUnixMs: ev.AtUnixMs, BundleHash: ev.BundleHash}:
+				case <-done:
+					return
+				}
+			}
+		}
+	}()
+	cancel := func() {
+		close(done)
+		unsubscribe()
+	}
+	return out, cancel
 }
 
 // ---- automationControlAdapter ----

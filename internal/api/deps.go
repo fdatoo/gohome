@@ -229,12 +229,22 @@ type ConfigApplyResult struct {
 	Errors        []string
 }
 
+// ConfigChangedEvent is the domain event pushed to subscribers whenever the
+// daemon successfully applies a new config bundle.
+type ConfigChangedEvent struct {
+	AtUnixMs   int64
+	BundleHash string
+}
+
 type ConfigApplier interface {
 	Validate(ctx context.Context, pklBundle []byte) (valid bool, errs []string, diff ConfigDiff, hash string, err error)
 	Apply(ctx context.Context, pklBundle []byte, message, expectedHash string, dryRun, strict bool, actor string) (ConfigApplyResult, error)
 	Reload(ctx context.Context, actor string) (diff ConfigDiff, correlationID string, err error)
 	CurrentArtifact(ctx context.Context) (*configv1.ConfigSnapshot, error)
 	LastReloadError() string
+	// SubscribeConfig returns a channel of ConfigChangedEvent and a cancel
+	// func that MUST be called to release resources.
+	SubscribeConfig() (<-chan ConfigChangedEvent, func())
 }
 
 // --- Automation ---

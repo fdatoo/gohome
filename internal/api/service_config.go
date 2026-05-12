@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"errors"
 
 	"connectrpc.com/connect"
 
@@ -56,8 +55,40 @@ func (s *ConfigService) Reload(ctx context.Context, _ *connect.Request[v1.Reload
 }
 
 func (s *ConfigService) Subscribe(ctx context.Context, _ *connect.Request[v1.SubscribeConfigRequest], stream *connect.ServerStream[v1.SubscribeConfigEvent]) error {
-	// Stub implementation. Task 8 replaces with full pub/sub logic.
-	return connect.NewError(connect.CodeUnimplemented, errors.New("Subscribe not yet implemented"))
+	src, cancel := s.be.SubscribeConfig()
+	defer cancel()
+
+	cfg := currentStreamConfig()
+	ticker := NewHeartbeatTicker(ctx, cfg.HeartbeatInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case ev, ok := <-src:
+			if !ok {
+				return nil
+			}
+			if err := stream.Send(&v1.SubscribeConfigEvent{
+				Event: &v1.SubscribeConfigEvent_Changed{Changed: &v1.ConfigChanged{
+					AtUnixMs:   ev.AtUnixMs,
+					BundleHash: ev.BundleHash,
+				}},
+			}); err != nil {
+				return err
+			}
+			ticker.NotePayloadSent()
+		case tick := <-ticker.C():
+			if err := stream.Send(&v1.SubscribeConfigEvent{
+				Event: &v1.SubscribeConfigEvent_Heartbeat{Heartbeat: &v1.ConfigHeartbeat{
+					AtUnixMs: tick.UnixMilli(),
+				}},
+			}); err != nil {
+				return err
+			}
+		}
+	}
 }
 
 func (s *ConfigService) GetArtifact(ctx context.Context, _ *connect.Request[v1.GetConfigArtifactRequest]) (*connect.Response[v1.GetConfigArtifactResponse], error) {

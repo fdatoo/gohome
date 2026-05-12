@@ -3,12 +3,18 @@ package api_test
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 
 	configv1 "github.com/fdatoo/switchyard/gen/switchyard/config/v1"
 	v1 "github.com/fdatoo/switchyard/gen/switchyard/v1alpha1"
+	"github.com/fdatoo/switchyard/gen/switchyard/v1alpha1/switchyardv1alpha1connect"
 	"github.com/fdatoo/switchyard/internal/api"
 )
 
@@ -30,6 +36,9 @@ type fakeConfig struct {
 	artifactErr error
 
 	lastReloadError string
+
+	subscribeCh     chan api.ConfigChangedEvent
+	subscribeCancel func()
 }
 
 func (f *fakeConfig) Validate(_ context.Context, _ []byte) (bool, []string, api.ConfigDiff, string, error) {
@@ -49,6 +58,19 @@ func (f *fakeConfig) CurrentArtifact(_ context.Context) (*configv1.ConfigSnapsho
 }
 
 func (f *fakeConfig) LastReloadError() string { return f.lastReloadError }
+
+func (f *fakeConfig) SubscribeConfig() (<-chan api.ConfigChangedEvent, func()) {
+	if f.subscribeCh != nil {
+		cancel := f.subscribeCancel
+		if cancel == nil {
+			cancel = func() {}
+		}
+		return f.subscribeCh, cancel
+	}
+	ch := make(chan api.ConfigChangedEvent)
+	close(ch)
+	return ch, func() {}
+}
 
 var _ api.ConfigApplier = (*fakeConfig)(nil)
 
@@ -143,4 +165,53 @@ func TestConfigService_GetArtifact(t *testing.T) {
 	if resp.Msg.Snapshot == nil || resp.Msg.Snapshot.ConfigDir != "/etc/switchyard" {
 		t.Errorf("unexpected snapshot: %+v", resp.Msg.Snapshot)
 	}
+}
+
+func TestConfigService_Subscribe_ChangedEvent(t *testing.T) {
+	api.SetStreamConfig(api.StreamConfig{HeartbeatInterval: 10 * time.Millisecond, BufSize: 4})
+	defer api.SetStreamConfig(api.DefaultStreamConfig())
+
+	ch := make(chan api.ConfigChangedEvent, 1)
+	ch <- api.ConfigChangedEvent{AtUnixMs: 1234567890, BundleHash: "abc123"}
+
+	fc := &fakeConfig{subscribeCh: ch}
+	s := api.NewConfigService(fc)
+	client, cleanup := newConfigServiceClient(t, s)
+	defer cleanup()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	stream, err := client.Subscribe(ctx, connect.NewRequest(&v1.SubscribeConfigRequest{}))
+	if err != nil {
+		t.Fatalf("Subscribe: %v", err)
+	}
+	defer stream.Close()
+
+	for stream.Receive() {
+		if changed := stream.Msg().GetChanged(); changed != nil {
+			if changed.BundleHash != "abc123" {
+				t.Errorf("bundle_hash = %q, want %q", changed.BundleHash, "abc123")
+			}
+			if changed.AtUnixMs != 1234567890 {
+				t.Errorf("at_unix_ms = %d, want %d", changed.AtUnixMs, 1234567890)
+			}
+			return
+		}
+		// heartbeat before the change event: keep waiting
+	}
+	if err := stream.Err(); err != nil && !errors.Is(err, context.Canceled) {
+		t.Fatalf("stream error: %v", err)
+	}
+	t.Fatal("stream closed before receiving a Changed event")
+}
+
+func newConfigServiceClient(t *testing.T, svc *api.ConfigService) (switchyardv1alpha1connect.ConfigServiceClient, func()) {
+	t.Helper()
+	mux := http.NewServeMux()
+	path, handler := switchyardv1alpha1connect.NewConfigServiceHandler(svc)
+	mux.Handle(path, handler)
+	srv := httptest.NewUnstartedServer(h2c.NewHandler(mux, &http2.Server{}))
+	srv.Start()
+	return switchyardv1alpha1connect.NewConfigServiceClient(srv.Client(), srv.URL, connect.WithGRPC()), srv.Close
 }
