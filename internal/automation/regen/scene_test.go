@@ -18,9 +18,8 @@ func TestRenderScene_BasicFields(t *testing.T) {
 	}
 	s := string(out)
 	for _, want := range []string{
-		`import "switchyard:scenes" as sc`,
+		`amends "switchyard:scene"`,
 		`import "switchyard:automations" as auto`,
-		`new sc.Scene {`,
 		`id = "wind-down"`,
 		`displayName = "Wind down"`,
 		`actions {`,

@@ -18,8 +18,7 @@ func TestRenderArea_BasicFields(t *testing.T) {
 	}
 	s := string(out)
 	for _, want := range []string{
-		`import "switchyard:areas" as ar`,
-		`new ar.Area {`,
+		`amends "switchyard:area"`,
 		`id = "bedroom"`,
 		`displayName = "Bedroom"`,
 	} {
