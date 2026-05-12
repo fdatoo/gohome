@@ -163,6 +163,116 @@ scenes = new {
 	}
 }
 
+func TestEvaluate_BrokenDiscoveryFileIsSoft(t *testing.T) {
+	dir := t.TempDir()
+	writePkl(t, dir, "main.pkl", `amends "switchyard:config"`)
+	if err := os.MkdirAll(filepath.Join(dir, "automations"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writePkl(t, filepath.Join(dir, "automations"), "good.pkl", `
+amends "switchyard:automation"
+import "switchyard:automations" as auto
+
+id = "good"
+enabled = true
+triggers {
+  new auto.EventTrigger { kind = "sun.sunset" }
+}
+actions {}
+`)
+	writePkl(t, filepath.Join(dir, "automations"), "bad.pkl", `
+amends "switchyard:automation"
+
+id = unterminated_token
+`)
+
+	ev, err := newPklEvaluator(context.Background(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = ev.ev.Close() }()
+
+	snap, validationErrs, err := ev.Evaluate(context.Background(), dir)
+	if err != nil {
+		t.Fatalf("Evaluate should not hard-fail on a single bad file: %v", err)
+	}
+
+	foundGood := false
+	for _, a := range snap.GetAutomations() {
+		if a.GetId() == "good" {
+			foundGood = true
+		}
+	}
+	if !foundGood {
+		t.Error("expected 'good' automation to be loaded despite bad sibling")
+	}
+
+	if len(validationErrs) < 1 {
+		t.Fatalf("expected at least 1 validation error for bad.pkl, got %+v", validationErrs)
+	}
+	badErr := validationErrs[0]
+	if badErr.Code != "pkl_eval" {
+		t.Errorf("err code = %q, want pkl_eval", badErr.Code)
+	}
+	if badErr.File != filepath.Join("automations", "bad.pkl") {
+		t.Errorf("err file = %q", badErr.File)
+	}
+}
+
+func TestEvaluate_DuplicateIdIsHardError(t *testing.T) {
+	dir := t.TempDir()
+	writePkl(t, dir, "main.pkl", `
+amends "switchyard:config"
+
+import "switchyard:automations" as auto
+
+automations = new {
+  new {
+    id = "dup"
+    enabled = true
+    triggers = new {
+      new auto.EventTrigger { kind = "sun.sunset" }
+    }
+    actions = new {}
+  }
+}
+`)
+	if err := os.MkdirAll(filepath.Join(dir, "automations"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writePkl(t, filepath.Join(dir, "automations"), "dup.pkl", `
+amends "switchyard:automation"
+import "switchyard:automations" as auto
+
+id = "dup"
+enabled = true
+triggers {
+  new auto.EventTrigger { kind = "sun.sunset" }
+}
+actions {}
+`)
+
+	ev, err := newPklEvaluator(context.Background(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = ev.ev.Close() }()
+
+	_, validationErrs, err := ev.Evaluate(context.Background(), dir)
+	if err == nil {
+		t.Fatal("expected hard error for duplicate id")
+	}
+	found := false
+	for _, e := range validationErrs {
+		if e.Code == "duplicate_id" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected duplicate_id soft error alongside hard error, got %+v", validationErrs)
+	}
+}
+
 func TestEvaluate_TypedScript(t *testing.T) {
 	dir := t.TempDir()
 	writePkl(t, dir, "main.pkl", `
