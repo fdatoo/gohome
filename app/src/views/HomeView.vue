@@ -23,6 +23,7 @@ import { listAreas } from "@/data/areas";
 import { listEvents, type EventRecord } from "@/data/activity";
 import { presentEvent } from "@/data/event-display";
 import { entityStore } from "@/stores/entity-store";
+import { configStore } from "@/stores/config-store";
 
 /* ---- Greeting -------------------------------------------------------- */
 const tickNow = ref<Date>(new Date());
@@ -75,6 +76,7 @@ const recentError = ref<string>("");
 
 const router = useRouter();
 const aborts: AbortController[] = [];
+let unsubConfigChanged: (() => void) | null = null;
 
 function newAbort(): AbortController {
   const a = new AbortController();
@@ -131,11 +133,16 @@ onMounted(() => {
   void loadAreas();
   void loadRecent();
   tickHandle = window.setInterval(() => { tickNow.value = new Date(); }, 60_000);
+  unsubConfigChanged = configStore.onChanged(() => {
+    void loadAutomations();
+    void loadAreas();
+  });
 });
 
 onBeforeUnmount(() => {
   for (const a of aborts) a.abort();
   if (tickHandle !== null) window.clearInterval(tickHandle);
+  unsubConfigChanged?.();
 });
 
 function openEvent(id: string): void {

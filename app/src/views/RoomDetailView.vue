@@ -28,11 +28,14 @@ import {
   type Automation,
 } from "@/data/automations";
 import { entityStore } from "@/stores/entity-store";
+import { configStore } from "@/stores/config-store";
 import { RpcError } from "@/data/rpc";
 import type { Entity } from "@/data/entities";
 
 const route = useRoute();
 const router = useRouter();
+
+let unsubConfigChanged: (() => void) | null = null;
 
 const areaId = computed<string>(() => String(route.params.id ?? ""));
 
@@ -211,9 +214,14 @@ onMounted(() => {
   void loadAutomations();
   // Keep relative timestamps fresh.
   tickHandle = window.setInterval(() => { tickNow.value = new Date(); }, 60_000);
+  unsubConfigChanged = configStore.onChanged(() => {
+    void loadAreas();
+    void loadScenes();
+  });
 });
 onBeforeUnmount(() => {
   if (tickHandle !== null) window.clearInterval(tickHandle);
+  unsubConfigChanged?.();
 });
 
 // Whenever the entity-set for this area materially changes, refresh stories.

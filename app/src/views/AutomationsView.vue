@@ -21,6 +21,7 @@ import {
   listAutomations, enableAutomation, disableAutomation, triggerAutomation,
   type Automation,
 } from "@/data/automations";
+import { configStore } from "@/stores/config-store";
 import SyAutomationForm from "@/views/automations/SyAutomationForm.vue";
 
 type LoadState = "loading" | "ok" | "error";
@@ -31,6 +32,7 @@ const errorMessage = ref<string>("");
 const actionError = ref<string>("");
 
 let abort: AbortController | null = null;
+let unsubConfigChanged: (() => void) | null = null;
 
 async function load(): Promise<void> {
   abort?.abort();
@@ -56,8 +58,16 @@ async function refresh(): Promise<void> {
   } catch { /* next refresh will retry */ }
 }
 
-onMounted(load);
-onBeforeUnmount(() => abort?.abort());
+onMounted(() => {
+  load();
+  unsubConfigChanged = configStore.onChanged(() => {
+    void refresh();
+  });
+});
+onBeforeUnmount(() => {
+  abort?.abort();
+  unsubConfigChanged?.();
+});
 
 async function onToggle(a: Automation, next: boolean): Promise<void> {
   /* Optimistic local flip; revert on failure. */
