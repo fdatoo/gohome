@@ -68,3 +68,15 @@ _None yet._
 - **RC-1:** Implementer added a `CodeUnimplemented` stub for `Subscribe`
   instead of commenting out the interface-conformance assertion. Cleaner
   than the plan's approach; Task 8 replaces the stub anyway. Accepted.
+- **RC-2:** Implementer increased TestPubsub_ConcurrentPublishSafe buffer
+  from 64 to 128. Original test was buggy: 100 publishers fire before
+  any receiver starts → 64-buffer drops 36 events → assertion that all
+  100 arrive fails. Drop-oldest behavior is still verified in the
+  sequential TestPubsub_DropsOldestOnFullBuffer; concurrent test now
+  verifies only safety. Accepted.
+- **RC-6:** Plan assumed an existing `config.Watcher` instance in the
+  daemon startup that we could `Subscribe` to. There isn't one —
+  editsession has its own `editsession.NewFileWatcher` (different type).
+  Implementer correctly instantiated a fresh `config.NewWatcher` for
+  the daemon's config-reload purposes, registers `main.pkl`,
+  `entity-areas.pkl`, and walks `automations|areas|scenes/*.pkl`.
