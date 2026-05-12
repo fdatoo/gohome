@@ -1,0 +1,18 @@
+module switchyard.areas
+
+/// Area is a room or zone — a named grouping of entities that the UI
+/// renders as a "room" tile. Areas are declared first-class in Pkl so the
+/// daemon can list them, the UI can drill into them, and entities can be
+/// assigned via `config.entityAreas`.
+class Area {
+  /// Stable identifier; appears in URLs (/rooms/:id) and in entity
+  /// assignments. Lowercase + dashes/underscores by convention.
+  id:          String(!isEmpty)
+
+  /// Human-readable name shown in the UI ("Bedroom", "Living Room").
+  displayName: String
+
+  /// Optional parent for nested areas ("garage" inside "house"). Empty /
+  /// null = top-level.
+  parentId:    String?
+}

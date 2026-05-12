@@ -1,5 +1,6 @@
 module switchyard.config
 
+import "switchyard:areas" as ar
 import "switchyard:entities" as ent
 import "switchyard:carport" as cp
 import "switchyard:automations" as auto
@@ -11,7 +12,14 @@ import "switchyard:mcp" as mcpmod
 import "switchyard:widgets" as widgets
 
 driverInstances: Listing<cp.DriverInstance> = new {}
+areas: Listing<ar.Area> = new {}
 entities: Listing<ent.Entity> = new {}
+/// Entity-id → area-id assignments. Drivers register entities without
+/// knowing about user-facing rooms; this mapping is the user's chance to
+/// say "light.hue_03593af4 lives in the bedroom". The daemon applies the
+/// override at registration time so api.Entity.area_id reflects the
+/// assignment.
+entityAreas: Mapping<String, String> = new {}
 automations: Listing<auto.Automation> = new {}
 scripts: Listing<scr.Script> = new {}
 pages: Listing<pagesmod.Page> = new {}

@@ -19,11 +19,24 @@ message ConfigSnapshot {
   repeated PolicyConfig         policies         = 16;
   repeated ScriptConfig         scripts          = 17;
   WidgetPackPolicy              widget_pack_policy = 18;
+  repeated AreaConfig           areas              = 19;
 
   // 20-29: listener & MCP
   ListenerConfig    listener      = 20;
   MCPConfig         mcp           = 21;
   AuthSettingsConfig auth_settings = 22;
+
+  // 30-39: assignments / overrides
+  // entity_areas maps an entity id to an area id. Drivers register
+  // entities without area context; this mapping is the user's override
+  // applied at the registry boundary.
+  map<string, string> entity_areas = 30;
+}
+
+message AreaConfig {
+  string id           = 1;
+  string display_name = 2;
+  string parent_id    = 3;
 }
 
 message DriverInstanceConfig {

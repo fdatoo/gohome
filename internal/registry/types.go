@@ -41,6 +41,19 @@ type Entity struct {
 	Disabled         bool
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
+	// AreaID is filled in at read time from the registry's in-memory
+	// entityAreas mapping (populated by the config manager). Entities
+	// without an assignment carry an empty AreaID.
+	AreaID string
+}
+
+// Area is a user-declared room / zone. Areas are config-driven (Pkl
+// `areas: Listing<Area>`), not registered via events. The registry
+// holds them in memory and refreshes on config reload.
+type Area struct {
+	ID          string
+	DisplayName string
+	ParentID    string
 }
 
 type DeviceFilter struct {

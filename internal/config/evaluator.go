@@ -214,7 +214,9 @@ type mcpConfigJSON struct {
 
 type configJSON struct {
 	DriverInstances  []json.RawMessage    `json:"driverInstances"`
+	Areas            []areaJSON           `json:"areas"`
 	Entities         []entityJSON         `json:"entities"`
+	EntityAreas      map[string]string    `json:"entityAreas"`
 	Automations      []automationJSON     `json:"automations"`
 	Scripts          []scriptJSON         `json:"scripts"`
 	Dashboards       []dashboardJSON      `json:"dashboards"`
@@ -225,6 +227,12 @@ type configJSON struct {
 	AuthSettings     *authSettingsJSON    `json:"auth_settings"`
 	Listener         listenerJSON         `json:"listener"`
 	MCP              mcpConfigJSON        `json:"mcp"`
+}
+
+type areaJSON struct {
+	ID          string  `json:"id"`
+	DisplayName string  `json:"displayName"`
+	ParentID    *string `json:"parentId"`
 }
 
 type listenerJSON struct {
@@ -387,6 +395,25 @@ func parseConfigJSON(text, configDir string) (*configpb.ConfigSnapshot, error) {
 	snap := &configpb.ConfigSnapshot{
 		EvaluatedAtUnixMs: time.Now().UnixMilli(),
 		ConfigDir:         configDir,
+	}
+
+	for _, a := range raw.Areas {
+		parent := ""
+		if a.ParentID != nil {
+			parent = *a.ParentID
+		}
+		snap.Areas = append(snap.Areas, &configpb.AreaConfig{
+			Id:          strings.TrimSpace(a.ID),
+			DisplayName: a.DisplayName,
+			ParentId:    parent,
+		})
+	}
+
+	if len(raw.EntityAreas) > 0 {
+		snap.EntityAreas = make(map[string]string, len(raw.EntityAreas))
+		for k, v := range raw.EntityAreas {
+			snap.EntityAreas[k] = v
+		}
 	}
 
 	for _, rawInst := range raw.DriverInstances {

@@ -254,12 +254,26 @@ type areaReaderAdapter struct {
 }
 
 func (a *areaReaderAdapter) ListAreas(_ context.Context, _ api.PageReq) ([]api.Area, api.Cursor, error) {
-	// Areas are not tracked in the registry yet (future milestone)
-	return nil, api.Cursor{}, nil
+	if a.reg == nil {
+		return nil, api.Cursor{}, nil
+	}
+	src := a.reg.ListAreasInMemory()
+	out := make([]api.Area, 0, len(src))
+	for _, ar := range src {
+		out = append(out, api.Area{ID: ar.ID, DisplayName: ar.DisplayName, ParentID: ar.ParentID})
+	}
+	return out, api.Cursor{}, nil
 }
 
 func (a *areaReaderAdapter) GetArea(_ context.Context, id string) (api.Area, error) {
-	return api.Area{}, fmt.Errorf("area %q not found", id)
+	if a.reg == nil {
+		return api.Area{}, fmt.Errorf("area %q not found", id)
+	}
+	ar, ok := a.reg.GetAreaInMemory(id)
+	if !ok {
+		return api.Area{}, fmt.Errorf("area %q not found", id)
+	}
+	return api.Area{ID: ar.ID, DisplayName: ar.DisplayName, ParentID: ar.ParentID}, nil
 }
 
 // ---- zoneReaderAdapter ----
@@ -420,6 +434,7 @@ func (a *entityReaderAdapter) toAPIEntity(e registry.Entity) api.Entity {
 		ID:           e.ID,
 		Type:         e.EntityType,
 		DeviceID:     e.DeviceID,
+		AreaID:       e.AreaID,
 		FriendlyName: e.FriendlyName,
 	}
 	// Attach live state from cache if available

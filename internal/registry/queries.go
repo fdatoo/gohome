@@ -71,7 +71,12 @@ func (r *Registry) ListDevices(ctx context.Context, f DeviceFilter) ([]Device, e
 func (r *Registry) GetEntity(ctx context.Context, id string) (Entity, error) {
 	row := r.db.QueryRowContext(ctx, `SELECT id, COALESCE(device_id, ''), driver_instance_id,
 		entity_type, friendly_name, capabilities, disabled, created_at, updated_at FROM entities WHERE id = ?`, id)
-	return scanEntity(row)
+	e, err := scanEntity(row)
+	if err != nil {
+		return e, err
+	}
+	e.AreaID = r.AreaForEntity(e.ID)
+	return e, nil
 }
 
 func (r *Registry) ListEntities(ctx context.Context, f EntityFilter) ([]Entity, error) {
@@ -105,6 +110,7 @@ func (r *Registry) ListEntities(ctx context.Context, f EntityFilter) ([]Entity, 
 		if err != nil {
 			return nil, err
 		}
+		e.AreaID = r.AreaForEntity(e.ID)
 		out = append(out, e)
 	}
 	return out, rows.Err()

@@ -365,7 +365,14 @@ func (d *Daemon) Run(ctx context.Context) (err error) {
 	}
 
 	if d.configMgr != nil {
+		// Apply the initial snapshot's areas synchronously so the registry
+		// has them by the time the API listener accepts requests. The
+		// OnApplied callback below handles subsequent reloads.
+		if initial := d.configMgr.Current(); initial != nil {
+			syncAreasToRegistry(d.registry, initial)
+		}
 		d.configMgr.OnApplied(func(snap *configpb.ConfigSnapshot) { //nolint:contextcheck // Reload→registerTriggers closure captures lifecycle context; OnApplied callback receives no context
+			syncAreasToRegistry(d.registry, snap)
 			if err := applyAuthSnapshot(context.Background(), identityStore, passwordStore, snap); err != nil {
 				d.logger.Warn("auth config reload", "err", err)
 				return

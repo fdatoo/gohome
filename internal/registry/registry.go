@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"sync"
 
 	"google.golang.org/protobuf/proto"
 
@@ -18,6 +19,12 @@ import (
 type Registry struct {
 	db *sql.DB
 	eventstore.NoSnapshot
+
+	// Area state — config-driven, not event-sourced. Refreshed on each
+	// successful config Apply via SetAreas / SetEntityAreas.
+	areaMu      sync.RWMutex
+	areas       map[string]Area
+	entityAreas map[string]string
 }
 
 // New returns a Registry attached to an already-open DB and runs registry migrations.
