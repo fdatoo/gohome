@@ -26,6 +26,7 @@ import (
 	"github.com/fdatoo/switchyard/internal/auth"
 	"github.com/fdatoo/switchyard/internal/auth/identity"
 	"github.com/fdatoo/switchyard/internal/automation"
+	"github.com/fdatoo/switchyard/internal/automation/scene"
 	"github.com/fdatoo/switchyard/internal/carport"
 	"github.com/fdatoo/switchyard/internal/config"
 	"github.com/fdatoo/switchyard/internal/diagnostics"
@@ -724,6 +725,22 @@ func (a *eventSourceAdapter) Subscribe(ctx context.Context, filter api.EventFilt
 
 	cancel := func() { _ = sub.Close() }
 	return ch, cancel, nil
+}
+
+// ---- sceneInvokerAdapter ----
+
+// sceneInvokerAdapter bridges scene.Applier.Invoke into api.SceneInvoker,
+// translating scene.ErrSceneNotFound into the api package's sentinel.
+type sceneInvokerAdapter struct {
+	applier *scene.Applier
+}
+
+func (a *sceneInvokerAdapter) Invoke(ctx context.Context, sceneID, correlationID, invokedBy string) error {
+	err := a.applier.Invoke(ctx, sceneID, correlationID, invokedBy)
+	if errors.Is(err, scene.ErrSceneNotFound) {
+		return api.ErrSceneNotFound()
+	}
+	return err
 }
 
 // ---- configApplierAdapter ----

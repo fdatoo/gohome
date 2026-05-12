@@ -37,6 +37,7 @@ import (
 	"github.com/fdatoo/switchyard/internal/auth/throttle"
 	"github.com/fdatoo/switchyard/internal/automation"
 	"github.com/fdatoo/switchyard/internal/automation/action"
+	"github.com/fdatoo/switchyard/internal/automation/scene"
 	"github.com/fdatoo/switchyard/internal/carport"
 	"github.com/fdatoo/switchyard/internal/commandcatalog"
 	"github.com/fdatoo/switchyard/internal/config"
@@ -79,6 +80,7 @@ type Daemon struct {
 	starlarkRuntime  *starlark.Runtime
 	scriptEngine     *script.Engine
 	automationEngine *automation.Engine
+	sceneApplier     *scene.Applier
 	configDir        string
 	startTime        time.Time
 	configReloader   *config.Reloader
@@ -338,11 +340,21 @@ func (d *Daemon) Run(ctx context.Context) (err error) {
 		d.logger.Error("automation compile failed", "err", err)
 		autos = map[string]*automation.Automation{}
 	}
+	d.sceneApplier = scene.NewApplier(
+		d.configMgr,
+		&carportAdapter{host: d.carport},
+		d.store,
+		&stateAdapter{cache: d.cache},
+		&scriptCallerAdapter{eng: d.scriptEngine},
+		d.starlarkRuntime,
+		d.logger,
+		d.metrics,
+	)
 	d.automationEngine = automation.NewEngine(autos, d.scriptEngine, d.starlarkRuntime, automation.Deps{ //nolint:contextcheck // holdFn closure in registerTriggers captures lifecycle context; callback signature is fixed
 		State:      &stateAdapter{cache: d.cache},
 		Dispatcher: &carportAdapter{host: d.carport},
 		Store:      d.store,
-		Scenes:     &action.StubSceneApplier{Store: d.store, Logger: d.logger},
+		Scenes:     d.sceneApplier,
 		Logger:     d.logger,
 		Metrics:    d.metrics,
 	})
@@ -604,7 +616,7 @@ func (d *Daemon) Run(ctx context.Context) (err error) {
 		Config:     api.NewConfigService(cfgAppl),
 		Automation: api.NewAutomationService(autoCtl),
 		Script:     api.NewScriptService(scriptRun, &eventAppenderAdapter{store: d.store}, sysBE),
-		Scene:      api.NewSceneService(),
+		Scene:      api.NewRealSceneService(d.configMgr, &sceneInvokerAdapter{applier: d.sceneApplier}, d.logger),
 		Page:       page.NewService(newPageBackend(configDir, driversDir, packStore), page.NewCatalog(nil)),
 		WidgetPack:     packService,
 		CommandCatalog: cmdCatalogSvc,
@@ -997,6 +1009,26 @@ func (a *carportAdapter) Dispatch(ctx context.Context, entityID, capability stri
 	}
 	return &starlark.DispatchResult{Ok: res.GetOk(), Error: res.GetErrorMessage()}, nil
 }
+
+// scriptCallerAdapter wraps *script.Engine to satisfy action.ScriptCaller.
+// script.Engine.Call returns *script.CallResult; action.ScriptCaller expects
+// the return to implement action.ScriptCallResult (an interface).
+type scriptCallerAdapter struct{ eng *script.Engine }
+
+func (a *scriptCallerAdapter) Call(ctx context.Context, name string, args map[string]string, invokedBy, sharedCorrID string) (action.ScriptCallResult, error) {
+	res, err := a.eng.Call(ctx, name, args, invokedBy, sharedCorrID)
+	if err != nil {
+		return nil, err
+	}
+	return &scriptCallResultAdapter{r: res}, nil
+}
+
+type scriptCallResultAdapter struct{ r *script.CallResult }
+
+func (s *scriptCallResultAdapter) Succeeded() bool   { return s.r.Error == "" }
+func (s *scriptCallResultAdapter) GetError() string  { return s.r.Error }
+func (s *scriptCallResultAdapter) GetSteps() uint64  { return s.r.Steps }
+func (s *scriptCallResultAdapter) GetLogs() []string { return s.r.Logs }
 
 // isConfigRelevantPath returns true if the watched path is one of the
 // files the daemon's config snapshot depends on: main.pkl or any .pkl
