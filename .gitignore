@@ -17,24 +17,8 @@ var/
 /gohomed.lock
 /gohomed.sock
 
-# Web
-web/node_modules/
-web/.vite/
-web/coverage/
-web/.playwright-daemon.json
-web/playwright-report/
-web/test-results/
-web/*.tsbuildinfo
-web/vite.config.js
-web/vite.config.d.ts
+# Embedded web assets
 internal/web/dist/
-
-# Ad-hoc Playwright audit/capture scripts at web/ root
-web/audit-pages.mjs
-web/capture-mockups.mjs
-web/polish-audit.mjs
-web/screenshot-pages.mjs
-web/sidebar-probe.mjs
 
 # Docs build output
 docs/site/
