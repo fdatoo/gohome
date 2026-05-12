@@ -47,8 +47,9 @@ type Service struct {
 	logger    *slog.Logger
 	configDir string // root directory for Pkl/Starlark config files
 
-	mu       sync.Mutex
-	sessions map[string]*sessionMeta // key: session_id
+	mu              sync.Mutex
+	sessions        map[string]*sessionMeta // key: session_id
+	onCommitTrigger func(source string)     // nullable; set during daemon wiring
 }
 
 // Compile-time assertion.
@@ -69,6 +70,13 @@ func NewService(locks *LockManager, watcher *FileWatcher, reloader ConfigReloade
 		configDir: configDir,
 		sessions:  make(map[string]*sessionMeta),
 	}
+}
+
+// SetOnCommitTrigger registers a callback invoked after each successful
+// CommitEdit. Used by the daemon to wire form saves into the config
+// reloader.
+func (s *Service) SetOnCommitTrigger(fn func(source string)) {
+	s.onCommitTrigger = fn
 }
 
 // resolvePath turns a client-provided file_path into an absolute disk
@@ -230,6 +238,10 @@ func (s *Service) CommitEdit(_ context.Context, req *connect.Request[v1.CommitEd
 	}
 	if err := os.WriteFile(path, []byte(newContent), 0o644); err != nil {
 		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("write file: %w", err))
+	}
+
+	if s.onCommitTrigger != nil {
+		s.onCommitTrigger("form")
 	}
 
 	newHash := hashBytes([]byte(newContent))

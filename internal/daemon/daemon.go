@@ -532,6 +532,9 @@ func (d *Daemon) Run(ctx context.Context) (err error) {
 	editFileWatcher := editsession.NewFileWatcher(0) // default poll interval
 	editFileWatcher.Start(ctx)
 	editSvc := editsession.NewService(editLockMgr, editFileWatcher, nil, d.logger, configDir)
+	if d.configReloader != nil {
+		editSvc.SetOnCommitTrigger(d.configReloader.Trigger)
+	}
 
 	// StarlarkLs subsystem — symbol extractor for scripts directory.
 	starSyms, err := starlarkls.ExtractSymbols(filepath.Join(configDir, "scripts"))
