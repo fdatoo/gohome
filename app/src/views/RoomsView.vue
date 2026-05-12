@@ -8,6 +8,10 @@
 
   Empty / loading / error states mirror Devices and Activity for
   cross-page consistency.
+
+  Global scenes (scenes with no areaId) are listed below the rooms
+  grid with an Apply button per row. The "+ New room" and
+  "+ New scene" buttons in the header open the respective side-sheets.
 -->
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
@@ -17,6 +21,10 @@ import {
 } from "@/lib";
 import { listAreas, type Area } from "@/data/areas";
 import { listEntities, type Entity } from "@/data/entities";
+import { listScenes, applyScene, type Scene } from "@/data/scenes";
+import { configStore } from "@/stores/config-store";
+import SyAreaForm from "@/views/areas/SyAreaForm.vue";
+import SySceneForm from "@/views/scenes/SySceneForm.vue";
 
 const router = useRouter();
 
@@ -37,7 +45,14 @@ const entities = ref<Entity[]>([]);
 const state = ref<LoadState>("loading");
 const errorMessage = ref<string>("");
 
+const scenes = ref<Scene[]>([]);
+const globalScenes = computed(() => scenes.value.filter((s) => !s.areaId));
+
+const areaFormOpen = ref<boolean>(false);
+const globalSceneFormOpen = ref<boolean>(false);
+
 let abort: AbortController | null = null;
+let unsubConfigChanged: (() => void) | null = null;
 
 async function load(): Promise<void> {
   abort?.abort();
@@ -62,8 +77,29 @@ async function load(): Promise<void> {
   }
 }
 
-onMounted(load);
-onBeforeUnmount(() => abort?.abort());
+async function loadScenes(): Promise<void> {
+  try {
+    const r = await listScenes();
+    scenes.value = r.scenes;
+  } catch {
+    /* leave list empty; subsequent reloads will retry */
+  }
+}
+
+async function onApplyScene(s: Scene): Promise<void> {
+  try { await applyScene(s.id); } catch { /* surface later */ }
+}
+
+onMounted(async () => {
+  void load();
+  await loadScenes();
+  unsubConfigChanged = configStore.onChanged(() => { void loadScenes(); });
+});
+
+onBeforeUnmount(() => {
+  abort?.abort();
+  unsubConfigChanged?.();
+});
 
 /** Per-area entity index. Computed once per render so each tile is O(1)
     on lookup; the underlying data sets are small. Entities with no
@@ -98,12 +134,22 @@ const orphanCount = computed<number>(() => entitiesByArea.value.get("_unassigned
 <template>
   <div class="page">
     <header class="page__head">
-      <SyText as="h1" variant="display">Rooms</SyText>
-      <SyText v-if="state === 'ok'" variant="body" tone="subtle">
-        {{ areas.length }} {{ areas.length === 1 ? "room" : "rooms" }}<template v-if="orphanCount > 0">
-          · {{ orphanCount }} unassigned entit{{ orphanCount === 1 ? "y" : "ies" }}
-        </template>
-      </SyText>
+      <div class="page__head-title">
+        <SyText as="h1" variant="display">Rooms</SyText>
+        <SyText v-if="state === 'ok'" variant="body" tone="subtle">
+          {{ areas.length }} {{ areas.length === 1 ? "room" : "rooms" }}<template v-if="orphanCount > 0">
+            · {{ orphanCount }} unassigned entit{{ orphanCount === 1 ? "y" : "ies" }}
+          </template>
+        </SyText>
+      </div>
+      <div class="page__actions">
+        <SyButton intent="ghost" @click="areaFormOpen = true">
+          <SyIcon name="plus" :size="12" /> New room
+        </SyButton>
+        <SyButton intent="ghost" @click="globalSceneFormOpen = true">
+          <SyIcon name="plus" :size="12" /> New scene
+        </SyButton>
+      </div>
     </header>
 
     <SySurface v-if="state === 'loading'" padding="none">
@@ -130,7 +176,7 @@ const orphanCount = computed<number>(() => entitiesByArea.value.get("_unassigned
       >
         <template #icon><SyIcon name="rooms" :size="28" /></template>
         <template #actions>
-          <SyButton intent="primary">Open Pkl config</SyButton>
+          <SyButton intent="primary" @click="areaFormOpen = true">New room</SyButton>
         </template>
       </SyEmptyState>
     </SySurface>
@@ -161,6 +207,22 @@ const orphanCount = computed<number>(() => entitiesByArea.value.get("_unassigned
         </SyText>
       </SyRoomTile>
     </div>
+
+    <section v-if="globalScenes.length > 0" class="page__scenes">
+      <SyText variant="label" tone="subtle">Global scenes</SyText>
+      <div class="page__scene-list">
+        <div v-for="s in globalScenes" :key="s.id" class="page__scene-row">
+          <div class="page__scene-meta">
+            <SyText variant="body">{{ s.displayName || s.id }}</SyText>
+            <SyText variant="caption" tone="subtle">{{ s.id }}</SyText>
+          </div>
+          <SyButton intent="ghost" size="sm" @click="onApplyScene(s)">Apply</SyButton>
+        </div>
+      </div>
+    </section>
+
+    <SyAreaForm v-model:open="areaFormOpen" />
+    <SySceneForm v-model:open="globalSceneFormOpen" :area-id="''" />
   </div>
 </template>
 
@@ -174,12 +236,46 @@ const orphanCount = computed<number>(() => entitiesByArea.value.get("_unassigned
 }
 .page__head {
   display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sy-space-3);
+}
+.page__head-title {
+  display: flex;
   flex-direction: column;
   gap: var(--sy-space-1);
+}
+.page__actions {
+  display: flex;
+  gap: var(--sy-space-2);
+  flex-shrink: 0;
 }
 .page__grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: var(--sy-space-3);
+}
+.page__scenes {
+  margin-top: var(--sy-space-1);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sy-space-2);
+}
+.page__scene-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--sy-color-line-soft);
+}
+.page__scene-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sy-space-2) var(--sy-space-3);
+  background: var(--sy-color-surface-1);
+}
+.page__scene-meta {
+  display: flex;
+  flex-direction: column;
 }
 </style>
