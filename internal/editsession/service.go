@@ -71,14 +71,31 @@ func NewService(locks *LockManager, watcher *FileWatcher, reloader ConfigReloade
 	}
 }
 
+// resolvePath turns a client-provided file_path into an absolute disk
+// path. ListFiles returns paths relative to configDir, so callers (the
+// browser editor) round-trip those relative paths back through OpenForEdit
+// and CommitEdit. We accept either: absolute paths pass through; relative
+// paths join configDir. Absent configDir is a service-misconfiguration
+// (only possible in tests that bypass NewService's normal wiring).
+func (s *Service) resolvePath(path string) string {
+	if filepath.IsAbs(path) {
+		return path
+	}
+	if s.configDir == "" {
+		return path
+	}
+	return filepath.Join(s.configDir, path)
+}
+
 // OpenForEdit opens a file for editing.
 func (s *Service) OpenForEdit(_ context.Context, req *connect.Request[v1.OpenForEditRequest]) (*connect.Response[v1.OpenForEditResponse], error) {
 	path := req.Msg.GetFilePath()
 	if path == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("file_path required"))
 	}
+	resolved := s.resolvePath(path)
 
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(resolved)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("file not found: %s", path))
@@ -94,7 +111,7 @@ func (s *Service) OpenForEdit(_ context.Context, req *connect.Request[v1.OpenFor
 	// TODO: populate ast_json once Pkl exposes a stable parse API.
 	astJSON := "{}"
 
-	token, err := s.locks.Acquire(path)
+	token, err := s.locks.Acquire(resolved)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
@@ -107,7 +124,7 @@ func (s *Service) OpenForEdit(_ context.Context, req *connect.Request[v1.OpenFor
 
 	s.mu.Lock()
 	s.sessions[sessionID] = &sessionMeta{
-		filePath:    path,
+		filePath:    resolved,
 		fileHash:    fileHash,
 		ancestorPkl: ancestorPkl,
 		lockToken:   token,
@@ -125,7 +142,7 @@ func (s *Service) OpenForEdit(_ context.Context, req *connect.Request[v1.OpenFor
 
 // CommitEdit writes the regenerated Pkl to disk.
 func (s *Service) CommitEdit(_ context.Context, req *connect.Request[v1.CommitEditRequest]) (*connect.Response[v1.CommitEditResponse], error) {
-	path := req.Msg.GetFilePath()
+	path := s.resolvePath(req.Msg.GetFilePath())
 	token := req.Msg.GetLockToken()
 
 	// Validate lock
@@ -305,6 +322,7 @@ func (s *Service) AnalyzeRegenerability(_ context.Context, req *connect.Request[
 	if path == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("file_path required"))
 	}
+	path = s.resolvePath(path)
 
 	regions, err := AnalyzeFile(path)
 	if err != nil {
