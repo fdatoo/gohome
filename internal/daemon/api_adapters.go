@@ -729,7 +729,8 @@ func (a *eventSourceAdapter) Subscribe(ctx context.Context, filter api.EventFilt
 // ---- configApplierAdapter ----
 
 type configApplierAdapter struct {
-	mgr *config.Manager
+	mgr      *config.Manager
+	reloader *config.Reloader
 }
 
 // managerReloaderApplier adapts *config.Manager to config.ReloaderApplier.
@@ -772,14 +773,19 @@ func (a *configApplierAdapter) Apply(ctx context.Context, _ []byte, _, _ string,
 	return api.ConfigApplyResult{Applied: !dryRun}, nil
 }
 
-func (a *configApplierAdapter) Reload(ctx context.Context, _ string) (api.ConfigDiff, string, error) {
-	if a.mgr == nil {
-		return api.ConfigDiff{}, "", fmt.Errorf("config manager not available")
-	}
-	if err := a.mgr.Apply(ctx, false); err != nil {
-		return api.ConfigDiff{}, "", err
-	}
+func (a *configApplierAdapter) Reload(_ context.Context, _ string) (api.ConfigDiff, string, error) {
+	// Trigger reload via the reloader; the apply happens asynchronously
+	// (debounced 250ms). We do not wait for it — the user's UI will
+	// observe the ConfigChanged event via the Subscribe stream.
+	a.reloader.Trigger("rpc")
 	return api.ConfigDiff{}, "", nil
+}
+
+func (a *configApplierAdapter) LastReloadError() string {
+	if a.reloader == nil {
+		return ""
+	}
+	return a.reloader.LastError()
 }
 
 func (a *configApplierAdapter) CurrentArtifact(_ context.Context) (*configpb.ConfigSnapshot, error) {

@@ -234,6 +234,7 @@ type ConfigApplier interface {
 	Apply(ctx context.Context, pklBundle []byte, message, expectedHash string, dryRun, strict bool, actor string) (ConfigApplyResult, error)
 	Reload(ctx context.Context, actor string) (diff ConfigDiff, correlationID string, err error)
 	CurrentArtifact(ctx context.Context) (*configv1.ConfigSnapshot, error)
+	LastReloadError() string
 }
 
 // --- Automation ---

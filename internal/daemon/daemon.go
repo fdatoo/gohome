@@ -479,7 +479,7 @@ func (d *Daemon) Run(ctx context.Context) (err error) {
 	zoneRd := &zoneReaderAdapter{reg: d.registry}
 	drvCtl := &driverControlAdapter{sup: d.carport, reg: d.registry}
 	evtSrc := &eventSourceAdapter{store: d.store}
-	cfgAppl := &configApplierAdapter{mgr: d.configMgr}
+	cfgAppl := &configApplierAdapter{mgr: d.configMgr, reloader: d.configReloader}
 	autoCtl := &automationControlAdapter{eng: d.automationEngine, store: d.store}
 	scriptRun := &scriptRunnerAdapter{eng: d.scriptEngine, rt: d.starlarkRuntime, configDir: configDir}
 	wbRouter := &webhookRouterAdapter{mgr: d.configMgr}

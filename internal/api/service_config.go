@@ -51,6 +51,7 @@ func (s *ConfigService) Reload(ctx context.Context, _ *connect.Request[v1.Reload
 	return connect.NewResponse(&v1.ReloadConfigResponse{
 		Diff:          configDiffToProto(diff),
 		CorrelationId: correlationID,
+		Error:         s.be.LastReloadError(),
 	}), nil
 }
 

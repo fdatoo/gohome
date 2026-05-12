@@ -28,6 +28,8 @@ type fakeConfig struct {
 
 	snapshot    *configv1.ConfigSnapshot
 	artifactErr error
+
+	lastReloadError string
 }
 
 func (f *fakeConfig) Validate(_ context.Context, _ []byte) (bool, []string, api.ConfigDiff, string, error) {
@@ -45,6 +47,8 @@ func (f *fakeConfig) Reload(_ context.Context, _ string) (api.ConfigDiff, string
 func (f *fakeConfig) CurrentArtifact(_ context.Context) (*configv1.ConfigSnapshot, error) {
 	return f.snapshot, f.artifactErr
 }
+
+func (f *fakeConfig) LastReloadError() string { return f.lastReloadError }
 
 var _ api.ConfigApplier = (*fakeConfig)(nil)
 
