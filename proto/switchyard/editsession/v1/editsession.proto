@@ -35,6 +35,12 @@ service EditSessionService {
   // ListFiles returns all Pkl and Starlark files in the config root.
   // Used by the web editor to populate the file tree.
   rpc ListFiles(ListFilesRequest) returns (ListFilesResponse);
+
+  // RenameFile moves a Pkl or Starlark file within the config root.
+  rpc RenameFile(RenameFileRequest) returns (RenameFileResponse);
+
+  // DeleteFile removes a Pkl or Starlark file from the config root.
+  rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
 }
 
 // ---------------------------------------------------------------------------
@@ -173,3 +179,22 @@ message FileEntry {
   // 10-19: status
   bool has_error   = 10; // true if validation failed last attempt
 }
+
+// ---------------------------------------------------------------------------
+// File operations
+// ---------------------------------------------------------------------------
+
+message RenameFileRequest {
+  // 1-9: file targets
+  string old_file_path = 1;
+  string new_file_path = 2;
+}
+
+message RenameFileResponse {}
+
+message DeleteFileRequest {
+  // 1-9: file target
+  string file_path = 1;
+}
+
+message DeleteFileResponse {}

@@ -27,6 +27,8 @@ const (
 	EditSessionService_SessionEvents_FullMethodName         = "/switchyard.editsession.v1.EditSessionService/SessionEvents"
 	EditSessionService_AnalyzeRegenerability_FullMethodName = "/switchyard.editsession.v1.EditSessionService/AnalyzeRegenerability"
 	EditSessionService_ListFiles_FullMethodName             = "/switchyard.editsession.v1.EditSessionService/ListFiles"
+	EditSessionService_RenameFile_FullMethodName            = "/switchyard.editsession.v1.EditSessionService/RenameFile"
+	EditSessionService_DeleteFile_FullMethodName            = "/switchyard.editsession.v1.EditSessionService/DeleteFile"
 )
 
 // EditSessionServiceClient is the client API for EditSessionService service.
@@ -57,6 +59,10 @@ type EditSessionServiceClient interface {
 	// ListFiles returns all Pkl and Starlark files in the config root.
 	// Used by the web editor to populate the file tree.
 	ListFiles(ctx context.Context, in *ListFilesRequest, opts ...grpc.CallOption) (*ListFilesResponse, error)
+	// RenameFile moves a Pkl or Starlark file within the config root.
+	RenameFile(ctx context.Context, in *RenameFileRequest, opts ...grpc.CallOption) (*RenameFileResponse, error)
+	// DeleteFile removes a Pkl or Starlark file from the config root.
+	DeleteFile(ctx context.Context, in *DeleteFileRequest, opts ...grpc.CallOption) (*DeleteFileResponse, error)
 }
 
 type editSessionServiceClient struct {
@@ -136,6 +142,26 @@ func (c *editSessionServiceClient) ListFiles(ctx context.Context, in *ListFilesR
 	return out, nil
 }
 
+func (c *editSessionServiceClient) RenameFile(ctx context.Context, in *RenameFileRequest, opts ...grpc.CallOption) (*RenameFileResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RenameFileResponse)
+	err := c.cc.Invoke(ctx, EditSessionService_RenameFile_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *editSessionServiceClient) DeleteFile(ctx context.Context, in *DeleteFileRequest, opts ...grpc.CallOption) (*DeleteFileResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteFileResponse)
+	err := c.cc.Invoke(ctx, EditSessionService_DeleteFile_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // EditSessionServiceServer is the server API for EditSessionService service.
 // All implementations should embed UnimplementedEditSessionServiceServer
 // for forward compatibility.
@@ -164,6 +190,10 @@ type EditSessionServiceServer interface {
 	// ListFiles returns all Pkl and Starlark files in the config root.
 	// Used by the web editor to populate the file tree.
 	ListFiles(context.Context, *ListFilesRequest) (*ListFilesResponse, error)
+	// RenameFile moves a Pkl or Starlark file within the config root.
+	RenameFile(context.Context, *RenameFileRequest) (*RenameFileResponse, error)
+	// DeleteFile removes a Pkl or Starlark file from the config root.
+	DeleteFile(context.Context, *DeleteFileRequest) (*DeleteFileResponse, error)
 }
 
 // UnimplementedEditSessionServiceServer should be embedded to have
@@ -190,6 +220,12 @@ func (UnimplementedEditSessionServiceServer) AnalyzeRegenerability(context.Conte
 }
 func (UnimplementedEditSessionServiceServer) ListFiles(context.Context, *ListFilesRequest) (*ListFilesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListFiles not implemented")
+}
+func (UnimplementedEditSessionServiceServer) RenameFile(context.Context, *RenameFileRequest) (*RenameFileResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RenameFile not implemented")
+}
+func (UnimplementedEditSessionServiceServer) DeleteFile(context.Context, *DeleteFileRequest) (*DeleteFileResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteFile not implemented")
 }
 func (UnimplementedEditSessionServiceServer) testEmbeddedByValue() {}
 
@@ -312,6 +348,42 @@ func _EditSessionService_ListFiles_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _EditSessionService_RenameFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RenameFileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EditSessionServiceServer).RenameFile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EditSessionService_RenameFile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EditSessionServiceServer).RenameFile(ctx, req.(*RenameFileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _EditSessionService_DeleteFile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteFileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EditSessionServiceServer).DeleteFile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EditSessionService_DeleteFile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EditSessionServiceServer).DeleteFile(ctx, req.(*DeleteFileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // EditSessionService_ServiceDesc is the grpc.ServiceDesc for EditSessionService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -338,6 +410,14 @@ var EditSessionService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListFiles",
 			Handler:    _EditSessionService_ListFiles_Handler,
+		},
+		{
+			MethodName: "RenameFile",
+			Handler:    _EditSessionService_RenameFile_Handler,
+		},
+		{
+			MethodName: "DeleteFile",
+			Handler:    _EditSessionService_DeleteFile_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

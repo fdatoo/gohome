@@ -103,6 +103,21 @@ export async function abandonEdit(args: { filePath: string; lockToken: string },
   );
 }
 
+export async function renameFile(
+  args: { oldFilePath: string; newFilePath: string },
+  opts: RpcOptions = {},
+): Promise<void> {
+  await rpcCall<typeof args, Record<string, never>>(
+    `${SVC}/RenameFile`, args, opts,
+  );
+}
+
+export async function deleteFile(filePath: string, opts: RpcOptions = {}): Promise<void> {
+  await rpcCall<{ filePath: string }, Record<string, never>>(
+    `${SVC}/DeleteFile`, { filePath }, opts,
+  );
+}
+
 export interface SessionEvent {
   kind: "heartbeat" | "external_edit_detected" | "unknown";
   filePath?: string;

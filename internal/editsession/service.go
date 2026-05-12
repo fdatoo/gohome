@@ -412,6 +412,106 @@ func (s *Service) ListFiles(_ context.Context, _ *connect.Request[v1.ListFilesRe
 	}), nil
 }
 
+// RenameFile moves a Pkl or Starlark file within the config root.
+func (s *Service) RenameFile(_ context.Context, req *connect.Request[v1.RenameFileRequest]) (*connect.Response[v1.RenameFileResponse], error) {
+	oldPath, _, err := s.resolveManagedFilePath(req.Msg.GetOldFilePath())
+	if err != nil {
+		return nil, err
+	}
+	newPath, _, err := s.resolveManagedFilePath(req.Msg.GetNewFilePath())
+	if err != nil {
+		return nil, err
+	}
+	if oldPath == newPath {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("old_file_path and new_file_path must differ"))
+	}
+	if s.hasActiveSession(oldPath) {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("file has an active edit session"))
+	}
+	if _, err := os.Stat(oldPath); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("file not found: %s", req.Msg.GetOldFilePath()))
+		}
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if _, err := os.Stat(newPath); err == nil {
+		return nil, connect.NewError(connect.CodeAlreadyExists, fmt.Errorf("file already exists: %s", req.Msg.GetNewFilePath()))
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return nil, connect.NewError(connect.CodeInternal, err)
+	}
+	if err := os.MkdirAll(filepath.Dir(newPath), 0o755); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("mkdir parent: %w", err))
+	}
+	if err := os.Rename(oldPath, newPath); err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("rename file: %w", err))
+	}
+	s.triggerReload("rename")
+	return connect.NewResponse(&v1.RenameFileResponse{}), nil
+}
+
+// DeleteFile removes a Pkl or Starlark file from the config root.
+func (s *Service) DeleteFile(_ context.Context, req *connect.Request[v1.DeleteFileRequest]) (*connect.Response[v1.DeleteFileResponse], error) {
+	path, _, err := s.resolveManagedFilePath(req.Msg.GetFilePath())
+	if err != nil {
+		return nil, err
+	}
+	if s.hasActiveSession(path) {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("file has an active edit session"))
+	}
+	if err := os.Remove(path); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("file not found: %s", req.Msg.GetFilePath()))
+		}
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("delete file: %w", err))
+	}
+	s.triggerReload("delete")
+	return connect.NewResponse(&v1.DeleteFileResponse{}), nil
+}
+
+func (s *Service) resolveManagedFilePath(path string) (string, string, error) {
+	if s.configDir == "" {
+		return "", "", connect.NewError(connect.CodeFailedPrecondition, errors.New("config_dir not configured"))
+	}
+	if path == "" {
+		return "", "", connect.NewError(connect.CodeInvalidArgument, errors.New("file_path required"))
+	}
+
+	clean := filepath.Clean(path)
+	rel := clean
+	if filepath.IsAbs(clean) {
+		var err error
+		rel, err = filepath.Rel(s.configDir, clean)
+		if err != nil {
+			return "", "", connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("file_path outside config root: %s", path))
+		}
+	}
+	if rel == "." || rel == ".." || filepath.IsAbs(rel) || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", "", connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("file_path outside config root: %s", path))
+	}
+	ext := filepath.Ext(rel)
+	if ext != ".pkl" && ext != ".star" {
+		return "", "", connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("unsupported file extension: %s", ext))
+	}
+	return filepath.Join(s.configDir, rel), rel, nil
+}
+
+func (s *Service) hasActiveSession(path string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, meta := range s.sessions {
+		if meta.filePath == path {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *Service) triggerReload(source string) {
+	if s.onCommitTrigger != nil {
+		s.onCommitTrigger(source)
+	}
+}
+
 // hashBytes returns the SHA-256 hex digest of b.
 func hashBytes(b []byte) string {
 	h := sha256.Sum256(b)

@@ -18,6 +18,7 @@ import {
 import type { FileEntry as TreeEntry } from "@/lib/components/file-tree/SyFileTree.vue";
 import {
   listFiles, openForEdit, commitEdit, abandonEdit, sessionEvents,
+  renameFile, deleteFile,
 } from "@/data/edit-session";
 
 const props = defineProps<{
@@ -37,6 +38,7 @@ const lockToken = ref<string>("");
 const fileHash = ref<string>("");
 const banner = ref<string>("");
 const saveBusy = ref<boolean>(false);
+const fileOpBusy = ref<boolean>(false);
 const saveError = ref<string>("");
 
 const dirty = computed<boolean>(() => buffer.value !== lastLoaded.value);
@@ -72,6 +74,17 @@ async function abandonCurrent(): Promise<void> {
   sessionAbort = null;
   sessionId.value = "";
   lockToken.value = "";
+}
+
+function clearEditor(): void {
+  selectedPath.value = "";
+  buffer.value = "";
+  lastLoaded.value = "";
+  sessionId.value = "";
+  lockToken.value = "";
+  fileHash.value = "";
+  banner.value = "";
+  saveError.value = "";
 }
 
 async function openFile(path: string): Promise<void> {
@@ -126,11 +139,118 @@ async function save(): Promise<void> {
     }
     fileHash.value = r.newFileHash;
     lastLoaded.value = buffer.value;
+    await loadTree();
   } catch (err) {
     saveError.value = err instanceof Error ? err.message : String(err);
   } finally {
     saveBusy.value = false;
   }
+}
+
+async function newFile(): Promise<void> {
+  const path = prompt("New file path", defaultNewPath());
+  if (!path) return;
+  if (!path.endsWith(`.${fileExt.value}`)) {
+    saveError.value = `Path must end in .${fileExt.value}`;
+    return;
+  }
+  if (treeEntries.value.some((entry) => entry.path === path)) {
+    saveError.value = `File already exists: ${path}`;
+    return;
+  }
+  if (dirty.value && !confirm("Discard unsaved changes?")) return;
+
+  fileOpBusy.value = true;
+  saveError.value = "";
+  try {
+    await abandonCurrent();
+    const r = await openForEdit(path);
+    selectedPath.value = path;
+    buffer.value = templateForNewFile();
+    lastLoaded.value = "";
+    sessionId.value = r.sessionId;
+    lockToken.value = r.lockToken;
+    fileHash.value = r.fileHash;
+    startSessionStream();
+  } catch (err) {
+    saveError.value = err instanceof Error ? err.message : String(err);
+  } finally {
+    fileOpBusy.value = false;
+  }
+}
+
+async function renameSelected(): Promise<void> {
+  if (!selectedPath.value) return;
+  const next = prompt("Rename file to", selectedPath.value);
+  if (!next || next === selectedPath.value) return;
+  if (!next.endsWith(`.${fileExt.value}`)) {
+    saveError.value = `Path must end in .${fileExt.value}`;
+    return;
+  }
+  if (dirty.value && !confirm("Discard unsaved changes before renaming?")) return;
+
+  fileOpBusy.value = true;
+  saveError.value = "";
+  const oldPath = selectedPath.value;
+  try {
+    if (fileHash.value === "") {
+      const staged = buffer.value;
+      await abandonCurrent();
+      const r = await openForEdit(next);
+      selectedPath.value = next;
+      buffer.value = staged;
+      lastLoaded.value = "";
+      sessionId.value = r.sessionId;
+      lockToken.value = r.lockToken;
+      fileHash.value = r.fileHash;
+      startSessionStream();
+      return;
+    }
+    await abandonCurrent();
+    await renameFile({ oldFilePath: oldPath, newFilePath: next });
+    clearEditor();
+    await loadTree();
+    await openFile(next);
+  } catch (err) {
+    saveError.value = err instanceof Error ? err.message : String(err);
+  } finally {
+    fileOpBusy.value = false;
+  }
+}
+
+async function deleteSelected(): Promise<void> {
+  if (!selectedPath.value) return;
+  if (!confirm(`Delete ${selectedPath.value}? This cannot be undone.`)) return;
+
+  fileOpBusy.value = true;
+  saveError.value = "";
+  const path = selectedPath.value;
+  try {
+    if (fileHash.value === "") {
+      await abandonCurrent();
+      clearEditor();
+      return;
+    }
+    await abandonCurrent();
+    await deleteFile(path);
+    clearEditor();
+    await loadTree();
+  } catch (err) {
+    saveError.value = err instanceof Error ? err.message : String(err);
+  } finally {
+    fileOpBusy.value = false;
+  }
+}
+
+function defaultNewPath(): string {
+  return props.kind === "starlark" ? "scripts/new.star" : "new.pkl";
+}
+
+function templateForNewFile(): string {
+  if (props.kind === "starlark") {
+    return "def run():\n    pass\n";
+  }
+  return "// New Switchyard config file\n";
 }
 
 async function reload(): Promise<void> {
@@ -164,9 +284,8 @@ onBeforeUnmount(() => {
 });
 
 watch(() => props.kind, () => {
-  selectedPath.value = "";
-  buffer.value = "";
-  lastLoaded.value = "";
+  void abandonCurrent();
+  clearEditor();
   void loadTree();
 });
 </script>
@@ -180,6 +299,26 @@ watch(() => props.kind, () => {
       </SyText>
       <SyText v-if="dirty" as="span" variant="caption" tone="warn">● unsaved</SyText>
       <div class="sy-panel__barRight">
+        <SyButton
+          intent="ghost"
+          size="sm"
+          :disabled="fileOpBusy || saveBusy"
+          @click="newFile"
+        >New</SyButton>
+        <SyButton
+          v-if="selectedPath"
+          intent="ghost"
+          size="sm"
+          :disabled="fileOpBusy || saveBusy"
+          @click="renameSelected"
+        >Rename</SyButton>
+        <SyButton
+          v-if="selectedPath"
+          intent="ghost"
+          size="sm"
+          :disabled="fileOpBusy || saveBusy"
+          @click="deleteSelected"
+        >Delete</SyButton>
         <SyButton
           v-if="selectedPath"
           intent="ghost"

@@ -2,6 +2,7 @@ package editsession
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -293,5 +294,86 @@ func TestService_ListFiles_NoConfigDir(t *testing.T) {
 	connErr, ok := err.(*connect.Error)
 	if !ok || connErr.Code() != connect.CodeFailedPrecondition {
 		t.Errorf("expected FailedPrecondition, got %v", err)
+	}
+}
+
+func TestService_RenameFile_HappyPath(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "scripts"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "scripts", "old.star"), []byte("print(1)\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	svc := NewService(NewLockManager(), nil, nil, nil, dir)
+
+	_, err := svc.RenameFile(context.Background(), connect.NewRequest(&v1.RenameFileRequest{
+		OldFilePath: "scripts/old.star",
+		NewFilePath: "scripts/new.star",
+	}))
+	if err != nil {
+		t.Fatalf("RenameFile: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "scripts", "old.star")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("old path still exists or unexpected stat error: %v", err)
+	}
+	got, err := os.ReadFile(filepath.Join(dir, "scripts", "new.star"))
+	if err != nil {
+		t.Fatalf("read new path: %v", err)
+	}
+	if string(got) != "print(1)\n" {
+		t.Fatalf("content mismatch: %q", got)
+	}
+}
+
+func TestService_RenameFile_RejectsEscapingPath(t *testing.T) {
+	dir := t.TempDir()
+	svc := NewService(NewLockManager(), nil, nil, nil, dir)
+
+	_, err := svc.RenameFile(context.Background(), connect.NewRequest(&v1.RenameFileRequest{
+		OldFilePath: "main.pkl",
+		NewFilePath: "../outside.pkl",
+	}))
+	if err == nil {
+		t.Fatal("expected escaping rename path to fail")
+	}
+	connErr, ok := err.(*connect.Error)
+	if !ok || connErr.Code() != connect.CodeInvalidArgument {
+		t.Fatalf("expected InvalidArgument, got %v", err)
+	}
+}
+
+func TestService_DeleteFile_HappyPath(t *testing.T) {
+	dir := t.TempDir()
+	path := writeTmpPkl(t, dir, "delete.pkl", "x = 1\n")
+	svc := NewService(NewLockManager(), nil, nil, nil, dir)
+
+	_, err := svc.DeleteFile(context.Background(), connect.NewRequest(&v1.DeleteFileRequest{
+		FilePath: "delete.pkl",
+	}))
+	if err != nil {
+		t.Fatalf("DeleteFile: %v", err)
+	}
+	if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("file still exists or unexpected stat error: %v", err)
+	}
+}
+
+func TestService_DeleteFile_RejectsUnsupportedExtension(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "secrets.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	svc := NewService(NewLockManager(), nil, nil, nil, dir)
+
+	_, err := svc.DeleteFile(context.Background(), connect.NewRequest(&v1.DeleteFileRequest{
+		FilePath: "secrets.txt",
+	}))
+	if err == nil {
+		t.Fatal("expected unsupported extension to fail")
+	}
+	connErr, ok := err.(*connect.Error)
+	if !ok || connErr.Code() != connect.CodeInvalidArgument {
+		t.Fatalf("expected InvalidArgument, got %v", err)
 	}
 }

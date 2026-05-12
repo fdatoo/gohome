@@ -1023,6 +1023,176 @@ func (x *FileEntry) GetHasError() bool {
 	return false
 }
 
+type RenameFileRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// 1-9: file targets
+	OldFilePath   string `protobuf:"bytes,1,opt,name=old_file_path,json=oldFilePath,proto3" json:"old_file_path,omitempty"`
+	NewFilePath   string `protobuf:"bytes,2,opt,name=new_file_path,json=newFilePath,proto3" json:"new_file_path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RenameFileRequest) Reset() {
+	*x = RenameFileRequest{}
+	mi := &file_switchyard_editsession_v1_editsession_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RenameFileRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RenameFileRequest) ProtoMessage() {}
+
+func (x *RenameFileRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_switchyard_editsession_v1_editsession_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RenameFileRequest.ProtoReflect.Descriptor instead.
+func (*RenameFileRequest) Descriptor() ([]byte, []int) {
+	return file_switchyard_editsession_v1_editsession_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *RenameFileRequest) GetOldFilePath() string {
+	if x != nil {
+		return x.OldFilePath
+	}
+	return ""
+}
+
+func (x *RenameFileRequest) GetNewFilePath() string {
+	if x != nil {
+		return x.NewFilePath
+	}
+	return ""
+}
+
+type RenameFileResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RenameFileResponse) Reset() {
+	*x = RenameFileResponse{}
+	mi := &file_switchyard_editsession_v1_editsession_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RenameFileResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RenameFileResponse) ProtoMessage() {}
+
+func (x *RenameFileResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_switchyard_editsession_v1_editsession_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RenameFileResponse.ProtoReflect.Descriptor instead.
+func (*RenameFileResponse) Descriptor() ([]byte, []int) {
+	return file_switchyard_editsession_v1_editsession_proto_rawDescGZIP(), []int{19}
+}
+
+type DeleteFileRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// 1-9: file target
+	FilePath      string `protobuf:"bytes,1,opt,name=file_path,json=filePath,proto3" json:"file_path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteFileRequest) Reset() {
+	*x = DeleteFileRequest{}
+	mi := &file_switchyard_editsession_v1_editsession_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteFileRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteFileRequest) ProtoMessage() {}
+
+func (x *DeleteFileRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_switchyard_editsession_v1_editsession_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteFileRequest.ProtoReflect.Descriptor instead.
+func (*DeleteFileRequest) Descriptor() ([]byte, []int) {
+	return file_switchyard_editsession_v1_editsession_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *DeleteFileRequest) GetFilePath() string {
+	if x != nil {
+		return x.FilePath
+	}
+	return ""
+}
+
+type DeleteFileResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteFileResponse) Reset() {
+	*x = DeleteFileResponse{}
+	mi := &file_switchyard_editsession_v1_editsession_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteFileResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteFileResponse) ProtoMessage() {}
+
+func (x *DeleteFileResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_switchyard_editsession_v1_editsession_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteFileResponse.ProtoReflect.Descriptor instead.
+func (*DeleteFileResponse) Descriptor() ([]byte, []int) {
+	return file_switchyard_editsession_v1_editsession_proto_rawDescGZIP(), []int{21}
+}
+
 var File_switchyard_editsession_v1_editsession_proto protoreflect.FileDescriptor
 
 const file_switchyard_editsession_v1_editsession_proto_rawDesc = "" +
@@ -1093,7 +1263,14 @@ const file_switchyard_editsession_v1_editsession_proto_rawDesc = "" +
 	"\tFileEntry\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12\x1b\n" +
 	"\thas_error\x18\n" +
-	" \x01(\bR\bhasError2\xb4\x05\n" +
+	" \x01(\bR\bhasError\"[\n" +
+	"\x11RenameFileRequest\x12\"\n" +
+	"\rold_file_path\x18\x01 \x01(\tR\voldFilePath\x12\"\n" +
+	"\rnew_file_path\x18\x02 \x01(\tR\vnewFilePath\"\x14\n" +
+	"\x12RenameFileResponse\"0\n" +
+	"\x11DeleteFileRequest\x12\x1b\n" +
+	"\tfile_path\x18\x01 \x01(\tR\bfilePath\"\x14\n" +
+	"\x12DeleteFileResponse2\x8a\a\n" +
 	"\x12EditSessionService\x12l\n" +
 	"\vOpenForEdit\x12-.switchyard.editsession.v1.OpenForEditRequest\x1a..switchyard.editsession.v1.OpenForEditResponse\x12i\n" +
 	"\n" +
@@ -1101,7 +1278,11 @@ const file_switchyard_editsession_v1_editsession_proto_rawDesc = "" +
 	"\vAbandonEdit\x12-.switchyard.editsession.v1.AbandonEditRequest\x1a..switchyard.editsession.v1.AbandonEditResponse\x12k\n" +
 	"\rSessionEvents\x12/.switchyard.editsession.v1.SessionEventsRequest\x1a'.switchyard.editsession.v1.SessionEvent0\x01\x12\x81\x01\n" +
 	"\x15AnalyzeRegenerability\x127.switchyard.editsession.v1.AnalyzeRegenerabilityRequest\x1a/.switchyard.editsession.v1.RegenerabilityReport\x12f\n" +
-	"\tListFiles\x12+.switchyard.editsession.v1.ListFilesRequest\x1a,.switchyard.editsession.v1.ListFilesResponseB\x81\x02\n" +
+	"\tListFiles\x12+.switchyard.editsession.v1.ListFilesRequest\x1a,.switchyard.editsession.v1.ListFilesResponse\x12i\n" +
+	"\n" +
+	"RenameFile\x12,.switchyard.editsession.v1.RenameFileRequest\x1a-.switchyard.editsession.v1.RenameFileResponse\x12i\n" +
+	"\n" +
+	"DeleteFile\x12,.switchyard.editsession.v1.DeleteFileRequest\x1a-.switchyard.editsession.v1.DeleteFileResponseB\x81\x02\n" +
 	"\x1dcom.switchyard.editsession.v1B\x10EditsessionProtoP\x01ZHgithub.com/fdatoo/switchyard/gen/switchyard/editsession/v1;editsessionv1\xa2\x02\x03SEX\xaa\x02\x19Switchyard.Editsession.V1\xca\x02\x19Switchyard\\Editsession\\V1\xe2\x02%Switchyard\\Editsession\\V1\\GPBMetadata\xea\x02\x1bSwitchyard::Editsession::V1b\x06proto3"
 
 var (
@@ -1116,7 +1297,7 @@ func file_switchyard_editsession_v1_editsession_proto_rawDescGZIP() []byte {
 	return file_switchyard_editsession_v1_editsession_proto_rawDescData
 }
 
-var file_switchyard_editsession_v1_editsession_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_switchyard_editsession_v1_editsession_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_switchyard_editsession_v1_editsession_proto_goTypes = []any{
 	(*OpenForEditRequest)(nil),           // 0: switchyard.editsession.v1.OpenForEditRequest
 	(*OpenForEditResponse)(nil),          // 1: switchyard.editsession.v1.OpenForEditResponse
@@ -1136,15 +1317,19 @@ var file_switchyard_editsession_v1_editsession_proto_goTypes = []any{
 	(*ListFilesRequest)(nil),             // 15: switchyard.editsession.v1.ListFilesRequest
 	(*ListFilesResponse)(nil),            // 16: switchyard.editsession.v1.ListFilesResponse
 	(*FileEntry)(nil),                    // 17: switchyard.editsession.v1.FileEntry
-	(*timestamppb.Timestamp)(nil),        // 18: google.protobuf.Timestamp
+	(*RenameFileRequest)(nil),            // 18: switchyard.editsession.v1.RenameFileRequest
+	(*RenameFileResponse)(nil),           // 19: switchyard.editsession.v1.RenameFileResponse
+	(*DeleteFileRequest)(nil),            // 20: switchyard.editsession.v1.DeleteFileRequest
+	(*DeleteFileResponse)(nil),           // 21: switchyard.editsession.v1.DeleteFileResponse
+	(*timestamppb.Timestamp)(nil),        // 22: google.protobuf.Timestamp
 }
 var file_switchyard_editsession_v1_editsession_proto_depIdxs = []int32{
 	4,  // 0: switchyard.editsession.v1.CommitEditResponse.success:type_name -> switchyard.editsession.v1.CommitSuccess
 	5,  // 1: switchyard.editsession.v1.CommitEditResponse.conflict:type_name -> switchyard.editsession.v1.CommitConflict
 	10, // 2: switchyard.editsession.v1.SessionEvent.external_edit:type_name -> switchyard.editsession.v1.ExternalEditDetected
 	11, // 3: switchyard.editsession.v1.SessionEvent.heartbeat:type_name -> switchyard.editsession.v1.SessionHeartbeat
-	18, // 4: switchyard.editsession.v1.ExternalEditDetected.modified_at:type_name -> google.protobuf.Timestamp
-	18, // 5: switchyard.editsession.v1.SessionHeartbeat.server_time:type_name -> google.protobuf.Timestamp
+	22, // 4: switchyard.editsession.v1.ExternalEditDetected.modified_at:type_name -> google.protobuf.Timestamp
+	22, // 5: switchyard.editsession.v1.SessionHeartbeat.server_time:type_name -> google.protobuf.Timestamp
 	14, // 6: switchyard.editsession.v1.RegenerabilityReport.file_only_regions:type_name -> switchyard.editsession.v1.FileOnlyRegion
 	17, // 7: switchyard.editsession.v1.ListFilesResponse.files:type_name -> switchyard.editsession.v1.FileEntry
 	0,  // 8: switchyard.editsession.v1.EditSessionService.OpenForEdit:input_type -> switchyard.editsession.v1.OpenForEditRequest
@@ -1153,14 +1338,18 @@ var file_switchyard_editsession_v1_editsession_proto_depIdxs = []int32{
 	8,  // 11: switchyard.editsession.v1.EditSessionService.SessionEvents:input_type -> switchyard.editsession.v1.SessionEventsRequest
 	12, // 12: switchyard.editsession.v1.EditSessionService.AnalyzeRegenerability:input_type -> switchyard.editsession.v1.AnalyzeRegenerabilityRequest
 	15, // 13: switchyard.editsession.v1.EditSessionService.ListFiles:input_type -> switchyard.editsession.v1.ListFilesRequest
-	1,  // 14: switchyard.editsession.v1.EditSessionService.OpenForEdit:output_type -> switchyard.editsession.v1.OpenForEditResponse
-	3,  // 15: switchyard.editsession.v1.EditSessionService.CommitEdit:output_type -> switchyard.editsession.v1.CommitEditResponse
-	7,  // 16: switchyard.editsession.v1.EditSessionService.AbandonEdit:output_type -> switchyard.editsession.v1.AbandonEditResponse
-	9,  // 17: switchyard.editsession.v1.EditSessionService.SessionEvents:output_type -> switchyard.editsession.v1.SessionEvent
-	13, // 18: switchyard.editsession.v1.EditSessionService.AnalyzeRegenerability:output_type -> switchyard.editsession.v1.RegenerabilityReport
-	16, // 19: switchyard.editsession.v1.EditSessionService.ListFiles:output_type -> switchyard.editsession.v1.ListFilesResponse
-	14, // [14:20] is the sub-list for method output_type
-	8,  // [8:14] is the sub-list for method input_type
+	18, // 14: switchyard.editsession.v1.EditSessionService.RenameFile:input_type -> switchyard.editsession.v1.RenameFileRequest
+	20, // 15: switchyard.editsession.v1.EditSessionService.DeleteFile:input_type -> switchyard.editsession.v1.DeleteFileRequest
+	1,  // 16: switchyard.editsession.v1.EditSessionService.OpenForEdit:output_type -> switchyard.editsession.v1.OpenForEditResponse
+	3,  // 17: switchyard.editsession.v1.EditSessionService.CommitEdit:output_type -> switchyard.editsession.v1.CommitEditResponse
+	7,  // 18: switchyard.editsession.v1.EditSessionService.AbandonEdit:output_type -> switchyard.editsession.v1.AbandonEditResponse
+	9,  // 19: switchyard.editsession.v1.EditSessionService.SessionEvents:output_type -> switchyard.editsession.v1.SessionEvent
+	13, // 20: switchyard.editsession.v1.EditSessionService.AnalyzeRegenerability:output_type -> switchyard.editsession.v1.RegenerabilityReport
+	16, // 21: switchyard.editsession.v1.EditSessionService.ListFiles:output_type -> switchyard.editsession.v1.ListFilesResponse
+	19, // 22: switchyard.editsession.v1.EditSessionService.RenameFile:output_type -> switchyard.editsession.v1.RenameFileResponse
+	21, // 23: switchyard.editsession.v1.EditSessionService.DeleteFile:output_type -> switchyard.editsession.v1.DeleteFileResponse
+	16, // [16:24] is the sub-list for method output_type
+	8,  // [8:16] is the sub-list for method input_type
 	8,  // [8:8] is the sub-list for extension type_name
 	8,  // [8:8] is the sub-list for extension extendee
 	0,  // [0:8] is the sub-list for field type_name
@@ -1185,7 +1374,7 @@ func file_switchyard_editsession_v1_editsession_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_switchyard_editsession_v1_editsession_proto_rawDesc), len(file_switchyard_editsession_v1_editsession_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   18,
+			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

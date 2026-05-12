@@ -53,6 +53,12 @@ const (
 	// EditSessionServiceListFilesProcedure is the fully-qualified name of the EditSessionService's
 	// ListFiles RPC.
 	EditSessionServiceListFilesProcedure = "/switchyard.editsession.v1.EditSessionService/ListFiles"
+	// EditSessionServiceRenameFileProcedure is the fully-qualified name of the EditSessionService's
+	// RenameFile RPC.
+	EditSessionServiceRenameFileProcedure = "/switchyard.editsession.v1.EditSessionService/RenameFile"
+	// EditSessionServiceDeleteFileProcedure is the fully-qualified name of the EditSessionService's
+	// DeleteFile RPC.
+	EditSessionServiceDeleteFileProcedure = "/switchyard.editsession.v1.EditSessionService/DeleteFile"
 )
 
 // EditSessionServiceClient is a client for the switchyard.editsession.v1.EditSessionService
@@ -77,6 +83,10 @@ type EditSessionServiceClient interface {
 	// ListFiles returns all Pkl and Starlark files in the config root.
 	// Used by the web editor to populate the file tree.
 	ListFiles(context.Context, *connect.Request[v1.ListFilesRequest]) (*connect.Response[v1.ListFilesResponse], error)
+	// RenameFile moves a Pkl or Starlark file within the config root.
+	RenameFile(context.Context, *connect.Request[v1.RenameFileRequest]) (*connect.Response[v1.RenameFileResponse], error)
+	// DeleteFile removes a Pkl or Starlark file from the config root.
+	DeleteFile(context.Context, *connect.Request[v1.DeleteFileRequest]) (*connect.Response[v1.DeleteFileResponse], error)
 }
 
 // NewEditSessionServiceClient constructs a client for the
@@ -127,6 +137,18 @@ func NewEditSessionServiceClient(httpClient connect.HTTPClient, baseURL string, 
 			connect.WithSchema(editSessionServiceMethods.ByName("ListFiles")),
 			connect.WithClientOptions(opts...),
 		),
+		renameFile: connect.NewClient[v1.RenameFileRequest, v1.RenameFileResponse](
+			httpClient,
+			baseURL+EditSessionServiceRenameFileProcedure,
+			connect.WithSchema(editSessionServiceMethods.ByName("RenameFile")),
+			connect.WithClientOptions(opts...),
+		),
+		deleteFile: connect.NewClient[v1.DeleteFileRequest, v1.DeleteFileResponse](
+			httpClient,
+			baseURL+EditSessionServiceDeleteFileProcedure,
+			connect.WithSchema(editSessionServiceMethods.ByName("DeleteFile")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -138,6 +160,8 @@ type editSessionServiceClient struct {
 	sessionEvents         *connect.Client[v1.SessionEventsRequest, v1.SessionEvent]
 	analyzeRegenerability *connect.Client[v1.AnalyzeRegenerabilityRequest, v1.RegenerabilityReport]
 	listFiles             *connect.Client[v1.ListFilesRequest, v1.ListFilesResponse]
+	renameFile            *connect.Client[v1.RenameFileRequest, v1.RenameFileResponse]
+	deleteFile            *connect.Client[v1.DeleteFileRequest, v1.DeleteFileResponse]
 }
 
 // OpenForEdit calls switchyard.editsession.v1.EditSessionService.OpenForEdit.
@@ -170,6 +194,16 @@ func (c *editSessionServiceClient) ListFiles(ctx context.Context, req *connect.R
 	return c.listFiles.CallUnary(ctx, req)
 }
 
+// RenameFile calls switchyard.editsession.v1.EditSessionService.RenameFile.
+func (c *editSessionServiceClient) RenameFile(ctx context.Context, req *connect.Request[v1.RenameFileRequest]) (*connect.Response[v1.RenameFileResponse], error) {
+	return c.renameFile.CallUnary(ctx, req)
+}
+
+// DeleteFile calls switchyard.editsession.v1.EditSessionService.DeleteFile.
+func (c *editSessionServiceClient) DeleteFile(ctx context.Context, req *connect.Request[v1.DeleteFileRequest]) (*connect.Response[v1.DeleteFileResponse], error) {
+	return c.deleteFile.CallUnary(ctx, req)
+}
+
 // EditSessionServiceHandler is an implementation of the
 // switchyard.editsession.v1.EditSessionService service.
 type EditSessionServiceHandler interface {
@@ -192,6 +226,10 @@ type EditSessionServiceHandler interface {
 	// ListFiles returns all Pkl and Starlark files in the config root.
 	// Used by the web editor to populate the file tree.
 	ListFiles(context.Context, *connect.Request[v1.ListFilesRequest]) (*connect.Response[v1.ListFilesResponse], error)
+	// RenameFile moves a Pkl or Starlark file within the config root.
+	RenameFile(context.Context, *connect.Request[v1.RenameFileRequest]) (*connect.Response[v1.RenameFileResponse], error)
+	// DeleteFile removes a Pkl or Starlark file from the config root.
+	DeleteFile(context.Context, *connect.Request[v1.DeleteFileRequest]) (*connect.Response[v1.DeleteFileResponse], error)
 }
 
 // NewEditSessionServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -237,6 +275,18 @@ func NewEditSessionServiceHandler(svc EditSessionServiceHandler, opts ...connect
 		connect.WithSchema(editSessionServiceMethods.ByName("ListFiles")),
 		connect.WithHandlerOptions(opts...),
 	)
+	editSessionServiceRenameFileHandler := connect.NewUnaryHandler(
+		EditSessionServiceRenameFileProcedure,
+		svc.RenameFile,
+		connect.WithSchema(editSessionServiceMethods.ByName("RenameFile")),
+		connect.WithHandlerOptions(opts...),
+	)
+	editSessionServiceDeleteFileHandler := connect.NewUnaryHandler(
+		EditSessionServiceDeleteFileProcedure,
+		svc.DeleteFile,
+		connect.WithSchema(editSessionServiceMethods.ByName("DeleteFile")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/switchyard.editsession.v1.EditSessionService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case EditSessionServiceOpenForEditProcedure:
@@ -251,6 +301,10 @@ func NewEditSessionServiceHandler(svc EditSessionServiceHandler, opts ...connect
 			editSessionServiceAnalyzeRegenerabilityHandler.ServeHTTP(w, r)
 		case EditSessionServiceListFilesProcedure:
 			editSessionServiceListFilesHandler.ServeHTTP(w, r)
+		case EditSessionServiceRenameFileProcedure:
+			editSessionServiceRenameFileHandler.ServeHTTP(w, r)
+		case EditSessionServiceDeleteFileProcedure:
+			editSessionServiceDeleteFileHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -282,4 +336,12 @@ func (UnimplementedEditSessionServiceHandler) AnalyzeRegenerability(context.Cont
 
 func (UnimplementedEditSessionServiceHandler) ListFiles(context.Context, *connect.Request[v1.ListFilesRequest]) (*connect.Response[v1.ListFilesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("switchyard.editsession.v1.EditSessionService.ListFiles is not implemented"))
+}
+
+func (UnimplementedEditSessionServiceHandler) RenameFile(context.Context, *connect.Request[v1.RenameFileRequest]) (*connect.Response[v1.RenameFileResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("switchyard.editsession.v1.EditSessionService.RenameFile is not implemented"))
+}
+
+func (UnimplementedEditSessionServiceHandler) DeleteFile(context.Context, *connect.Request[v1.DeleteFileRequest]) (*connect.Response[v1.DeleteFileResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("switchyard.editsession.v1.EditSessionService.DeleteFile is not implemented"))
 }
