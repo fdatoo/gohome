@@ -18,13 +18,14 @@
     - checking     → neutral, slow pulse
 -->
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, watch, onBeforeUnmount } from "vue";
 import SyText from "@/lib/components/text/SyText.vue";
 import SyBreadcrumb, {
   type BreadcrumbItem,
 } from "@/lib/components/breadcrumb/SyBreadcrumb.vue";
 import SyDot from "@/lib/components/dot/SyDot.vue";
 import SyKbd from "@/lib/components/kbd/SyKbd.vue";
+import SyConnectionMenu from "./SyConnectionMenu.vue";
 
 type DaemonStatus = "ok" | "reconnecting" | "down" | "checking";
 
@@ -51,6 +52,24 @@ const dotProps = computed(() => {
     case "checking":     return { intent: "neutral" as const, pulse: "slow" as const, label: "Checking" };
   }
 });
+
+const menuOpen = ref<boolean>(false);
+
+function closeOnOutside(): void {
+  menuOpen.value = false;
+}
+
+watch(menuOpen, (open) => {
+  if (open) {
+    document.addEventListener("click", closeOnOutside);
+  } else {
+    document.removeEventListener("click", closeOnOutside);
+  }
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener("click", closeOnOutside);
+});
 </script>
 
 <template>
@@ -60,9 +79,19 @@ const dotProps = computed(() => {
     </div>
 
     <div class="sy-topbar__right">
-      <span class="sy-topbar__status" :title="dotProps.label">
-        <SyDot :intent="dotProps.intent" :pulse="dotProps.pulse" size="sm" :label="dotProps.label" />
-      </span>
+      <div class="sy-topbar__status-wrap">
+        <button
+          type="button"
+          class="sy-topbar__status sy-topbar__status--btn"
+          :title="dotProps.label"
+          @click.stop="menuOpen = !menuOpen"
+        >
+          <SyDot :intent="dotProps.intent" :pulse="dotProps.pulse" size="sm" :label="dotProps.label" />
+        </button>
+        <div v-if="menuOpen" class="sy-topbar__status-pop" @click.stop>
+          <SyConnectionMenu :daemon-status="daemonStatus" @close="menuOpen = false" />
+        </div>
+      </div>
       <button type="button" class="sy-topbar__search" @click="emit('search')">
         <SyText variant="caption" tone="subtle" as="span">{{ searchPlaceholder }}</SyText>
         <SyKbd>⌘K</SyKbd>
@@ -100,6 +129,30 @@ const dotProps = computed(() => {
 .sy-topbar__status {
   display: inline-flex;
   align-items: center;
+}
+
+.sy-topbar__status-wrap {
+  position: relative;
+}
+.sy-topbar__status--btn {
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  padding: 4px;
+  border-radius: var(--sy-radius-sm, 4px);
+}
+.sy-topbar__status--btn:hover {
+  background: var(--sy-color-surface-2);
+}
+.sy-topbar__status-pop {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background: var(--sy-color-surface-1);
+  border: 1px solid var(--sy-color-line);
+  border-radius: var(--sy-radius-md, 8px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  z-index: 100;
 }
 
 .sy-topbar__search {
