@@ -1,6 +1,21 @@
 /**
  * ScriptService client. The Starlark editor uses RunTests (server-
  * streaming) to drive its test runner panel.
+ *
+ * Wire shape (proto):
+ *   RunTestsRequest  { string path = 1; }
+ *   RunTestsResponse {
+ *     oneof kind {
+ *       StarlarkTestEvent event     = 1;
+ *       Heartbeat         heartbeat = 2;
+ *     }
+ *   }
+ *   StarlarkTestEvent { string name, string outcome ("ok"|"fail"),
+ *                       string detail, Timestamp at }
+ *
+ * "Start" / "Done" sentinels don't exist server-side — the daemon
+ * just streams one event per test until end-of-stream. The consumer
+ * (SyTestPanel) treats stream-close as the run finishing.
  */
 
 import { rpcStream, type RpcOptions } from "./rpc";
@@ -8,38 +23,35 @@ import { rpcStream, type RpcOptions } from "./rpc";
 const SVC = "switchyard.v1alpha1.ScriptService";
 
 export type TestEvent =
-  | { kind: "start"; name: string }
-  | { kind: "pass";  name: string; durationMs: number }
-  | { kind: "fail";  name: string; message: string }
-  | { kind: "done";  passed: number; failed: number };
+  | { kind: "pass"; name: string; detail: string }
+  | { kind: "fail"; name: string; detail: string };
 
-interface RawTestEvent {
-  start?: { name?: string };
-  pass?:  { name?: string; duration_ms?: number; durationMs?: number };
-  fail?:  { name?: string; message?: string };
-  done?:  { passed?: number; failed?: number };
+interface RawStarlarkTestEvent {
+  name?: string;
+  outcome?: string;
+  detail?: string;
+}
+
+interface RawRunTestsResponse {
+  event?: RawStarlarkTestEvent;
+  heartbeat?: Record<string, unknown>;
 }
 
 export async function* runTests(
-  scriptId: string,
+  path: string,
   opts: RpcOptions = {},
 ): AsyncGenerator<TestEvent, void, void> {
-  const stream = rpcStream<{ scriptId: string }, RawTestEvent>(
-    `${SVC}/RunTests`, { scriptId }, opts,
+  const stream = rpcStream<{ path: string }, RawRunTestsResponse>(
+    `${SVC}/RunTests`, { path }, opts,
   );
   for await (const raw of stream) {
-    if (raw.start) {
-      yield { kind: "start", name: raw.start.name ?? "" };
-    } else if (raw.pass) {
-      yield {
-        kind: "pass",
-        name: raw.pass.name ?? "",
-        durationMs: raw.pass.durationMs ?? raw.pass.duration_ms ?? 0,
-      };
-    } else if (raw.fail) {
-      yield { kind: "fail", name: raw.fail.name ?? "", message: raw.fail.message ?? "" };
-    } else if (raw.done) {
-      yield { kind: "done", passed: raw.done.passed ?? 0, failed: raw.done.failed ?? 0 };
+    if (raw.event) {
+      const name = raw.event.name ?? "";
+      const detail = raw.event.detail ?? "";
+      yield raw.event.outcome === "fail"
+        ? { kind: "fail", name, detail }
+        : { kind: "pass", name, detail };
     }
+    // heartbeat: ignored — purely a keep-alive
   }
 }
