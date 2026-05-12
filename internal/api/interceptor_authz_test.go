@@ -51,7 +51,7 @@ func testEmptyCompiled() *policy.Compiled {
 
 func TestNewAuthorize_NilRuntime_PassesThrough(t *testing.T) {
 	interceptor := api.NewAuthorize(nil, nil, nil, nil)
-	fn := interceptor(testUnaryFunc)
+	fn := interceptor.WrapUnary(testUnaryFunc)
 	resp, err := fn(context.Background(), testConnectRequest())
 	require.NoError(t, err)
 	assert.NotNil(t, resp)
@@ -61,7 +61,7 @@ func TestNewAuthorize_NilCatalog_PassesThrough(t *testing.T) {
 	rt := policy.NewRuntime(testNoopRoles{})
 	rt.Replace(testEmptyCompiled())
 	interceptor := api.NewAuthorize(rt, nil, nil, nil)
-	fn := interceptor(testUnaryFunc)
+	fn := interceptor.WrapUnary(testUnaryFunc)
 	resp, err := fn(context.Background(), testConnectRequest())
 	require.NoError(t, err)
 	assert.NotNil(t, resp)
@@ -72,7 +72,7 @@ func TestNewAuthorize_ProcedureNotInCatalog_PassesThrough(t *testing.T) {
 	rt.Replace(testEmptyCompiled())
 
 	interceptor := api.NewAuthorize(rt, &testProcedureCatalog{found: false}, nil, nil)
-	fn := interceptor(testUnaryFunc)
+	fn := interceptor.WrapUnary(testUnaryFunc)
 	resp, err := fn(auth.WithPrincipal(context.Background(), auth.Principal{Kind: "system"}), testConnectRequest())
 	require.NoError(t, err)
 	assert.NotNil(t, resp)
@@ -87,7 +87,7 @@ func TestNewAuthorize_SystemPrincipal_Allowed(t *testing.T) {
 		found:  true,
 	}
 	interceptor := api.NewAuthorize(rt, cat, nil, nil)
-	fn := interceptor(testUnaryFunc)
+	fn := interceptor.WrapUnary(testUnaryFunc)
 	resp, err := fn(auth.WithPrincipal(context.Background(), auth.Principal{Kind: "system"}), testConnectRequest())
 	require.NoError(t, err)
 	assert.NotNil(t, resp)
@@ -104,7 +104,7 @@ func TestNewAuthorize_UserWithNoPolicy_Denied(t *testing.T) {
 	}
 	principal := auth.Principal{ID: "user:alice", Kind: "user"}
 	interceptor := api.NewAuthorize(rt, cat, nil, nil)
-	fn := interceptor(testUnaryFunc)
+	fn := interceptor.WrapUnary(testUnaryFunc)
 	_, err := fn(auth.WithPrincipal(context.Background(), principal), testConnectRequest())
 	require.Error(t, err)
 	var ce *connect.Error
@@ -122,7 +122,7 @@ func TestNewAuthorize_AllowedPath_EmitsMetric(t *testing.T) {
 	}
 	m := observability.NewMetrics()
 	interceptor := api.NewAuthorize(rt, cat, nil, m)
-	fn := interceptor(testUnaryFunc)
+	fn := interceptor.WrapUnary(testUnaryFunc)
 	resp, err := fn(auth.WithPrincipal(context.Background(), auth.Principal{Kind: "system"}), testConnectRequest())
 	require.NoError(t, err)
 	assert.NotNil(t, resp)
@@ -141,7 +141,7 @@ func TestNewAuthorize_DeniedPath_EmitsMetric(t *testing.T) {
 	}
 	m := observability.NewMetrics()
 	interceptor := api.NewAuthorize(rt, cat, nil, m)
-	fn := interceptor(testUnaryFunc)
+	fn := interceptor.WrapUnary(testUnaryFunc)
 	principal := auth.Principal{ID: "user:alice", Kind: "user"}
 	_, err := fn(auth.WithPrincipal(context.Background(), principal), testConnectRequest())
 	require.Error(t, err)

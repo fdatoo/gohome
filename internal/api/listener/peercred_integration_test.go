@@ -77,6 +77,19 @@ func TestListener_UDSPeerCredBypassAndTCPReject(t *testing.T) {
 	if !errors.As(err, &ce) || ce.Code() != connect.CodeUnauthenticated {
 		t.Fatalf("TCP List err = %v, want unauthenticated", err)
 	}
+
+	// Streaming endpoints must also reject unauthenticated TCP. Before the
+	// streaming interceptor coverage fix, NewAuthenticate was a
+	// UnaryInterceptorFunc — streams bypassed auth entirely.
+	stream, err := tcpClient.Subscribe(ctx, connect.NewRequest(&v1.SubscribeEntitiesRequest{}))
+	if err != nil {
+		t.Fatalf("Subscribe open err = %v, want unauthenticated on first Receive", err)
+	}
+	stream.Receive()
+	streamErr := stream.Err()
+	if !errors.As(streamErr, &ce) || ce.Code() != connect.CodeUnauthenticated {
+		t.Fatalf("TCP Subscribe err = %v, want unauthenticated", streamErr)
+	}
 }
 
 func unixHTTPClient(sock string) *http.Client {
