@@ -13,6 +13,7 @@ import (
 	"time"
 
 	configpb "github.com/fdatoo/switchyard/gen/switchyard/config/v1"
+	"github.com/fdatoo/switchyard/internal/automation/regen"
 )
 
 func testdataDir(t *testing.T, name string) string {
@@ -216,6 +217,71 @@ id = unterminated_token
 	}
 	if badErr.File != filepath.Join("automations", "bad.pkl") {
 		t.Errorf("err file = %q", badErr.File)
+	}
+}
+
+// TestEvaluate_LoopClosure_RegenToSnapshot proves the contract that the
+// "+ New automation" UX promised: render an AutomationConfig with regen,
+// write the bytes to <configDir>/automations/<id>.pkl, evaluate the
+// config — and find the automation in the live snapshot. This is the
+// originally-broken end-to-end path the auto-discovery feature exists
+// to close.
+func TestEvaluate_LoopClosure_RegenToSnapshot(t *testing.T) {
+	dir := t.TempDir()
+	writePkl(t, dir, "main.pkl", `amends "switchyard:config"`)
+	if err := os.MkdirAll(filepath.Join(dir, "automations"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	ac := &configpb.AutomationConfig{
+		Id:      "loop-test",
+		Enabled: true,
+		Triggers: []*configpb.TriggerConfig{
+			{Kind: &configpb.TriggerConfig_Event{Event: &configpb.EventTrigger{Kind: "sun.sunset"}}},
+		},
+		Actions: []*configpb.ActionConfig{
+			{Kind: &configpb.ActionConfig_CallService{CallService: &configpb.CallServiceAction{
+				Entity:     "light.living_room",
+				Capability: "turn_on",
+			}}},
+		},
+	}
+	pklBytes, err := regen.Render(ac)
+	if err != nil {
+		t.Fatalf("regen.Render: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "automations", "loop-test.pkl"), pklBytes, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	ev, err := newPklEvaluator(context.Background(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = ev.ev.Close() }()
+
+	snap, validationErrs, err := ev.Evaluate(context.Background(), dir)
+	if err != nil {
+		t.Fatalf("Evaluate: %v (soft errs: %+v)", err, validationErrs)
+	}
+	if len(validationErrs) != 0 {
+		t.Errorf("unexpected validation errors: %+v", validationErrs)
+	}
+
+	found := false
+	for _, a := range snap.GetAutomations() {
+		if a.GetId() == "loop-test" {
+			found = true
+			if len(a.GetTriggers()) != 1 || a.GetTriggers()[0].GetEvent() == nil {
+				t.Errorf("automation triggers not decoded: %+v", a.GetTriggers())
+			}
+			if len(a.GetActions()) != 1 || a.GetActions()[0].GetCallService() == nil {
+				t.Errorf("automation actions not decoded: %+v", a.GetActions())
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("'loop-test' automation missing from snapshot — auto-discovery loop is broken")
 	}
 }
 
