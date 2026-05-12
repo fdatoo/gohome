@@ -21,6 +21,7 @@ import {
 } from "@/lib";
 import { listAreas, type Area } from "@/data/areas";
 import { listScenes, applyScene, type Scene } from "@/data/scenes";
+import SySceneForm from "@/views/scenes/SySceneForm.vue";
 import { listStories, type Story } from "@/data/activity";
 import { formatEventTimestamp } from "@/data/event-display";
 import {
@@ -72,6 +73,10 @@ const scenesError = ref<string>("");
 const scenesUnimplemented = ref<boolean>(false);
 const scenesBusy = ref<Set<string>>(new Set());
 const sceneError = ref<string>("");
+const sceneFormOpen = ref<boolean>(false);
+
+const roomScenes = computed<Scene[]>(() =>
+  scenes.value.filter((s) => s.areaId === areaId.value));
 
 async function loadAreas(): Promise<void> {
   try {
@@ -112,7 +117,7 @@ async function onApplyScene(s: Scene): Promise<void> {
 }
 
 const showScenesSection = computed<boolean>(() =>
-  !scenesUnimplemented.value && (scenesLoading.value || scenes.value.length > 0 || !!scenesError.value));
+  !scenesUnimplemented.value && (scenesLoading.value || roomScenes.value.length > 0 || !!scenesError.value));
 
 /* ---- Recent activity (scoped to this area's entities) -------------- */
 const stories = ref<Story[]>([]);
@@ -262,12 +267,17 @@ const isUnknownRoom = computed<boolean>(() =>
 
       <!-- Scenes (suppressed when SceneService is unimplemented) -->
       <section v-if="showScenesSection" class="page__section">
-        <SyText variant="title" weight="semibold">Scenes</SyText>
+        <div class="page__scenesHead">
+          <SyText variant="title" weight="semibold">Scenes</SyText>
+          <SyButton intent="ghost" size="sm" @click="sceneFormOpen = true">
+            <SyIcon name="plus" :size="12" /> New scene
+          </SyButton>
+        </div>
         <SyText v-if="scenesLoading" variant="caption" tone="subtle">Loading…</SyText>
         <SyText v-else-if="scenesError" variant="caption" tone="bad">{{ scenesError }}</SyText>
         <div v-else class="page__sceneRow">
           <SyScene
-            v-for="s in scenes"
+            v-for="s in roomScenes"
             :key="s.id"
             :name="s.displayName || s.id"
             :busy="scenesBusy.has(s.id)"
@@ -415,6 +425,11 @@ const isUnknownRoom = computed<boolean>(() =>
         </SyText>
       </section>
     </template>
+
+    <SySceneForm
+      v-model:open="sceneFormOpen"
+      :area-id="areaId"
+    />
   </div>
 </template>
 
@@ -428,6 +443,7 @@ const isUnknownRoom = computed<boolean>(() =>
 .page__head { display: flex; flex-direction: column; gap: var(--sy-space-1); }
 .page__section { display: flex; flex-direction: column; gap: var(--sy-space-2); }
 .page__sectionHead { display: flex; align-items: center; justify-content: space-between; }
+.page__scenesHead { display: flex; align-items: center; justify-content: space-between; }
 .page__sceneRow { display: flex; flex-wrap: wrap; gap: var(--sy-space-2); }
 .page__group { display: flex; flex-direction: column; gap: var(--sy-space-1); }
 .page__list :deep(.sy-er + .sy-er) { border-top: 1px solid var(--sy-color-line-soft); }
