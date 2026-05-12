@@ -91,6 +91,7 @@ const items = computed<CommandItem[]>(() => {
     { id: "account",      label: "Account" },
     { id: "drivers",      label: "Drivers" },
     { id: "pkl",          label: "Pkl config" },
+    { id: "starlark",     label: "Starlark" },
     { id: "widget-packs", label: "Widget packs" },
     { id: "displays",     label: "Displays" },
   ];

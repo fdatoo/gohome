@@ -42,16 +42,8 @@ const routes: RouteRecordRaw[] = [
           { path: "appearance",   name: "settings-appearance",   component: AppearanceSection },
           { path: "account",      name: "settings-account",      component: AccountSection },
           { path: "drivers",      name: "settings-drivers",      component: DriversSection },
-          {
-            path: "pkl",
-            name: "settings-pkl",
-            component: SettingsStub,
-            props: {
-              title: "Pkl config",
-              icon: "developer",
-              description: "An in-app editor for the daemon's Pkl configuration with live validation.",
-            },
-          },
+          { path: "pkl",      name: "settings-pkl",      component: () => import("@/views/settings/sections/PklEditorSection.vue") },
+          { path: "starlark", name: "settings-starlark", component: () => import("@/views/settings/sections/StarlarkEditorSection.vue") },
           {
             path: "widget-packs",
             name: "settings-widget-packs",
