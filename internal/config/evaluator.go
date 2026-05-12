@@ -406,15 +406,7 @@ func parseConfigJSON(text, configDir string) (*configpb.ConfigSnapshot, error) {
 	}
 
 	for _, a := range raw.Areas {
-		parent := ""
-		if a.ParentID != nil {
-			parent = *a.ParentID
-		}
-		snap.Areas = append(snap.Areas, &configpb.AreaConfig{
-			Id:          strings.TrimSpace(a.ID),
-			DisplayName: a.DisplayName,
-			ParentId:    parent,
-		})
+		snap.Areas = append(snap.Areas, areaFromJSON(a))
 	}
 
 	if len(raw.EntityAreas) > 0 {
@@ -454,48 +446,17 @@ func parseConfigJSON(text, configDir string) (*configpb.ConfigSnapshot, error) {
 	}
 
 	for _, a := range raw.Automations {
-		acfg := &configpb.AutomationConfig{
-			Id:        strings.TrimSpace(a.ID),
-			Enabled:   a.Enabled,
-			Mode:      parseAutomationMode(a.Mode),
-			MaxQueued: a.MaxQueued,
-			Areas:     append([]string(nil), a.Areas...),
-		}
-		for _, rawT := range a.Triggers {
-			tc, err := decodeTrigger(rawT)
-			if err != nil {
-				return nil, fmt.Errorf("automation %q trigger: %w", a.ID, err)
-			}
-			acfg.Triggers = append(acfg.Triggers, tc)
-		}
-		for _, rawC := range a.Conditions {
-			cc, err := decodeCondition(rawC)
-			if err != nil {
-				return nil, fmt.Errorf("automation %q condition: %w", a.ID, err)
-			}
-			acfg.Conditions = append(acfg.Conditions, cc)
-		}
-		for _, rawA := range a.Actions {
-			ac, err := decodeAction(rawA)
-			if err != nil {
-				return nil, fmt.Errorf("automation %q action: %w", a.ID, err)
-			}
-			acfg.Actions = append(acfg.Actions, ac)
+		acfg, err := automationFromJSON(a)
+		if err != nil {
+			return nil, fmt.Errorf("automation %q: %w", a.ID, err)
 		}
 		snap.Automations = append(snap.Automations, acfg)
 	}
 
 	for _, s := range raw.Scenes {
-		scfg := &configpb.SceneConfig{
-			Id:          strings.TrimSpace(s.ID),
-			DisplayName: s.DisplayName,
-		}
-		for _, rawA := range s.Actions {
-			ac, err := decodeAction(rawA)
-			if err != nil {
-				return nil, fmt.Errorf("scene %q action: %w", s.ID, err)
-			}
-			scfg.Actions = append(scfg.Actions, ac)
+		scfg, err := sceneFromJSON(s)
+		if err != nil {
+			return nil, fmt.Errorf("scene %q: %w", s.ID, err)
 		}
 		snap.Scenes = append(snap.Scenes, scfg)
 	}

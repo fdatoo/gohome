@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	configpb "github.com/fdatoo/switchyard/gen/switchyard/config/v1"
@@ -391,3 +392,67 @@ type widgetPackPolicyJSON struct {
 	AllowedSigners []string `json:"allowedSigners"`
 	AllowUnsigned  bool     `json:"allowUnsigned"`
 }
+
+// automationFromJSON converts a single decoded automationJSON (one element
+// of a Pkl-rendered automations listing, or the full output of a per-file
+// amend module) into the proto type. Used by both the inline parseConfigJSON
+// loop and the auto-discovery merge.
+func automationFromJSON(a automationJSON) (*configpb.AutomationConfig, error) {
+	acfg := &configpb.AutomationConfig{
+		Id:        strings.TrimSpace(a.ID),
+		Enabled:   a.Enabled,
+		Mode:      parseAutomationMode(a.Mode),
+		MaxQueued: a.MaxQueued,
+		Areas:     append([]string(nil), a.Areas...),
+	}
+	for _, rawT := range a.Triggers {
+		tc, err := decodeTrigger(rawT)
+		if err != nil {
+			return nil, fmt.Errorf("trigger: %w", err)
+		}
+		acfg.Triggers = append(acfg.Triggers, tc)
+	}
+	for _, rawC := range a.Conditions {
+		cc, err := decodeCondition(rawC)
+		if err != nil {
+			return nil, fmt.Errorf("condition: %w", err)
+		}
+		acfg.Conditions = append(acfg.Conditions, cc)
+	}
+	for _, rawA := range a.Actions {
+		ac, err := decodeAction(rawA)
+		if err != nil {
+			return nil, fmt.Errorf("action: %w", err)
+		}
+		acfg.Actions = append(acfg.Actions, ac)
+	}
+	return acfg, nil
+}
+
+func areaFromJSON(a areaJSON) *configpb.AreaConfig {
+	parent := ""
+	if a.ParentID != nil {
+		parent = *a.ParentID
+	}
+	return &configpb.AreaConfig{
+		Id:          strings.TrimSpace(a.ID),
+		DisplayName: a.DisplayName,
+		ParentId:    parent,
+	}
+}
+
+func sceneFromJSON(s sceneJSON) (*configpb.SceneConfig, error) {
+	scfg := &configpb.SceneConfig{
+		Id:          strings.TrimSpace(s.ID),
+		DisplayName: s.DisplayName,
+	}
+	for _, rawA := range s.Actions {
+		ac, err := decodeAction(rawA)
+		if err != nil {
+			return nil, fmt.Errorf("action: %w", err)
+		}
+		scfg.Actions = append(scfg.Actions, ac)
+	}
+	return scfg, nil
+}
+
