@@ -109,6 +109,9 @@ message StoriesFilter {
   string   kind        = 1;
   string   source      = 2;
   string   entity_id   = 3;
+  // entity_ids matches a story if ANY entity it touches is in the set.
+  // When both entity_id and entity_ids are set, treat as union.
+  repeated string entity_ids = 4;
 
   // 10-19: interestingness filters
   bool     interesting_only     = 10;

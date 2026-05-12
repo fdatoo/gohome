@@ -433,6 +433,9 @@ type StoriesFilter struct {
 	Kind     string `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
 	Source   string `protobuf:"bytes,2,opt,name=source,proto3" json:"source,omitempty"`
 	EntityId string `protobuf:"bytes,3,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
+	// entity_ids matches a story if ANY entity it touches is in the set.
+	// When both entity_id and entity_ids are set, treat as union.
+	EntityIds []string `protobuf:"bytes,4,rep,name=entity_ids,json=entityIds,proto3" json:"entity_ids,omitempty"`
 	// 10-19: interestingness filters
 	InterestingOnly     bool   `protobuf:"varint,10,opt,name=interesting_only,json=interestingOnly,proto3" json:"interesting_only,omitempty"`
 	InterestingCategory string `protobuf:"bytes,11,opt,name=interesting_category,json=interestingCategory,proto3" json:"interesting_category,omitempty"` // empty = any category
@@ -494,6 +497,13 @@ func (x *StoriesFilter) GetEntityId() string {
 		return x.EntityId
 	}
 	return ""
+}
+
+func (x *StoriesFilter) GetEntityIds() []string {
+	if x != nil {
+		return x.EntityIds
+	}
+	return nil
 }
 
 func (x *StoriesFilter) GetInterestingOnly() bool {
@@ -1275,11 +1285,13 @@ const file_switchyard_activity_v1_activity_proto_rawDesc = "" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\alastRun\x125\n" +
 	"\bnext_run\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\anextRun\x129\n" +
 	"\n" +
-	"created_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xb7\x02\n" +
+	"created_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xd6\x02\n" +
 	"\rStoriesFilter\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x16\n" +
 	"\x06source\x18\x02 \x01(\tR\x06source\x12\x1b\n" +
-	"\tentity_id\x18\x03 \x01(\tR\bentityId\x12)\n" +
+	"\tentity_id\x18\x03 \x01(\tR\bentityId\x12\x1d\n" +
+	"\n" +
+	"entity_ids\x18\x04 \x03(\tR\tentityIds\x12)\n" +
 	"\x10interesting_only\x18\n" +
 	" \x01(\bR\x0finterestingOnly\x121\n" +
 	"\x14interesting_category\x18\v \x01(\tR\x13interestingCategory\x120\n" +

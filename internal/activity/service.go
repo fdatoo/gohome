@@ -501,6 +501,33 @@ func matchesStoriesFilter(story *activityv1.Story, filter *activityv1.StoriesFil
 			return false
 		}
 	}
+	// Entity filter: match if the story touches any of the listed
+	// entities. entity_id (singular) and entity_ids (set) form a union;
+	// when both are empty, no entity filter is applied. The room detail
+	// page uses entity_ids to scope stories to entities-in-this-area.
+	singular := filter.GetEntityId()
+	set := filter.GetEntityIds()
+	if singular != "" || len(set) > 0 {
+		matched := false
+		for _, sid := range story.GetEntityIds() {
+			if singular != "" && sid == singular {
+				matched = true
+				break
+			}
+			for _, want := range set {
+				if sid == want {
+					matched = true
+					break
+				}
+			}
+			if matched {
+				break
+			}
+		}
+		if !matched {
+			return false
+		}
+	}
 	return true
 }
 

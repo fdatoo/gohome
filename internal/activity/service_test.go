@@ -70,6 +70,52 @@ func TestStoriesFilteredByFailureCategory(t *testing.T) {
 	}
 }
 
+// TestStoriesFilteredByEntityIds verifies the entity_ids set filter.
+// Stories touch entities; the set filter passes a story if any of its
+// entities is in the set. Union with entity_id (singular).
+func TestStoriesFilteredByEntityIds(t *testing.T) {
+	svc := newMockService(t)
+
+	// Set filter alone: only stories touching light/kitchen pass.
+	collected := collectStories(t, svc, &activityv1.StoriesFilter{
+		EntityIds: []string{"light/kitchen"},
+	})
+	require.NotEmpty(t, collected, "expected stories matching light/kitchen")
+	for _, s := range collected {
+		hit := false
+		for _, eid := range s.EntityIds {
+			if eid == "light/kitchen" {
+				hit = true
+				break
+			}
+		}
+		assert.True(t, hit, "story %s entityIds=%v missing light/kitchen", s.Id, s.EntityIds)
+	}
+
+	// Union: entity_id + entity_ids both contribute. A story touching
+	// EITHER value passes.
+	union := collectStories(t, svc, &activityv1.StoriesFilter{
+		EntityId:  "light/bedroom",
+		EntityIds: []string{"sensor/outdoor_temp"},
+	})
+	require.NotEmpty(t, union, "expected stories matching the union")
+	for _, s := range union {
+		hit := false
+		for _, eid := range s.EntityIds {
+			if eid == "light/bedroom" || eid == "sensor/outdoor_temp" {
+				hit = true
+				break
+			}
+		}
+		assert.True(t, hit, "story %s entityIds=%v missing union members", s.Id, s.EntityIds)
+	}
+
+	// Empty filter: no entity filter applied.
+	all := collectStories(t, svc, nil)
+	bothEmpty := collectStories(t, svc, &activityv1.StoriesFilter{})
+	assert.Equal(t, len(all), len(bothEmpty), "empty filter should pass everything")
+}
+
 // TestEventsFilteredByKindCmd verifies kind filter on Events.
 func TestEventsFilteredByKindCmd(t *testing.T) {
 	svc := newMockService(t)
