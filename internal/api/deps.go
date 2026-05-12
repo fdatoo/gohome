@@ -284,6 +284,17 @@ type MCPCapsProvider interface {
 	MCPConfig(ctx context.Context) (MCPConfig, error)
 }
 
+// --- Scene ---
+
+// SceneInvoker is the api-facing seam over scene.Applier.Invoke.
+type SceneInvoker interface {
+	Invoke(ctx context.Context, sceneID, correlationID, invokedBy string) error
+}
+
+// ErrSceneNotFound returns the sentinel handlers translate into
+// connect.CodeNotFound. Used by adapters that bridge into SceneInvoker.
+func ErrSceneNotFound() error { return errSceneNotFoundSentinel }
+
 // --- Script ---
 
 type Script struct {
