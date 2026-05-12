@@ -321,6 +321,7 @@ type ReloadConfigResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Diff          *ConfigDiff            `protobuf:"bytes,1,opt,name=diff,proto3" json:"diff,omitempty"`
 	CorrelationId string                 `protobuf:"bytes,2,opt,name=correlation_id,json=correlationId,proto3" json:"correlation_id,omitempty"`
+	Error         string                 `protobuf:"bytes,3,opt,name=error,proto3" json:"error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -365,6 +366,13 @@ func (x *ReloadConfigResponse) GetDiff() *ConfigDiff {
 func (x *ReloadConfigResponse) GetCorrelationId() string {
 	if x != nil {
 		return x.CorrelationId
+	}
+	return ""
+}
+
+func (x *ReloadConfigResponse) GetError() string {
+	if x != nil {
+		return x.Error
 	}
 	return ""
 }
@@ -767,6 +775,220 @@ func (x *RegenPreviewResponse) GetError() string {
 	return ""
 }
 
+type SubscribeConfigRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubscribeConfigRequest) Reset() {
+	*x = SubscribeConfigRequest{}
+	mi := &file_switchyard_v1alpha1_config_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubscribeConfigRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubscribeConfigRequest) ProtoMessage() {}
+
+func (x *SubscribeConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_switchyard_v1alpha1_config_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubscribeConfigRequest.ProtoReflect.Descriptor instead.
+func (*SubscribeConfigRequest) Descriptor() ([]byte, []int) {
+	return file_switchyard_v1alpha1_config_proto_rawDescGZIP(), []int{13}
+}
+
+type SubscribeConfigEvent struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Event:
+	//
+	//	*SubscribeConfigEvent_Changed
+	//	*SubscribeConfigEvent_Heartbeat
+	Event         isSubscribeConfigEvent_Event `protobuf_oneof:"event"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubscribeConfigEvent) Reset() {
+	*x = SubscribeConfigEvent{}
+	mi := &file_switchyard_v1alpha1_config_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubscribeConfigEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubscribeConfigEvent) ProtoMessage() {}
+
+func (x *SubscribeConfigEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_switchyard_v1alpha1_config_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubscribeConfigEvent.ProtoReflect.Descriptor instead.
+func (*SubscribeConfigEvent) Descriptor() ([]byte, []int) {
+	return file_switchyard_v1alpha1_config_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *SubscribeConfigEvent) GetEvent() isSubscribeConfigEvent_Event {
+	if x != nil {
+		return x.Event
+	}
+	return nil
+}
+
+func (x *SubscribeConfigEvent) GetChanged() *ConfigChanged {
+	if x != nil {
+		if x, ok := x.Event.(*SubscribeConfigEvent_Changed); ok {
+			return x.Changed
+		}
+	}
+	return nil
+}
+
+func (x *SubscribeConfigEvent) GetHeartbeat() *ConfigHeartbeat {
+	if x != nil {
+		if x, ok := x.Event.(*SubscribeConfigEvent_Heartbeat); ok {
+			return x.Heartbeat
+		}
+	}
+	return nil
+}
+
+type isSubscribeConfigEvent_Event interface {
+	isSubscribeConfigEvent_Event()
+}
+
+type SubscribeConfigEvent_Changed struct {
+	Changed *ConfigChanged `protobuf:"bytes,1,opt,name=changed,proto3,oneof"`
+}
+
+type SubscribeConfigEvent_Heartbeat struct {
+	Heartbeat *ConfigHeartbeat `protobuf:"bytes,2,opt,name=heartbeat,proto3,oneof"`
+}
+
+func (*SubscribeConfigEvent_Changed) isSubscribeConfigEvent_Event() {}
+
+func (*SubscribeConfigEvent_Heartbeat) isSubscribeConfigEvent_Event() {}
+
+type ConfigChanged struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AtUnixMs      int64                  `protobuf:"varint,1,opt,name=at_unix_ms,json=atUnixMs,proto3" json:"at_unix_ms,omitempty"`
+	BundleHash    string                 `protobuf:"bytes,2,opt,name=bundle_hash,json=bundleHash,proto3" json:"bundle_hash,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfigChanged) Reset() {
+	*x = ConfigChanged{}
+	mi := &file_switchyard_v1alpha1_config_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigChanged) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigChanged) ProtoMessage() {}
+
+func (x *ConfigChanged) ProtoReflect() protoreflect.Message {
+	mi := &file_switchyard_v1alpha1_config_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigChanged.ProtoReflect.Descriptor instead.
+func (*ConfigChanged) Descriptor() ([]byte, []int) {
+	return file_switchyard_v1alpha1_config_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *ConfigChanged) GetAtUnixMs() int64 {
+	if x != nil {
+		return x.AtUnixMs
+	}
+	return 0
+}
+
+func (x *ConfigChanged) GetBundleHash() string {
+	if x != nil {
+		return x.BundleHash
+	}
+	return ""
+}
+
+type ConfigHeartbeat struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	AtUnixMs      int64                  `protobuf:"varint,1,opt,name=at_unix_ms,json=atUnixMs,proto3" json:"at_unix_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ConfigHeartbeat) Reset() {
+	*x = ConfigHeartbeat{}
+	mi := &file_switchyard_v1alpha1_config_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ConfigHeartbeat) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ConfigHeartbeat) ProtoMessage() {}
+
+func (x *ConfigHeartbeat) ProtoReflect() protoreflect.Message {
+	mi := &file_switchyard_v1alpha1_config_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ConfigHeartbeat.ProtoReflect.Descriptor instead.
+func (*ConfigHeartbeat) Descriptor() ([]byte, []int) {
+	return file_switchyard_v1alpha1_config_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *ConfigHeartbeat) GetAtUnixMs() int64 {
+	if x != nil {
+		return x.AtUnixMs
+	}
+	return 0
+}
+
 var File_switchyard_v1alpha1_config_proto protoreflect.FileDescriptor
 
 const file_switchyard_v1alpha1_config_proto_rawDesc = "" +
@@ -795,10 +1017,11 @@ const file_switchyard_v1alpha1_config_proto_rawDesc = "" +
 	"\x0ecorrelation_id\x18\x03 \x01(\tR\rcorrelationId\x12\x1f\n" +
 	"\vbundle_hash\x18\x04 \x01(\tR\n" +
 	"bundleHash\"\x15\n" +
-	"\x13ReloadConfigRequest\"r\n" +
+	"\x13ReloadConfigRequest\"\x88\x01\n" +
 	"\x14ReloadConfigResponse\x123\n" +
 	"\x04diff\x18\x01 \x01(\v2\x1f.switchyard.v1alpha1.ConfigDiffR\x04diff\x12%\n" +
-	"\x0ecorrelation_id\x18\x02 \x01(\tR\rcorrelationId\"\x1a\n" +
+	"\x0ecorrelation_id\x18\x02 \x01(\tR\rcorrelationId\x12\x14\n" +
+	"\x05error\x18\x03 \x01(\tR\x05error\"\x1a\n" +
 	"\x18GetConfigArtifactRequest\"]\n" +
 	"\x19GetConfigArtifactResponse\x12@\n" +
 	"\bsnapshot\x18\x01 \x01(\v2$.switchyard.config.v1.ConfigSnapshotR\bsnapshot\"\xb1\x01\n" +
@@ -825,11 +1048,25 @@ const file_switchyard_v1alpha1_config_proto_rawDesc = "" +
 	"\bast_json\x18\x02 \x01(\tR\aastJson\"I\n" +
 	"\x14RegenPreviewResponse\x12\x1b\n" +
 	"\tpkl_bytes\x18\x01 \x01(\fR\bpklBytes\x12\x14\n" +
-	"\x05error\x18\x02 \x01(\tR\x05error2\xe4\x04\n" +
+	"\x05error\x18\x02 \x01(\tR\x05error\"\x18\n" +
+	"\x16SubscribeConfigRequest\"\xa5\x01\n" +
+	"\x14SubscribeConfigEvent\x12>\n" +
+	"\achanged\x18\x01 \x01(\v2\".switchyard.v1alpha1.ConfigChangedH\x00R\achanged\x12D\n" +
+	"\theartbeat\x18\x02 \x01(\v2$.switchyard.v1alpha1.ConfigHeartbeatH\x00R\theartbeatB\a\n" +
+	"\x05event\"N\n" +
+	"\rConfigChanged\x12\x1c\n" +
+	"\n" +
+	"at_unix_ms\x18\x01 \x01(\x03R\batUnixMs\x12\x1f\n" +
+	"\vbundle_hash\x18\x02 \x01(\tR\n" +
+	"bundleHash\"/\n" +
+	"\x0fConfigHeartbeat\x12\x1c\n" +
+	"\n" +
+	"at_unix_ms\x18\x01 \x01(\x03R\batUnixMs2\xcb\x05\n" +
 	"\rConfigService\x12c\n" +
 	"\bValidate\x12*.switchyard.v1alpha1.ValidateConfigRequest\x1a+.switchyard.v1alpha1.ValidateConfigResponse\x12Z\n" +
 	"\x05Apply\x12'.switchyard.v1alpha1.ApplyConfigRequest\x1a(.switchyard.v1alpha1.ApplyConfigResponse\x12]\n" +
-	"\x06Reload\x12(.switchyard.v1alpha1.ReloadConfigRequest\x1a).switchyard.v1alpha1.ReloadConfigResponse\x12l\n" +
+	"\x06Reload\x12(.switchyard.v1alpha1.ReloadConfigRequest\x1a).switchyard.v1alpha1.ReloadConfigResponse\x12e\n" +
+	"\tSubscribe\x12+.switchyard.v1alpha1.SubscribeConfigRequest\x1a).switchyard.v1alpha1.SubscribeConfigEvent0\x01\x12l\n" +
 	"\vGetArtifact\x12-.switchyard.v1alpha1.GetConfigArtifactRequest\x1a..switchyard.v1alpha1.GetConfigArtifactResponse\x12`\n" +
 	"\vEvalCompute\x12'.switchyard.v1alpha1.EvalComputeRequest\x1a(.switchyard.v1alpha1.EvalComputeResponse\x12c\n" +
 	"\fRegenPreview\x12(.switchyard.v1alpha1.RegenPreviewRequest\x1a).switchyard.v1alpha1.RegenPreviewResponseB\xdc\x01\n" +
@@ -847,7 +1084,7 @@ func file_switchyard_v1alpha1_config_proto_rawDescGZIP() []byte {
 	return file_switchyard_v1alpha1_config_proto_rawDescData
 }
 
-var file_switchyard_v1alpha1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_switchyard_v1alpha1_config_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_switchyard_v1alpha1_config_proto_goTypes = []any{
 	(*ValidateConfigRequest)(nil),     // 0: switchyard.v1alpha1.ValidateConfigRequest
 	(*ValidateConfigResponse)(nil),    // 1: switchyard.v1alpha1.ValidateConfigResponse
@@ -862,34 +1099,42 @@ var file_switchyard_v1alpha1_config_proto_goTypes = []any{
 	(*ConfigDiff)(nil),                // 10: switchyard.v1alpha1.ConfigDiff
 	(*RegenPreviewRequest)(nil),       // 11: switchyard.v1alpha1.RegenPreviewRequest
 	(*RegenPreviewResponse)(nil),      // 12: switchyard.v1alpha1.RegenPreviewResponse
-	(*v1.ConfigSnapshot)(nil),         // 13: switchyard.config.v1.ConfigSnapshot
-	(*structpb.Struct)(nil),           // 14: google.protobuf.Struct
-	(*structpb.Value)(nil),            // 15: google.protobuf.Value
+	(*SubscribeConfigRequest)(nil),    // 13: switchyard.v1alpha1.SubscribeConfigRequest
+	(*SubscribeConfigEvent)(nil),      // 14: switchyard.v1alpha1.SubscribeConfigEvent
+	(*ConfigChanged)(nil),             // 15: switchyard.v1alpha1.ConfigChanged
+	(*ConfigHeartbeat)(nil),           // 16: switchyard.v1alpha1.ConfigHeartbeat
+	(*v1.ConfigSnapshot)(nil),         // 17: switchyard.config.v1.ConfigSnapshot
+	(*structpb.Struct)(nil),           // 18: google.protobuf.Struct
+	(*structpb.Value)(nil),            // 19: google.protobuf.Value
 }
 var file_switchyard_v1alpha1_config_proto_depIdxs = []int32{
 	10, // 0: switchyard.v1alpha1.ValidateConfigResponse.diff:type_name -> switchyard.v1alpha1.ConfigDiff
 	10, // 1: switchyard.v1alpha1.ApplyConfigResponse.diff:type_name -> switchyard.v1alpha1.ConfigDiff
 	10, // 2: switchyard.v1alpha1.ReloadConfigResponse.diff:type_name -> switchyard.v1alpha1.ConfigDiff
-	13, // 3: switchyard.v1alpha1.GetConfigArtifactResponse.snapshot:type_name -> switchyard.config.v1.ConfigSnapshot
-	14, // 4: switchyard.v1alpha1.EvalComputeRequest.state_snapshot:type_name -> google.protobuf.Struct
-	15, // 5: switchyard.v1alpha1.EvalComputeResponse.result:type_name -> google.protobuf.Value
-	0,  // 6: switchyard.v1alpha1.ConfigService.Validate:input_type -> switchyard.v1alpha1.ValidateConfigRequest
-	2,  // 7: switchyard.v1alpha1.ConfigService.Apply:input_type -> switchyard.v1alpha1.ApplyConfigRequest
-	4,  // 8: switchyard.v1alpha1.ConfigService.Reload:input_type -> switchyard.v1alpha1.ReloadConfigRequest
-	6,  // 9: switchyard.v1alpha1.ConfigService.GetArtifact:input_type -> switchyard.v1alpha1.GetConfigArtifactRequest
-	8,  // 10: switchyard.v1alpha1.ConfigService.EvalCompute:input_type -> switchyard.v1alpha1.EvalComputeRequest
-	11, // 11: switchyard.v1alpha1.ConfigService.RegenPreview:input_type -> switchyard.v1alpha1.RegenPreviewRequest
-	1,  // 12: switchyard.v1alpha1.ConfigService.Validate:output_type -> switchyard.v1alpha1.ValidateConfigResponse
-	3,  // 13: switchyard.v1alpha1.ConfigService.Apply:output_type -> switchyard.v1alpha1.ApplyConfigResponse
-	5,  // 14: switchyard.v1alpha1.ConfigService.Reload:output_type -> switchyard.v1alpha1.ReloadConfigResponse
-	7,  // 15: switchyard.v1alpha1.ConfigService.GetArtifact:output_type -> switchyard.v1alpha1.GetConfigArtifactResponse
-	9,  // 16: switchyard.v1alpha1.ConfigService.EvalCompute:output_type -> switchyard.v1alpha1.EvalComputeResponse
-	12, // 17: switchyard.v1alpha1.ConfigService.RegenPreview:output_type -> switchyard.v1alpha1.RegenPreviewResponse
-	12, // [12:18] is the sub-list for method output_type
-	6,  // [6:12] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	17, // 3: switchyard.v1alpha1.GetConfigArtifactResponse.snapshot:type_name -> switchyard.config.v1.ConfigSnapshot
+	18, // 4: switchyard.v1alpha1.EvalComputeRequest.state_snapshot:type_name -> google.protobuf.Struct
+	19, // 5: switchyard.v1alpha1.EvalComputeResponse.result:type_name -> google.protobuf.Value
+	15, // 6: switchyard.v1alpha1.SubscribeConfigEvent.changed:type_name -> switchyard.v1alpha1.ConfigChanged
+	16, // 7: switchyard.v1alpha1.SubscribeConfigEvent.heartbeat:type_name -> switchyard.v1alpha1.ConfigHeartbeat
+	0,  // 8: switchyard.v1alpha1.ConfigService.Validate:input_type -> switchyard.v1alpha1.ValidateConfigRequest
+	2,  // 9: switchyard.v1alpha1.ConfigService.Apply:input_type -> switchyard.v1alpha1.ApplyConfigRequest
+	4,  // 10: switchyard.v1alpha1.ConfigService.Reload:input_type -> switchyard.v1alpha1.ReloadConfigRequest
+	13, // 11: switchyard.v1alpha1.ConfigService.Subscribe:input_type -> switchyard.v1alpha1.SubscribeConfigRequest
+	6,  // 12: switchyard.v1alpha1.ConfigService.GetArtifact:input_type -> switchyard.v1alpha1.GetConfigArtifactRequest
+	8,  // 13: switchyard.v1alpha1.ConfigService.EvalCompute:input_type -> switchyard.v1alpha1.EvalComputeRequest
+	11, // 14: switchyard.v1alpha1.ConfigService.RegenPreview:input_type -> switchyard.v1alpha1.RegenPreviewRequest
+	1,  // 15: switchyard.v1alpha1.ConfigService.Validate:output_type -> switchyard.v1alpha1.ValidateConfigResponse
+	3,  // 16: switchyard.v1alpha1.ConfigService.Apply:output_type -> switchyard.v1alpha1.ApplyConfigResponse
+	5,  // 17: switchyard.v1alpha1.ConfigService.Reload:output_type -> switchyard.v1alpha1.ReloadConfigResponse
+	14, // 18: switchyard.v1alpha1.ConfigService.Subscribe:output_type -> switchyard.v1alpha1.SubscribeConfigEvent
+	7,  // 19: switchyard.v1alpha1.ConfigService.GetArtifact:output_type -> switchyard.v1alpha1.GetConfigArtifactResponse
+	9,  // 20: switchyard.v1alpha1.ConfigService.EvalCompute:output_type -> switchyard.v1alpha1.EvalComputeResponse
+	12, // 21: switchyard.v1alpha1.ConfigService.RegenPreview:output_type -> switchyard.v1alpha1.RegenPreviewResponse
+	15, // [15:22] is the sub-list for method output_type
+	8,  // [8:15] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_switchyard_v1alpha1_config_proto_init() }
@@ -897,13 +1142,17 @@ func file_switchyard_v1alpha1_config_proto_init() {
 	if File_switchyard_v1alpha1_config_proto != nil {
 		return
 	}
+	file_switchyard_v1alpha1_config_proto_msgTypes[14].OneofWrappers = []any{
+		(*SubscribeConfigEvent_Changed)(nil),
+		(*SubscribeConfigEvent_Heartbeat)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_switchyard_v1alpha1_config_proto_rawDesc), len(file_switchyard_v1alpha1_config_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   13,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -24,6 +24,7 @@ const (
 	ConfigService_Validate_FullMethodName     = "/switchyard.v1alpha1.ConfigService/Validate"
 	ConfigService_Apply_FullMethodName        = "/switchyard.v1alpha1.ConfigService/Apply"
 	ConfigService_Reload_FullMethodName       = "/switchyard.v1alpha1.ConfigService/Reload"
+	ConfigService_Subscribe_FullMethodName    = "/switchyard.v1alpha1.ConfigService/Subscribe"
 	ConfigService_GetArtifact_FullMethodName  = "/switchyard.v1alpha1.ConfigService/GetArtifact"
 	ConfigService_EvalCompute_FullMethodName  = "/switchyard.v1alpha1.ConfigService/EvalCompute"
 	ConfigService_RegenPreview_FullMethodName = "/switchyard.v1alpha1.ConfigService/RegenPreview"
@@ -36,6 +37,7 @@ type ConfigServiceClient interface {
 	Validate(ctx context.Context, in *ValidateConfigRequest, opts ...grpc.CallOption) (*ValidateConfigResponse, error)
 	Apply(ctx context.Context, in *ApplyConfigRequest, opts ...grpc.CallOption) (*ApplyConfigResponse, error)
 	Reload(ctx context.Context, in *ReloadConfigRequest, opts ...grpc.CallOption) (*ReloadConfigResponse, error)
+	Subscribe(ctx context.Context, in *SubscribeConfigRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[SubscribeConfigEvent], error)
 	GetArtifact(ctx context.Context, in *GetConfigArtifactRequest, opts ...grpc.CallOption) (*GetConfigArtifactResponse, error)
 	EvalCompute(ctx context.Context, in *EvalComputeRequest, opts ...grpc.CallOption) (*EvalComputeResponse, error)
 	RegenPreview(ctx context.Context, in *RegenPreviewRequest, opts ...grpc.CallOption) (*RegenPreviewResponse, error)
@@ -79,6 +81,25 @@ func (c *configServiceClient) Reload(ctx context.Context, in *ReloadConfigReques
 	return out, nil
 }
 
+func (c *configServiceClient) Subscribe(ctx context.Context, in *SubscribeConfigRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[SubscribeConfigEvent], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &ConfigService_ServiceDesc.Streams[0], ConfigService_Subscribe_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[SubscribeConfigRequest, SubscribeConfigEvent]{ClientStream: stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ConfigService_SubscribeClient = grpc.ServerStreamingClient[SubscribeConfigEvent]
+
 func (c *configServiceClient) GetArtifact(ctx context.Context, in *GetConfigArtifactRequest, opts ...grpc.CallOption) (*GetConfigArtifactResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetConfigArtifactResponse)
@@ -116,6 +137,7 @@ type ConfigServiceServer interface {
 	Validate(context.Context, *ValidateConfigRequest) (*ValidateConfigResponse, error)
 	Apply(context.Context, *ApplyConfigRequest) (*ApplyConfigResponse, error)
 	Reload(context.Context, *ReloadConfigRequest) (*ReloadConfigResponse, error)
+	Subscribe(*SubscribeConfigRequest, grpc.ServerStreamingServer[SubscribeConfigEvent]) error
 	GetArtifact(context.Context, *GetConfigArtifactRequest) (*GetConfigArtifactResponse, error)
 	EvalCompute(context.Context, *EvalComputeRequest) (*EvalComputeResponse, error)
 	RegenPreview(context.Context, *RegenPreviewRequest) (*RegenPreviewResponse, error)
@@ -136,6 +158,9 @@ func (UnimplementedConfigServiceServer) Apply(context.Context, *ApplyConfigReque
 }
 func (UnimplementedConfigServiceServer) Reload(context.Context, *ReloadConfigRequest) (*ReloadConfigResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Reload not implemented")
+}
+func (UnimplementedConfigServiceServer) Subscribe(*SubscribeConfigRequest, grpc.ServerStreamingServer[SubscribeConfigEvent]) error {
+	return status.Error(codes.Unimplemented, "method Subscribe not implemented")
 }
 func (UnimplementedConfigServiceServer) GetArtifact(context.Context, *GetConfigArtifactRequest) (*GetConfigArtifactResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetArtifact not implemented")
@@ -219,6 +244,17 @@ func _ConfigService_Reload_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	return interceptor(ctx, in, info, handler)
 }
+
+func _ConfigService_Subscribe_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(SubscribeConfigRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(ConfigServiceServer).Subscribe(m, &grpc.GenericServerStream[SubscribeConfigRequest, SubscribeConfigEvent]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ConfigService_SubscribeServer = grpc.ServerStreamingServer[SubscribeConfigEvent]
 
 func _ConfigService_GetArtifact_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetConfigArtifactRequest)
@@ -306,6 +342,12 @@ var ConfigService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _ConfigService_RegenPreview_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "Subscribe",
+			Handler:       _ConfigService_Subscribe_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "switchyard/v1alpha1/config.proto",
 }

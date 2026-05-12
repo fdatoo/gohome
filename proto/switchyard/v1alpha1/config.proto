@@ -11,6 +11,7 @@ service ConfigService {
   rpc Validate      (ValidateConfigRequest)       returns (ValidateConfigResponse);
   rpc Apply         (ApplyConfigRequest)          returns (ApplyConfigResponse);
   rpc Reload        (ReloadConfigRequest)         returns (ReloadConfigResponse);
+  rpc Subscribe     (SubscribeConfigRequest)      returns (stream SubscribeConfigEvent);
   rpc GetArtifact   (GetConfigArtifactRequest)    returns (GetConfigArtifactResponse);
   rpc EvalCompute   (EvalComputeRequest)          returns (EvalComputeResponse);
   rpc RegenPreview  (RegenPreviewRequest)         returns (RegenPreviewResponse);
@@ -39,7 +40,11 @@ message ApplyConfigResponse {
 }
 
 message ReloadConfigRequest  {}
-message ReloadConfigResponse { ConfigDiff diff = 1; string correlation_id = 2; }
+message ReloadConfigResponse {
+  ConfigDiff diff           = 1;
+  string     correlation_id = 2;
+  string     error          = 3;
+}
 
 message GetConfigArtifactRequest  {}
 message GetConfigArtifactResponse { switchyard.config.v1.ConfigSnapshot snapshot = 1; }
@@ -76,4 +81,22 @@ message RegenPreviewResponse {
   // 1-9: result
   bytes  pkl_bytes = 1;
   string error     = 2;
+}
+
+message SubscribeConfigRequest {}
+
+message SubscribeConfigEvent {
+  oneof event {
+    ConfigChanged     changed   = 1;
+    ConfigHeartbeat   heartbeat = 2;
+  }
+}
+
+message ConfigChanged {
+  int64  at_unix_ms  = 1;
+  string bundle_hash = 2;
+}
+
+message ConfigHeartbeat {
+  int64 at_unix_ms = 1;
 }

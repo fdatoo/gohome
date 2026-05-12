@@ -41,6 +41,8 @@ const (
 	ConfigServiceApplyProcedure = "/switchyard.v1alpha1.ConfigService/Apply"
 	// ConfigServiceReloadProcedure is the fully-qualified name of the ConfigService's Reload RPC.
 	ConfigServiceReloadProcedure = "/switchyard.v1alpha1.ConfigService/Reload"
+	// ConfigServiceSubscribeProcedure is the fully-qualified name of the ConfigService's Subscribe RPC.
+	ConfigServiceSubscribeProcedure = "/switchyard.v1alpha1.ConfigService/Subscribe"
 	// ConfigServiceGetArtifactProcedure is the fully-qualified name of the ConfigService's GetArtifact
 	// RPC.
 	ConfigServiceGetArtifactProcedure = "/switchyard.v1alpha1.ConfigService/GetArtifact"
@@ -57,6 +59,7 @@ type ConfigServiceClient interface {
 	Validate(context.Context, *connect.Request[v1alpha1.ValidateConfigRequest]) (*connect.Response[v1alpha1.ValidateConfigResponse], error)
 	Apply(context.Context, *connect.Request[v1alpha1.ApplyConfigRequest]) (*connect.Response[v1alpha1.ApplyConfigResponse], error)
 	Reload(context.Context, *connect.Request[v1alpha1.ReloadConfigRequest]) (*connect.Response[v1alpha1.ReloadConfigResponse], error)
+	Subscribe(context.Context, *connect.Request[v1alpha1.SubscribeConfigRequest]) (*connect.ServerStreamForClient[v1alpha1.SubscribeConfigEvent], error)
 	GetArtifact(context.Context, *connect.Request[v1alpha1.GetConfigArtifactRequest]) (*connect.Response[v1alpha1.GetConfigArtifactResponse], error)
 	EvalCompute(context.Context, *connect.Request[v1alpha1.EvalComputeRequest]) (*connect.Response[v1alpha1.EvalComputeResponse], error)
 	RegenPreview(context.Context, *connect.Request[v1alpha1.RegenPreviewRequest]) (*connect.Response[v1alpha1.RegenPreviewResponse], error)
@@ -91,6 +94,12 @@ func NewConfigServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(configServiceMethods.ByName("Reload")),
 			connect.WithClientOptions(opts...),
 		),
+		subscribe: connect.NewClient[v1alpha1.SubscribeConfigRequest, v1alpha1.SubscribeConfigEvent](
+			httpClient,
+			baseURL+ConfigServiceSubscribeProcedure,
+			connect.WithSchema(configServiceMethods.ByName("Subscribe")),
+			connect.WithClientOptions(opts...),
+		),
 		getArtifact: connect.NewClient[v1alpha1.GetConfigArtifactRequest, v1alpha1.GetConfigArtifactResponse](
 			httpClient,
 			baseURL+ConfigServiceGetArtifactProcedure,
@@ -117,6 +126,7 @@ type configServiceClient struct {
 	validate     *connect.Client[v1alpha1.ValidateConfigRequest, v1alpha1.ValidateConfigResponse]
 	apply        *connect.Client[v1alpha1.ApplyConfigRequest, v1alpha1.ApplyConfigResponse]
 	reload       *connect.Client[v1alpha1.ReloadConfigRequest, v1alpha1.ReloadConfigResponse]
+	subscribe    *connect.Client[v1alpha1.SubscribeConfigRequest, v1alpha1.SubscribeConfigEvent]
 	getArtifact  *connect.Client[v1alpha1.GetConfigArtifactRequest, v1alpha1.GetConfigArtifactResponse]
 	evalCompute  *connect.Client[v1alpha1.EvalComputeRequest, v1alpha1.EvalComputeResponse]
 	regenPreview *connect.Client[v1alpha1.RegenPreviewRequest, v1alpha1.RegenPreviewResponse]
@@ -135,6 +145,11 @@ func (c *configServiceClient) Apply(ctx context.Context, req *connect.Request[v1
 // Reload calls switchyard.v1alpha1.ConfigService.Reload.
 func (c *configServiceClient) Reload(ctx context.Context, req *connect.Request[v1alpha1.ReloadConfigRequest]) (*connect.Response[v1alpha1.ReloadConfigResponse], error) {
 	return c.reload.CallUnary(ctx, req)
+}
+
+// Subscribe calls switchyard.v1alpha1.ConfigService.Subscribe.
+func (c *configServiceClient) Subscribe(ctx context.Context, req *connect.Request[v1alpha1.SubscribeConfigRequest]) (*connect.ServerStreamForClient[v1alpha1.SubscribeConfigEvent], error) {
+	return c.subscribe.CallServerStream(ctx, req)
 }
 
 // GetArtifact calls switchyard.v1alpha1.ConfigService.GetArtifact.
@@ -157,6 +172,7 @@ type ConfigServiceHandler interface {
 	Validate(context.Context, *connect.Request[v1alpha1.ValidateConfigRequest]) (*connect.Response[v1alpha1.ValidateConfigResponse], error)
 	Apply(context.Context, *connect.Request[v1alpha1.ApplyConfigRequest]) (*connect.Response[v1alpha1.ApplyConfigResponse], error)
 	Reload(context.Context, *connect.Request[v1alpha1.ReloadConfigRequest]) (*connect.Response[v1alpha1.ReloadConfigResponse], error)
+	Subscribe(context.Context, *connect.Request[v1alpha1.SubscribeConfigRequest], *connect.ServerStream[v1alpha1.SubscribeConfigEvent]) error
 	GetArtifact(context.Context, *connect.Request[v1alpha1.GetConfigArtifactRequest]) (*connect.Response[v1alpha1.GetConfigArtifactResponse], error)
 	EvalCompute(context.Context, *connect.Request[v1alpha1.EvalComputeRequest]) (*connect.Response[v1alpha1.EvalComputeResponse], error)
 	RegenPreview(context.Context, *connect.Request[v1alpha1.RegenPreviewRequest]) (*connect.Response[v1alpha1.RegenPreviewResponse], error)
@@ -187,6 +203,12 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(configServiceMethods.ByName("Reload")),
 		connect.WithHandlerOptions(opts...),
 	)
+	configServiceSubscribeHandler := connect.NewServerStreamHandler(
+		ConfigServiceSubscribeProcedure,
+		svc.Subscribe,
+		connect.WithSchema(configServiceMethods.ByName("Subscribe")),
+		connect.WithHandlerOptions(opts...),
+	)
 	configServiceGetArtifactHandler := connect.NewUnaryHandler(
 		ConfigServiceGetArtifactProcedure,
 		svc.GetArtifact,
@@ -213,6 +235,8 @@ func NewConfigServiceHandler(svc ConfigServiceHandler, opts ...connect.HandlerOp
 			configServiceApplyHandler.ServeHTTP(w, r)
 		case ConfigServiceReloadProcedure:
 			configServiceReloadHandler.ServeHTTP(w, r)
+		case ConfigServiceSubscribeProcedure:
+			configServiceSubscribeHandler.ServeHTTP(w, r)
 		case ConfigServiceGetArtifactProcedure:
 			configServiceGetArtifactHandler.ServeHTTP(w, r)
 		case ConfigServiceEvalComputeProcedure:
@@ -238,6 +262,10 @@ func (UnimplementedConfigServiceHandler) Apply(context.Context, *connect.Request
 
 func (UnimplementedConfigServiceHandler) Reload(context.Context, *connect.Request[v1alpha1.ReloadConfigRequest]) (*connect.Response[v1alpha1.ReloadConfigResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("switchyard.v1alpha1.ConfigService.Reload is not implemented"))
+}
+
+func (UnimplementedConfigServiceHandler) Subscribe(context.Context, *connect.Request[v1alpha1.SubscribeConfigRequest], *connect.ServerStream[v1alpha1.SubscribeConfigEvent]) error {
+	return connect.NewError(connect.CodeUnimplemented, errors.New("switchyard.v1alpha1.ConfigService.Subscribe is not implemented"))
 }
 
 func (UnimplementedConfigServiceHandler) GetArtifact(context.Context, *connect.Request[v1alpha1.GetConfigArtifactRequest]) (*connect.Response[v1alpha1.GetConfigArtifactResponse], error) {

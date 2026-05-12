@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"errors"
 
 	"connectrpc.com/connect"
 
@@ -51,6 +52,11 @@ func (s *ConfigService) Reload(ctx context.Context, _ *connect.Request[v1.Reload
 		Diff:          configDiffToProto(diff),
 		CorrelationId: correlationID,
 	}), nil
+}
+
+func (s *ConfigService) Subscribe(ctx context.Context, _ *connect.Request[v1.SubscribeConfigRequest], stream *connect.ServerStream[v1.SubscribeConfigEvent]) error {
+	// Stub implementation. Task 8 replaces with full pub/sub logic.
+	return connect.NewError(connect.CodeUnimplemented, errors.New("Subscribe not yet implemented"))
 }
 
 func (s *ConfigService) GetArtifact(ctx context.Context, _ *connect.Request[v1.GetConfigArtifactRequest]) (*connect.Response[v1.GetConfigArtifactResponse], error) {
