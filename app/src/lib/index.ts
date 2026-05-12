@@ -67,3 +67,4 @@ export { default as SyBrightnessSlider } from "./components/entity-controls/SyBr
 export { default as SyColorTempSlider } from "./components/entity-controls/SyColorTempSlider.vue";
 export { default as SyColorPicker } from "./components/entity-controls/SyColorPicker.vue";
 export { default as SySensorValue } from "./components/entity-controls/SySensorValue.vue";
+export { default as SyScene } from "./components/scene/SyScene.vue";
