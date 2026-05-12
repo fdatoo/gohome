@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -383,6 +384,39 @@ func (d *Daemon) Run(ctx context.Context) (err error) {
 				BundleHash: "",
 			})
 		})
+
+		// File watcher for config-driven reloads
+		watcher := config.NewWatcher(500 * time.Millisecond)
+		watcher.Start(ctx)
+
+		// Watch main.pkl and subdirectories
+		watcher.Watch(filepath.Join(d.configDir, "main.pkl"))
+		watcher.Watch(filepath.Join(d.configDir, "entity-areas.pkl"))
+		for _, subdir := range []string{"automations", "areas", "scenes"} {
+			subdir := filepath.Join(d.configDir, subdir)
+			if err := filepath.WalkDir(subdir, func(path string, entry fs.DirEntry, err error) error {
+				if err != nil {
+					return nil
+				}
+				if !entry.IsDir() && strings.HasSuffix(path, ".pkl") {
+					watcher.Watch(path)
+				}
+				return nil
+			}); err != nil && !os.IsNotExist(err) {
+				d.logger.Warn("error watching config dir", "dir", subdir, "err", err)
+			}
+		}
+
+		// Filesystem-driven config reloads: every change to a *.pkl file under
+		// configDir that affects the snapshot wakes the reloader. The reloader
+		// itself debounces bursts and ignores no-op applies.
+		if d.configReloader != nil {
+			watcher.Subscribe(func(path, _ string, _ time.Time) {
+				if isConfigRelevantPath(d.configDir, path) {
+					d.configReloader.Trigger("watcher")
+				}
+			})
+		}
 
 		// Apply the initial snapshot's areas synchronously so the registry
 		// has them by the time the API listener accepts requests. The
@@ -962,4 +996,28 @@ func (a *carportAdapter) Dispatch(ctx context.Context, entityID, capability stri
 		return nil, err
 	}
 	return &starlark.DispatchResult{Ok: res.GetOk(), Error: res.GetErrorMessage()}, nil
+}
+
+// isConfigRelevantPath returns true if the watched path is one of the
+// files the daemon's config snapshot depends on: main.pkl or any .pkl
+// under automations/, areas/, scenes/, or the entity-areas.pkl singleton.
+func isConfigRelevantPath(configDir, path string) bool {
+	rel, err := filepath.Rel(configDir, path)
+	if err != nil {
+		return false
+	}
+	rel = filepath.ToSlash(rel)
+	if rel == "main.pkl" || rel == "entity-areas.pkl" {
+		return true
+	}
+	if strings.HasPrefix(rel, "automations/") && strings.HasSuffix(rel, ".pkl") {
+		return true
+	}
+	if strings.HasPrefix(rel, "areas/") && strings.HasSuffix(rel, ".pkl") {
+		return true
+	}
+	if strings.HasPrefix(rel, "scenes/") && strings.HasSuffix(rel, ".pkl") {
+		return true
+	}
+	return false
 }
