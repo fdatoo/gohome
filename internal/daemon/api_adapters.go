@@ -446,9 +446,23 @@ func (a *entityStreamSourceAdapter) Subscribe(ctx context.Context, sel api.Entit
 		return nil, nil, fmt.Errorf("entity reader not available for entity stream")
 	}
 
+	// Per the EntityService.Subscribe proto contract, fromCursor=0 means
+	// "live from now" — the client wants to start receiving changes that
+	// happen *after* it subscribes, not the entire history of the store.
+	// The eventstore, however, treats FromPosition=0 as "from event 0" and
+	// would synchronously deliver every historical event into a buffered
+	// channel before returning. With realistic event volumes (>buffer
+	// size) that send blocks indefinitely because the consumer hasn't
+	// received the Subscription handle yet — a subtle deadlock that only
+	// surfaces with non-trivial DBs. Translate 0 → latest here so
+	// "live from now" really starts at now.
+	startCursor := fromCursor
+	if startCursor == 0 {
+		startCursor = a.store.LatestPosition()
+	}
 	subCtx, cancel := context.WithCancel(ctx)
 	sub, err := a.store.Subscribe(subCtx, eventstore.SubscribeOptions{
-		FromPosition: fromCursor,
+		FromPosition: startCursor,
 		Filter: eventstore.Filter{
 			Kinds:    []string{"state_changed"},
 			Entities: sel.EntityIDs,
