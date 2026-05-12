@@ -58,4 +58,13 @@ _None yet._
 
 ## Decision log
 
-_None yet._
+- **RC-1:** Implementer disabled `protoc-gen-go-grpc` in `buf.gen.yaml`
+  because the binary wasn't in PATH. Controller restored it by
+  `go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest` and
+  re-enabling the plugin; amended the commit to include the updated
+  `config_grpc.pb.go`. Reason: disabling the plugin globally would
+  silently halt grpc binding regeneration for all services (driverkit +
+  carport use raw gRPC, not Connect).
+- **RC-1:** Implementer added a `CodeUnimplemented` stub for `Subscribe`
+  instead of commenting out the interface-conformance assertion. Cleaner
+  than the plan's approach; Task 8 replaces the stub anyway. Accepted.
