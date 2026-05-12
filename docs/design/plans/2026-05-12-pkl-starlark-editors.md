@@ -1860,14 +1860,6 @@ The Starlark section adds a test panel in the bottom slot.
 import { SyText } from "@/lib";
 import SyCodeEditorPanel from "@/lib/components/code-editor-panel/SyCodeEditorPanel.vue";
 import SyTestPanel from "@/lib/components/code-editor-panel/SyTestPanel.vue";
-
-/** Strip the extension to recover the script id (matches
- *  ScriptService.RunTests' script_id field). */
-function scriptIdForPath(path: string): string {
-  if (!path) return "";
-  const base = path.split("/").pop() ?? path;
-  return base.replace(/\.star$/, "");
-}
 </script>
 
 <template>
@@ -1881,7 +1873,7 @@ function scriptIdForPath(path: string): string {
     <div class="page__panel">
       <SyCodeEditorPanel kind="starlark">
         <template #bottom="{ selectedPath }">
-          <SyTestPanel :script-id="scriptIdForPath(selectedPath)" />
+          <SyTestPanel :path="selectedPath" />
         </template>
       </SyCodeEditorPanel>
     </div>

@@ -84,6 +84,17 @@ _None yet._
   unblocking — T1.4 (RegenPreview dispatch) and the rest of the editor
   plan would fail without it. The eventual SceneService spec inherits
   this proto change.
+- **2026-05-12 (T2.7 finding):** The `ScriptService.RunTests` wire
+  shape doesn't match what the plan assumed. Real proto:
+  `RunTestsRequest { string path = 1; }` and
+  `RunTestsResponse { oneof { StarlarkTestEvent event; Heartbeat heartbeat; } }`
+  with `StarlarkTestEvent { name, outcome ("ok"|"fail"), detail, at }`.
+  There are no `start`/`done` sentinels. Stream-close = run finished.
+  Controller-fixed `script-service.ts` (path-not-scriptId,
+  pass|fail kinds, derive counts client-side) and rewrote
+  `SyTestPanel.vue` to match. Updated plan T2.10 to drop the
+  `scriptIdForPath` helper and pass `path` directly. Two commits:
+  `14fb060` (script-service.ts) and `62b560f` (SyTestPanel).
 - **2026-05-12 (post-Wave 1):** `internal/automation/regen/entity_areas.go`
   and its test were deleted from the working tree (committed cleanly
   in `6cd738e`, then a later agent's tool run caused the deletion).
