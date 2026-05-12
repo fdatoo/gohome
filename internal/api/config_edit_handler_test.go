@@ -106,6 +106,21 @@ func TestRegenPreview_SceneType_Renders(t *testing.T) {
 	}
 }
 
+func TestRegenPreview_SceneWithAreaId(t *testing.T) {
+	s := api.NewConfigService(&fakeConfig{})
+	resp, err := s.RegenPreview(context.Background(), connect.NewRequest(&v1.RegenPreviewRequest{
+		FileType: "scene",
+		AstJson:  `{"id":"kitchen-bright","displayName":"Kitchen","areaId":"kitchen","actions":[]}`,
+	}))
+	if err != nil {
+		t.Fatalf("RegenPreview scene+area: %v", err)
+	}
+	got := string(resp.Msg.GetPklBytes())
+	if !strings.Contains(got, `areaId = "kitchen"`) {
+		t.Fatalf("scene pkl missing areaId line:\n%s", got)
+	}
+}
+
 func TestRegenPreview_EntityAreasType_Renders(t *testing.T) {
 	s := api.NewConfigService(&fakeConfig{})
 	resp, err := s.RegenPreview(context.Background(), connect.NewRequest(&v1.RegenPreviewRequest{
