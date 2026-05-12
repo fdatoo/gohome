@@ -55,6 +55,14 @@ a stable node_modules.
 
 Legend: ⏳ pending · 🟢 in progress · ✅ done · ❌ blocked
 
+**Final status (2026-05-12, overnight run complete):** all 23 task
+entries closed. Two plumbing fixes shipped beyond the plan's tasks:
+editsession path-resolution + new-file semantics, and SyAutomationForm
+AST proto-shape corrections. One architectural gap surfaced
+(`automations/*.pkl` auto-discovery — see Decision log below) and is
+the recommended next milestone before declaring the editor feature
+fully complete from a user perspective.
+
 ## Retry policy
 
 If a subagent returns an API/transport error (5xx, rate-limit, etc.)
@@ -84,6 +92,36 @@ _None yet._
   unblocking — T1.4 (RegenPreview dispatch) and the rest of the editor
   plan would fail without it. The eventual SceneService spec inherits
   this proto change.
+- **2026-05-12 (T3.7 KNOWN GAP — needs follow-up):** The form-driven
+  "+ New automation" flow writes `automations/<id>.pkl` correctly,
+  but the dev `main.pkl` declares `automations = new { ...inline }`
+  with no `import*("automations/*.pkl")` glob. So the daemon
+  doesn't see new files — the automation is on disk but not in
+  the live snapshot. The plan implicitly assumed auto-discovery.
+  Two paths to close the loop (left for the human to choose):
+    1. Daemon-side: scan `configDir/automations/*.pkl` after Pkl
+       eval, evaluate each, merge into `snap.Automations`.
+       Robust, ~30-50 lines in the config evaluator.
+    2. Pkl-side: change dev `main.pkl` to use `import*` glob and
+       fold the discovered automations into the list. Less code,
+       per-config (every user has to do this themselves).
+  Path 1 is the right product answer. Documented but not done in
+  this overnight run since it's an architectural extension, not
+  a plan task. All other plan deliverables are green: file save,
+  regen, hash-check, conflict detection, route, palette entry,
+  Monaco editor for both Pkl and Starlark.
+- **2026-05-12 (T3.7 finding):** Daemon's `EditSessionService.OpenForEdit`
+  rejected missing files with 404, blocking new-file creation
+  from the form. Daemon fix: missing files now return an empty
+  ancestor + empty hash + fresh session (new-file semantics).
+  `CommitEdit` MkdirAll's parent directory before writing so
+  `automations/<id>.pkl` works when `automations/` is absent.
+  Plus SyAutomationForm's AST builder had three proto-shape bugs
+  (StateChangeTrigger.entities (repeated) not entity, forDurNs
+  (nanoseconds) not holdSeconds, NumericCondition.op mapped from
+  UI operators "<|<=|=|>=|>" to proto strings "lt/lte/eq/gte/gt").
+  All fixed; "+ New" round-trip succeeds end-to-end, regen output
+  hits disk correctly.
 - **2026-05-12 (T2.12 validation finding):** Discovered during Iter 2
   Playwright validation: the daemon's `EditSessionService.OpenForEdit`,
   `CommitEdit`, and `AnalyzeRegenerability` handlers used the client's
