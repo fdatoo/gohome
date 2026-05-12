@@ -6,17 +6,24 @@ the controller after each task / wave.
 
 ## Wave plan
 
+T2.1 was hoisted into Wave 0 alone because `npm install` modifying
+`node_modules/` concurrent with other agents running `vue-tsc` is a
+recipe for transient false failures. All TS tasks in Wave 1+ assume
+a stable node_modules.
+
 | Wave | Task IDs | Notes |
 |------|----------|-------|
-| 1 | 1.1, 1.2, 1.3, 2.1, 2.2, 2.4, 2.5, 2.6 | All touch disjoint files |
-| 2 | 1.4, 2.3, 2.7 | 1.4 depends on 1.1+1.2+1.3; 2.3 on 2.1+2.2; 2.7 on 2.6 |
-| 3 | 2.8 | Depends on 2.3 + 2.4 + 2.5 |
-| 4 | 2.9, 2.10 | Both depend on 2.8 (+ 2.7 for 2.10) |
-| 5 | 2.11, 3.1 | 2.11 depends on 2.9+2.10; 3.1 depends on 1.4 |
-| 6 | 3.2, 3.3, 3.4 | Iter 2 validation (2.12) runs in controller alongside |
-| 7 | 3.5 | Depends on 3.1+3.2+3.3+3.4 |
-| 8 | 3.6 | Depends on 3.5 |
-| 9 | 3.7 (controller-driven validation) | Final |
+| 0 | 2.1 | Monaco + plugin install — must complete before any later UI tsc runs |
+| 1 | 1.1, 1.2, 1.3 (Go); 2.4, 2.5, 2.6 (TS, no Monaco) | 6 parallel, disjoint files |
+| 2 | 1.4, 2.2, 2.7 | 1.4 ← 1.1+1.2+1.3; 2.2 ← 2.1; 2.7 ← 2.6 |
+| 3 | 2.3 | Depends on 2.1 + 2.2 |
+| 4 | 2.8 | Sonnet; depends on 2.3 + 2.4 + 2.5 + 2.7 |
+| 5 | 2.9, 2.10 | Both depend on 2.8 (+ 2.7 for 2.10) |
+| 6 | 2.11, 3.1 | 2.11 ← 2.9+2.10; 3.1 ← 1.4 |
+| 7 | 2.12 (controller), 3.2, 3.3, 3.4 | Iter 2 validation in parallel with Iter 3 sub-components |
+| 8 | 3.5 | Sonnet; depends on 3.1+3.2+3.3+3.4 |
+| 9 | 3.6 | Sonnet; depends on 3.5 |
+| 10 | 3.7 (controller) | Final cross-page validation |
 
 ## Task status
 
@@ -47,6 +54,15 @@ the controller after each task / wave.
 | 3.7 | Final Playwright validation | controller | ⏳ | |
 
 Legend: ⏳ pending · 🟢 in progress · ✅ done · ❌ blocked
+
+## Retry policy
+
+If a subagent returns an API/transport error (5xx, rate-limit, etc.)
+the controller re-dispatches the same task with exponential backoff:
+30s → 60s → 120s. After three transport-error retries on the same
+model, escalate to the next tier (haiku → codex → sonnet). Substantive
+failures (the agent reports a real blocker) are handled per the
+blocker section below — no blind retries on real failures.
 
 ## Blockers + resolutions
 
