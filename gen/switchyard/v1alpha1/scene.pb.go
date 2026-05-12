@@ -27,6 +27,7 @@ type Scene struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	DisplayName   string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	AreaId        string                 `protobuf:"bytes,3,opt,name=area_id,json=areaId,proto3" json:"area_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -71,6 +72,13 @@ func (x *Scene) GetId() string {
 func (x *Scene) GetDisplayName() string {
 	if x != nil {
 		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *Scene) GetAreaId() string {
+	if x != nil {
+		return x.AreaId
 	}
 	return ""
 }
@@ -351,10 +359,11 @@ var File_switchyard_v1alpha1_scene_proto protoreflect.FileDescriptor
 
 const file_switchyard_v1alpha1_scene_proto_rawDesc = "" +
 	"\n" +
-	"\x1fswitchyard/v1alpha1/scene.proto\x12\x13switchyard.v1alpha1\x1a switchyard/v1alpha1/common.proto\":\n" +
+	"\x1fswitchyard/v1alpha1/scene.proto\x12\x13switchyard.v1alpha1\x1a switchyard/v1alpha1/common.proto\"S\n" +
 	"\x05Scene\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
-	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\"I\n" +
+	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12\x17\n" +
+	"\aarea_id\x18\x03 \x01(\tR\x06areaId\"I\n" +
 	"\x11ListScenesRequest\x124\n" +
 	"\x04page\x18\x01 \x01(\v2 .switchyard.v1alpha1.PageRequestR\x04page\"\x7f\n" +
 	"\x12ListScenesResponse\x122\n" +

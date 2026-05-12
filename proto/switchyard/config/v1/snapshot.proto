@@ -44,6 +44,7 @@ message SceneConfig {
   string                   id          = 1;
   string                   display_name = 2;
   repeated ActionConfig    actions     = 3;
+  string                   area_id     = 4;
 }
 
 message DriverInstanceConfig {

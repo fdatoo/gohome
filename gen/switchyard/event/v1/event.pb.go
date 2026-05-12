@@ -105,6 +105,7 @@ type Payload struct {
 	//	*Payload_AutomationFinished
 	//	*Payload_ScriptInvoked
 	//	*Payload_ScriptFinished
+	//	*Payload_SceneApplied
 	//	*Payload_WebhookReceived
 	//	*Payload_McpEvalRequested
 	//	*Payload_ConfigFileEdited
@@ -262,6 +263,15 @@ func (x *Payload) GetScriptFinished() *ScriptFinished {
 	return nil
 }
 
+func (x *Payload) GetSceneApplied() *SceneApplied {
+	if x != nil {
+		if x, ok := x.Kind.(*Payload_SceneApplied); ok {
+			return x.SceneApplied
+		}
+	}
+	return nil
+}
+
 func (x *Payload) GetWebhookReceived() *WebhookReceived {
 	if x != nil {
 		if x, ok := x.Kind.(*Payload_WebhookReceived); ok {
@@ -383,6 +393,10 @@ type Payload_ScriptFinished struct {
 	ScriptFinished *ScriptFinished `protobuf:"bytes,53,opt,name=script_finished,json=scriptFinished,proto3,oneof"`
 }
 
+type Payload_SceneApplied struct {
+	SceneApplied *SceneApplied `protobuf:"bytes,54,opt,name=scene_applied,json=sceneApplied,proto3,oneof"`
+}
+
 type Payload_WebhookReceived struct {
 	// 60-69: external ingress
 	WebhookReceived *WebhookReceived `protobuf:"bytes,60,opt,name=webhook_received,json=webhookReceived,proto3,oneof"`
@@ -438,6 +452,8 @@ func (*Payload_AutomationFinished) isPayload_Kind() {}
 func (*Payload_ScriptInvoked) isPayload_Kind() {}
 
 func (*Payload_ScriptFinished) isPayload_Kind() {}
+
+func (*Payload_SceneApplied) isPayload_Kind() {}
 
 func (*Payload_WebhookReceived) isPayload_Kind() {}
 
@@ -1296,6 +1312,98 @@ func (x *ScriptFinished) GetReturnValue() string {
 	return ""
 }
 
+type SceneApplied struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SceneId       string                 `protobuf:"bytes,1,opt,name=scene_id,json=sceneId,proto3" json:"scene_id,omitempty"`
+	AreaId        string                 `protobuf:"bytes,2,opt,name=area_id,json=areaId,proto3" json:"area_id,omitempty"`
+	CorrelationId string                 `protobuf:"bytes,3,opt,name=correlation_id,json=correlationId,proto3" json:"correlation_id,omitempty"`
+	InvokedBy     string                 `protobuf:"bytes,4,opt,name=invoked_by,json=invokedBy,proto3" json:"invoked_by,omitempty"`
+	Steps         uint64                 `protobuf:"varint,5,opt,name=steps,proto3" json:"steps,omitempty"`
+	Logs          []string               `protobuf:"bytes,6,rep,name=logs,proto3" json:"logs,omitempty"`
+	Outcome       RunOutcome             `protobuf:"varint,7,opt,name=outcome,proto3,enum=switchyard.event.v1.RunOutcome" json:"outcome,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SceneApplied) Reset() {
+	*x = SceneApplied{}
+	mi := &file_switchyard_event_v1_event_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SceneApplied) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SceneApplied) ProtoMessage() {}
+
+func (x *SceneApplied) ProtoReflect() protoreflect.Message {
+	mi := &file_switchyard_event_v1_event_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SceneApplied.ProtoReflect.Descriptor instead.
+func (*SceneApplied) Descriptor() ([]byte, []int) {
+	return file_switchyard_event_v1_event_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *SceneApplied) GetSceneId() string {
+	if x != nil {
+		return x.SceneId
+	}
+	return ""
+}
+
+func (x *SceneApplied) GetAreaId() string {
+	if x != nil {
+		return x.AreaId
+	}
+	return ""
+}
+
+func (x *SceneApplied) GetCorrelationId() string {
+	if x != nil {
+		return x.CorrelationId
+	}
+	return ""
+}
+
+func (x *SceneApplied) GetInvokedBy() string {
+	if x != nil {
+		return x.InvokedBy
+	}
+	return ""
+}
+
+func (x *SceneApplied) GetSteps() uint64 {
+	if x != nil {
+		return x.Steps
+	}
+	return 0
+}
+
+func (x *SceneApplied) GetLogs() []string {
+	if x != nil {
+		return x.Logs
+	}
+	return nil
+}
+
+func (x *SceneApplied) GetOutcome() RunOutcome {
+	if x != nil {
+		return x.Outcome
+	}
+	return RunOutcome_OUTCOME_UNSPECIFIED
+}
+
 type WebhookReceived struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// 1-9: identity
@@ -1311,7 +1419,7 @@ type WebhookReceived struct {
 
 func (x *WebhookReceived) Reset() {
 	*x = WebhookReceived{}
-	mi := &file_switchyard_event_v1_event_proto_msgTypes[13]
+	mi := &file_switchyard_event_v1_event_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1323,7 +1431,7 @@ func (x *WebhookReceived) String() string {
 func (*WebhookReceived) ProtoMessage() {}
 
 func (x *WebhookReceived) ProtoReflect() protoreflect.Message {
-	mi := &file_switchyard_event_v1_event_proto_msgTypes[13]
+	mi := &file_switchyard_event_v1_event_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1336,7 +1444,7 @@ func (x *WebhookReceived) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use WebhookReceived.ProtoReflect.Descriptor instead.
 func (*WebhookReceived) Descriptor() ([]byte, []int) {
-	return file_switchyard_event_v1_event_proto_rawDescGZIP(), []int{13}
+	return file_switchyard_event_v1_event_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *WebhookReceived) GetSlug() string {
@@ -1380,7 +1488,7 @@ type DeviceRenamed struct {
 
 func (x *DeviceRenamed) Reset() {
 	*x = DeviceRenamed{}
-	mi := &file_switchyard_event_v1_event_proto_msgTypes[14]
+	mi := &file_switchyard_event_v1_event_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1392,7 +1500,7 @@ func (x *DeviceRenamed) String() string {
 func (*DeviceRenamed) ProtoMessage() {}
 
 func (x *DeviceRenamed) ProtoReflect() protoreflect.Message {
-	mi := &file_switchyard_event_v1_event_proto_msgTypes[14]
+	mi := &file_switchyard_event_v1_event_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1405,7 +1513,7 @@ func (x *DeviceRenamed) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeviceRenamed.ProtoReflect.Descriptor instead.
 func (*DeviceRenamed) Descriptor() ([]byte, []int) {
-	return file_switchyard_event_v1_event_proto_rawDescGZIP(), []int{14}
+	return file_switchyard_event_v1_event_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *DeviceRenamed) GetDeviceId() string {
@@ -1442,7 +1550,7 @@ type DeviceReassigned struct {
 
 func (x *DeviceReassigned) Reset() {
 	*x = DeviceReassigned{}
-	mi := &file_switchyard_event_v1_event_proto_msgTypes[15]
+	mi := &file_switchyard_event_v1_event_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1454,7 +1562,7 @@ func (x *DeviceReassigned) String() string {
 func (*DeviceReassigned) ProtoMessage() {}
 
 func (x *DeviceReassigned) ProtoReflect() protoreflect.Message {
-	mi := &file_switchyard_event_v1_event_proto_msgTypes[15]
+	mi := &file_switchyard_event_v1_event_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1467,7 +1575,7 @@ func (x *DeviceReassigned) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeviceReassigned.ProtoReflect.Descriptor instead.
 func (*DeviceReassigned) Descriptor() ([]byte, []int) {
-	return file_switchyard_event_v1_event_proto_rawDescGZIP(), []int{15}
+	return file_switchyard_event_v1_event_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *DeviceReassigned) GetDeviceId() string {
@@ -1504,7 +1612,7 @@ type DriverInstanceRestarted struct {
 
 func (x *DriverInstanceRestarted) Reset() {
 	*x = DriverInstanceRestarted{}
-	mi := &file_switchyard_event_v1_event_proto_msgTypes[16]
+	mi := &file_switchyard_event_v1_event_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1516,7 +1624,7 @@ func (x *DriverInstanceRestarted) String() string {
 func (*DriverInstanceRestarted) ProtoMessage() {}
 
 func (x *DriverInstanceRestarted) ProtoReflect() protoreflect.Message {
-	mi := &file_switchyard_event_v1_event_proto_msgTypes[16]
+	mi := &file_switchyard_event_v1_event_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1529,7 +1637,7 @@ func (x *DriverInstanceRestarted) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DriverInstanceRestarted.ProtoReflect.Descriptor instead.
 func (*DriverInstanceRestarted) Descriptor() ([]byte, []int) {
-	return file_switchyard_event_v1_event_proto_rawDescGZIP(), []int{16}
+	return file_switchyard_event_v1_event_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *DriverInstanceRestarted) GetDriverInstanceId() string {
@@ -1569,7 +1677,7 @@ type MCPEvalRequested struct {
 
 func (x *MCPEvalRequested) Reset() {
 	*x = MCPEvalRequested{}
-	mi := &file_switchyard_event_v1_event_proto_msgTypes[17]
+	mi := &file_switchyard_event_v1_event_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1581,7 +1689,7 @@ func (x *MCPEvalRequested) String() string {
 func (*MCPEvalRequested) ProtoMessage() {}
 
 func (x *MCPEvalRequested) ProtoReflect() protoreflect.Message {
-	mi := &file_switchyard_event_v1_event_proto_msgTypes[17]
+	mi := &file_switchyard_event_v1_event_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1594,7 +1702,7 @@ func (x *MCPEvalRequested) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MCPEvalRequested.ProtoReflect.Descriptor instead.
 func (*MCPEvalRequested) Descriptor() ([]byte, []int) {
-	return file_switchyard_event_v1_event_proto_rawDescGZIP(), []int{17}
+	return file_switchyard_event_v1_event_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *MCPEvalRequested) GetPrincipalId() string {
@@ -1666,7 +1774,7 @@ type ConfigFileEdited struct {
 
 func (x *ConfigFileEdited) Reset() {
 	*x = ConfigFileEdited{}
-	mi := &file_switchyard_event_v1_event_proto_msgTypes[18]
+	mi := &file_switchyard_event_v1_event_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1678,7 +1786,7 @@ func (x *ConfigFileEdited) String() string {
 func (*ConfigFileEdited) ProtoMessage() {}
 
 func (x *ConfigFileEdited) ProtoReflect() protoreflect.Message {
-	mi := &file_switchyard_event_v1_event_proto_msgTypes[18]
+	mi := &file_switchyard_event_v1_event_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1691,7 +1799,7 @@ func (x *ConfigFileEdited) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConfigFileEdited.ProtoReflect.Descriptor instead.
 func (*ConfigFileEdited) Descriptor() ([]byte, []int) {
-	return file_switchyard_event_v1_event_proto_rawDescGZIP(), []int{18}
+	return file_switchyard_event_v1_event_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ConfigFileEdited) GetPrincipalId() string {
@@ -1733,7 +1841,7 @@ var File_switchyard_event_v1_event_proto protoreflect.FileDescriptor
 
 const file_switchyard_event_v1_event_proto_rawDesc = "" +
 	"\n" +
-	"\x1fswitchyard/event/v1/event.proto\x12\x13switchyard.event.v1\x1a%switchyard/entity/v1/attributes.proto\x1a$switchyard/event/v1/auth_event.proto\"\x97\f\n" +
+	"\x1fswitchyard/event/v1/event.proto\x12\x13switchyard.event.v1\x1a%switchyard/entity/v1/attributes.proto\x1a$switchyard/event/v1/auth_event.proto\"\xe1\f\n" +
 	"\aPayload\x12:\n" +
 	"\x06system\x18\x01 \x01(\v2 .switchyard.event.v1.SystemEventH\x00R\x06system\x12H\n" +
 	"\rstate_changed\x18\n" +
@@ -1748,7 +1856,8 @@ const file_switchyard_event_v1_event_proto_rawDesc = "" +
 	"\x14automation_triggered\x182 \x01(\v2(.switchyard.event.v1.AutomationTriggeredH\x00R\x13automationTriggered\x12Z\n" +
 	"\x13automation_finished\x183 \x01(\v2'.switchyard.event.v1.AutomationFinishedH\x00R\x12automationFinished\x12K\n" +
 	"\x0escript_invoked\x184 \x01(\v2\".switchyard.event.v1.ScriptInvokedH\x00R\rscriptInvoked\x12N\n" +
-	"\x0fscript_finished\x185 \x01(\v2#.switchyard.event.v1.ScriptFinishedH\x00R\x0escriptFinished\x12Q\n" +
+	"\x0fscript_finished\x185 \x01(\v2#.switchyard.event.v1.ScriptFinishedH\x00R\x0escriptFinished\x12H\n" +
+	"\rscene_applied\x186 \x01(\v2!.switchyard.event.v1.SceneAppliedH\x00R\fsceneApplied\x12Q\n" +
 	"\x10webhook_received\x18< \x01(\v2$.switchyard.event.v1.WebhookReceivedH\x00R\x0fwebhookReceived\x12U\n" +
 	"\x12mcp_eval_requested\x18= \x01(\v2%.switchyard.event.v1.MCPEvalRequestedH\x00R\x10mcpEvalRequested\x12U\n" +
 	"\x12config_file_edited\x18> \x01(\v2%.switchyard.event.v1.ConfigFileEditedH\x00R\x10configFileEdited\x12K\n" +
@@ -1844,7 +1953,16 @@ const file_switchyard_event_v1_event_proto_rawDesc = "" +
 	"elapsed_ms\x18\x14 \x01(\x03R\telapsedMs\x12%\n" +
 	"\x0estarlark_steps\x18\x15 \x01(\x04R\rstarlarkSteps\x12\x1b\n" +
 	"\tlog_lines\x18\x16 \x03(\tR\blogLines\x12!\n" +
-	"\freturn_value\x18\x17 \x01(\tR\vreturnValue\"\xdf\x01\n" +
+	"\freturn_value\x18\x17 \x01(\tR\vreturnValue\"\xed\x01\n" +
+	"\fSceneApplied\x12\x19\n" +
+	"\bscene_id\x18\x01 \x01(\tR\asceneId\x12\x17\n" +
+	"\aarea_id\x18\x02 \x01(\tR\x06areaId\x12%\n" +
+	"\x0ecorrelation_id\x18\x03 \x01(\tR\rcorrelationId\x12\x1d\n" +
+	"\n" +
+	"invoked_by\x18\x04 \x01(\tR\tinvokedBy\x12\x14\n" +
+	"\x05steps\x18\x05 \x01(\x04R\x05steps\x12\x12\n" +
+	"\x04logs\x18\x06 \x03(\tR\x04logs\x129\n" +
+	"\aoutcome\x18\a \x01(\x0e2\x1f.switchyard.event.v1.RunOutcomeR\aoutcome\"\xdf\x01\n" +
 	"\x0fWebhookReceived\x12\x12\n" +
 	"\x04slug\x18\x01 \x01(\tR\x04slug\x12\x12\n" +
 	"\x04body\x18\n" +
@@ -1917,7 +2035,7 @@ func file_switchyard_event_v1_event_proto_rawDescGZIP() []byte {
 }
 
 var file_switchyard_event_v1_event_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_switchyard_event_v1_event_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_switchyard_event_v1_event_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_switchyard_event_v1_event_proto_goTypes = []any{
 	(RunOutcome)(0),                 // 0: switchyard.event.v1.RunOutcome
 	(*Payload)(nil),                 // 1: switchyard.event.v1.Payload
@@ -1933,18 +2051,19 @@ var file_switchyard_event_v1_event_proto_goTypes = []any{
 	(*AutomationFinished)(nil),      // 11: switchyard.event.v1.AutomationFinished
 	(*ScriptInvoked)(nil),           // 12: switchyard.event.v1.ScriptInvoked
 	(*ScriptFinished)(nil),          // 13: switchyard.event.v1.ScriptFinished
-	(*WebhookReceived)(nil),         // 14: switchyard.event.v1.WebhookReceived
-	(*DeviceRenamed)(nil),           // 15: switchyard.event.v1.DeviceRenamed
-	(*DeviceReassigned)(nil),        // 16: switchyard.event.v1.DeviceReassigned
-	(*DriverInstanceRestarted)(nil), // 17: switchyard.event.v1.DriverInstanceRestarted
-	(*MCPEvalRequested)(nil),        // 18: switchyard.event.v1.MCPEvalRequested
-	(*ConfigFileEdited)(nil),        // 19: switchyard.event.v1.ConfigFileEdited
-	nil,                             // 20: switchyard.event.v1.SystemEvent.DataEntry
-	nil,                             // 21: switchyard.event.v1.CommandIssued.ParametersEntry
-	nil,                             // 22: switchyard.event.v1.ScriptInvoked.ArgsEntry
-	nil,                             // 23: switchyard.event.v1.WebhookReceived.HeadersEntry
-	(*AuthEvent)(nil),               // 24: switchyard.event.v1.AuthEvent
-	(*v1.Attributes)(nil),           // 25: switchyard.entity.v1.Attributes
+	(*SceneApplied)(nil),            // 14: switchyard.event.v1.SceneApplied
+	(*WebhookReceived)(nil),         // 15: switchyard.event.v1.WebhookReceived
+	(*DeviceRenamed)(nil),           // 16: switchyard.event.v1.DeviceRenamed
+	(*DeviceReassigned)(nil),        // 17: switchyard.event.v1.DeviceReassigned
+	(*DriverInstanceRestarted)(nil), // 18: switchyard.event.v1.DriverInstanceRestarted
+	(*MCPEvalRequested)(nil),        // 19: switchyard.event.v1.MCPEvalRequested
+	(*ConfigFileEdited)(nil),        // 20: switchyard.event.v1.ConfigFileEdited
+	nil,                             // 21: switchyard.event.v1.SystemEvent.DataEntry
+	nil,                             // 22: switchyard.event.v1.CommandIssued.ParametersEntry
+	nil,                             // 23: switchyard.event.v1.ScriptInvoked.ArgsEntry
+	nil,                             // 24: switchyard.event.v1.WebhookReceived.HeadersEntry
+	(*AuthEvent)(nil),               // 25: switchyard.event.v1.AuthEvent
+	(*v1.Attributes)(nil),           // 26: switchyard.entity.v1.Attributes
 }
 var file_switchyard_event_v1_event_proto_depIdxs = []int32{
 	2,  // 0: switchyard.event.v1.Payload.system:type_name -> switchyard.event.v1.SystemEvent
@@ -1959,26 +2078,28 @@ var file_switchyard_event_v1_event_proto_depIdxs = []int32{
 	11, // 9: switchyard.event.v1.Payload.automation_finished:type_name -> switchyard.event.v1.AutomationFinished
 	12, // 10: switchyard.event.v1.Payload.script_invoked:type_name -> switchyard.event.v1.ScriptInvoked
 	13, // 11: switchyard.event.v1.Payload.script_finished:type_name -> switchyard.event.v1.ScriptFinished
-	14, // 12: switchyard.event.v1.Payload.webhook_received:type_name -> switchyard.event.v1.WebhookReceived
-	18, // 13: switchyard.event.v1.Payload.mcp_eval_requested:type_name -> switchyard.event.v1.MCPEvalRequested
-	19, // 14: switchyard.event.v1.Payload.config_file_edited:type_name -> switchyard.event.v1.ConfigFileEdited
-	15, // 15: switchyard.event.v1.Payload.device_renamed:type_name -> switchyard.event.v1.DeviceRenamed
-	16, // 16: switchyard.event.v1.Payload.device_reassigned:type_name -> switchyard.event.v1.DeviceReassigned
-	17, // 17: switchyard.event.v1.Payload.driver_instance_restarted:type_name -> switchyard.event.v1.DriverInstanceRestarted
-	24, // 18: switchyard.event.v1.Payload.auth_event:type_name -> switchyard.event.v1.AuthEvent
-	20, // 19: switchyard.event.v1.SystemEvent.data:type_name -> switchyard.event.v1.SystemEvent.DataEntry
-	25, // 20: switchyard.event.v1.StateChanged.attributes:type_name -> switchyard.entity.v1.Attributes
-	21, // 21: switchyard.event.v1.CommandIssued.parameters:type_name -> switchyard.event.v1.CommandIssued.ParametersEntry
-	25, // 22: switchyard.event.v1.EntityRegistered.capabilities:type_name -> switchyard.entity.v1.Attributes
-	0,  // 23: switchyard.event.v1.AutomationFinished.outcome:type_name -> switchyard.event.v1.RunOutcome
-	22, // 24: switchyard.event.v1.ScriptInvoked.args:type_name -> switchyard.event.v1.ScriptInvoked.ArgsEntry
-	0,  // 25: switchyard.event.v1.ScriptFinished.outcome:type_name -> switchyard.event.v1.RunOutcome
-	23, // 26: switchyard.event.v1.WebhookReceived.headers:type_name -> switchyard.event.v1.WebhookReceived.HeadersEntry
-	27, // [27:27] is the sub-list for method output_type
-	27, // [27:27] is the sub-list for method input_type
-	27, // [27:27] is the sub-list for extension type_name
-	27, // [27:27] is the sub-list for extension extendee
-	0,  // [0:27] is the sub-list for field type_name
+	14, // 12: switchyard.event.v1.Payload.scene_applied:type_name -> switchyard.event.v1.SceneApplied
+	15, // 13: switchyard.event.v1.Payload.webhook_received:type_name -> switchyard.event.v1.WebhookReceived
+	19, // 14: switchyard.event.v1.Payload.mcp_eval_requested:type_name -> switchyard.event.v1.MCPEvalRequested
+	20, // 15: switchyard.event.v1.Payload.config_file_edited:type_name -> switchyard.event.v1.ConfigFileEdited
+	16, // 16: switchyard.event.v1.Payload.device_renamed:type_name -> switchyard.event.v1.DeviceRenamed
+	17, // 17: switchyard.event.v1.Payload.device_reassigned:type_name -> switchyard.event.v1.DeviceReassigned
+	18, // 18: switchyard.event.v1.Payload.driver_instance_restarted:type_name -> switchyard.event.v1.DriverInstanceRestarted
+	25, // 19: switchyard.event.v1.Payload.auth_event:type_name -> switchyard.event.v1.AuthEvent
+	21, // 20: switchyard.event.v1.SystemEvent.data:type_name -> switchyard.event.v1.SystemEvent.DataEntry
+	26, // 21: switchyard.event.v1.StateChanged.attributes:type_name -> switchyard.entity.v1.Attributes
+	22, // 22: switchyard.event.v1.CommandIssued.parameters:type_name -> switchyard.event.v1.CommandIssued.ParametersEntry
+	26, // 23: switchyard.event.v1.EntityRegistered.capabilities:type_name -> switchyard.entity.v1.Attributes
+	0,  // 24: switchyard.event.v1.AutomationFinished.outcome:type_name -> switchyard.event.v1.RunOutcome
+	23, // 25: switchyard.event.v1.ScriptInvoked.args:type_name -> switchyard.event.v1.ScriptInvoked.ArgsEntry
+	0,  // 26: switchyard.event.v1.ScriptFinished.outcome:type_name -> switchyard.event.v1.RunOutcome
+	0,  // 27: switchyard.event.v1.SceneApplied.outcome:type_name -> switchyard.event.v1.RunOutcome
+	24, // 28: switchyard.event.v1.WebhookReceived.headers:type_name -> switchyard.event.v1.WebhookReceived.HeadersEntry
+	29, // [29:29] is the sub-list for method output_type
+	29, // [29:29] is the sub-list for method input_type
+	29, // [29:29] is the sub-list for extension type_name
+	29, // [29:29] is the sub-list for extension extendee
+	0,  // [0:29] is the sub-list for field type_name
 }
 
 func init() { file_switchyard_event_v1_event_proto_init() }
@@ -2000,6 +2121,7 @@ func file_switchyard_event_v1_event_proto_init() {
 		(*Payload_AutomationFinished)(nil),
 		(*Payload_ScriptInvoked)(nil),
 		(*Payload_ScriptFinished)(nil),
+		(*Payload_SceneApplied)(nil),
 		(*Payload_WebhookReceived)(nil),
 		(*Payload_McpEvalRequested)(nil),
 		(*Payload_ConfigFileEdited)(nil),
@@ -2014,7 +2136,7 @@ func file_switchyard_event_v1_event_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_switchyard_event_v1_event_proto_rawDesc), len(file_switchyard_event_v1_event_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   23,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

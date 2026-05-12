@@ -380,6 +380,7 @@ type SceneConfig struct {
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	DisplayName   string                 `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	Actions       []*ActionConfig        `protobuf:"bytes,3,rep,name=actions,proto3" json:"actions,omitempty"`
+	AreaId        string                 `protobuf:"bytes,4,opt,name=area_id,json=areaId,proto3" json:"area_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -433,6 +434,13 @@ func (x *SceneConfig) GetActions() []*ActionConfig {
 		return x.Actions
 	}
 	return nil
+}
+
+func (x *SceneConfig) GetAreaId() string {
+	if x != nil {
+		return x.AreaId
+	}
+	return ""
 }
 
 type DriverInstanceConfig struct {
@@ -3517,11 +3525,12 @@ const file_switchyard_config_v1_snapshot_proto_rawDesc = "" +
 	"AreaConfig\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12\x1b\n" +
-	"\tparent_id\x18\x03 \x01(\tR\bparentId\"~\n" +
+	"\tparent_id\x18\x03 \x01(\tR\bparentId\"\x97\x01\n" +
 	"\vSceneConfig\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12<\n" +
-	"\aactions\x18\x03 \x03(\v2\".switchyard.config.v1.ActionConfigR\aactions\"\x98\x01\n" +
+	"\aactions\x18\x03 \x03(\v2\".switchyard.config.v1.ActionConfigR\aactions\x12\x17\n" +
+	"\aarea_id\x18\x04 \x01(\tR\x06areaId\"\x98\x01\n" +
 	"\x14DriverInstanceConfig\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1f\n" +
 	"\vdriver_name\x18\x02 \x01(\tR\n" +

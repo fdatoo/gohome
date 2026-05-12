@@ -30,6 +30,7 @@ message Payload {
     AutomationFinished  automation_finished  = 51;
     ScriptInvoked       script_invoked       = 52;
     ScriptFinished      script_finished      = 53;
+    SceneApplied        scene_applied        = 54;
     // 60-69: external ingress
     WebhookReceived    webhook_received    = 60;
     MCPEvalRequested   mcp_eval_requested  = 61;
@@ -157,6 +158,16 @@ message ScriptFinished {
   uint64     starlark_steps = 21;
   repeated string log_lines = 22;
   string     return_value   = 23;  // Starlark repr() of return
+}
+
+message SceneApplied {
+  string scene_id        = 1;
+  string area_id         = 2;
+  string correlation_id  = 3;
+  string invoked_by      = 4;
+  uint64 steps           = 5;
+  repeated string logs   = 6;
+  RunOutcome outcome     = 7;
 }
 
 message WebhookReceived {
