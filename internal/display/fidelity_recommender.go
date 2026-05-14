@@ -6,9 +6,9 @@ import (
 
 // RoomStats holds scoring inputs for a single room.
 type RoomStats struct {
-	RoomID            string
-	EntityCount       int
-	SensorCount       int
+	RoomID              string
+	EntityCount         int
+	SensorCount         int
 	InteractionCount30d int
 }
 

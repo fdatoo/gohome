@@ -73,20 +73,20 @@ func newTestRegistry() *fakeRegistry {
 	return &fakeRegistry{
 		running: []*driverv1.DriverSummary{
 			{
-				Id:           "hue-bridge",
-				Pack:         "@switchyard/hue",
-				Version:      "1.2.3",
-				Status:       "healthy",
+				Id:            "hue-bridge",
+				Pack:          "@switchyard/hue",
+				Version:       "1.2.3",
+				Status:        "healthy",
 				UptimeSeconds: 86400,
-				EntityCount:  42,
+				EntityCount:   42,
 			},
 			{
-				Id:           "z2m",
-				Pack:         "@switchyard/z2m",
-				Version:      "2.0.1",
-				Status:       "reconnecting",
+				Id:            "z2m",
+				Pack:          "@switchyard/z2m",
+				Version:       "2.0.1",
+				Status:        "reconnecting",
 				UptimeSeconds: 3600,
-				EntityCount:  17,
+				EntityCount:   17,
 			},
 		},
 		available: []*driverv1.RegistryDriver{

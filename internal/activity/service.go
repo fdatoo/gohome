@@ -475,13 +475,6 @@ func filterWindow(since, until *timestamppb.Timestamp) (time.Time, time.Time) {
 	return s, u
 }
 
-func kindFilter(kind string) []string {
-	if kind == "" {
-		return nil
-	}
-	return []string{kind}
-}
-
 func matchesStoriesFilter(story *activityv1.Story, filter *activityv1.StoriesFilter) bool {
 	if filter == nil {
 		return true

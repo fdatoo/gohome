@@ -8,10 +8,10 @@ import (
 
 // configKinds maps event kinds to tag names for the ConfigurationDetector.
 var configKinds = map[string]string{
-	"config.applied":        "config_applied",
-	"driver.restarted":      "driver_restarted",
-	"automation.deployed":   "automation_deployed",
-	"widgetpack.installed":  "widgetpack_installed",
+	"config.applied":       "config_applied",
+	"driver.restarted":     "driver_restarted",
+	"automation.deployed":  "automation_deployed",
+	"widgetpack.installed": "widgetpack_installed",
 }
 
 // ConfigurationDetector tags configuration-change events.

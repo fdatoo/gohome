@@ -17,28 +17,28 @@ import (
 
 // Services is the set of handler implementations the listener needs.
 type Services struct {
-	System         switchyardv1alpha1connect.SystemServiceHandler
-	Area           switchyardv1alpha1connect.AreaServiceHandler
-	Zone           switchyardv1alpha1connect.ZoneServiceHandler
-	Device         switchyardv1alpha1connect.DeviceServiceHandler
-	Entity         switchyardv1alpha1connect.EntityServiceHandler
-	Driver         switchyardv1alpha1connect.DriverServiceHandler
-	Event          switchyardv1alpha1connect.EventServiceHandler
-	Config         switchyardv1alpha1connect.ConfigServiceHandler
-	Automation     switchyardv1alpha1connect.AutomationServiceHandler
-	Script         switchyardv1alpha1connect.ScriptServiceHandler
-	Scene          switchyardv1alpha1connect.SceneServiceHandler
-	Page           pagev1connect.PageServiceHandler
-	Auth           switchyardv1alpha1connect.AuthServiceHandler
-	WidgetPack     switchyardv1alpha1connect.WidgetPackServiceHandler
-	CommandCatalog  commandcatalogv1connect.CommandCatalogServiceHandler
+	System           switchyardv1alpha1connect.SystemServiceHandler
+	Area             switchyardv1alpha1connect.AreaServiceHandler
+	Zone             switchyardv1alpha1connect.ZoneServiceHandler
+	Device           switchyardv1alpha1connect.DeviceServiceHandler
+	Entity           switchyardv1alpha1connect.EntityServiceHandler
+	Driver           switchyardv1alpha1connect.DriverServiceHandler
+	Event            switchyardv1alpha1connect.EventServiceHandler
+	Config           switchyardv1alpha1connect.ConfigServiceHandler
+	Automation       switchyardv1alpha1connect.AutomationServiceHandler
+	Script           switchyardv1alpha1connect.ScriptServiceHandler
+	Scene            switchyardv1alpha1connect.SceneServiceHandler
+	Page             pagev1connect.PageServiceHandler
+	Auth             switchyardv1alpha1connect.AuthServiceHandler
+	WidgetPack       switchyardv1alpha1connect.WidgetPackServiceHandler
+	CommandCatalog   commandcatalogv1connect.CommandCatalogServiceHandler
 	DriverManagement driverv1connect.DriverManagementServiceHandler
 	EditSession      editsessionv1connect.EditSessionServiceHandler
-	StarlarkLs     starlarklsv1connect.StarlarkLsServiceHandler
-	Activity       activityv1connect.ActivityServiceHandler
-	Replay         replayv1connect.ReplayServiceHandler
-	Display        displayv1connect.DisplayServiceHandler
-	Solar          solarv1connect.SolarServiceHandler
+	StarlarkLs       starlarklsv1connect.StarlarkLsServiceHandler
+	Activity         activityv1connect.ActivityServiceHandler
+	Replay           replayv1connect.ReplayServiceHandler
+	Display          displayv1connect.DisplayServiceHandler
+	Solar            solarv1connect.SolarServiceHandler
 }
 
 // BuildRoutes returns the (path, handler) pairs to mount on the listener mux.

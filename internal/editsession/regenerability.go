@@ -14,9 +14,9 @@ import (
 
 // Reason constants for FileOnlyRegion.Reason.
 const (
-	ReasonStarlarkCall    = "starlark_call"
-	ReasonImport          = "import"
-	ReasonLetBinding      = "let_binding"
+	ReasonStarlarkCall     = "starlark_call"
+	ReasonImport           = "import"
+	ReasonLetBinding       = "let_binding"
 	ReasonNondeterministic = "nondeterministic"
 )
 

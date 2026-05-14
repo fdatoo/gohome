@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"path/filepath"
 
-	starlarkpb "github.com/fdatoo/switchyard/gen/switchyard/starlarkls/v1"
 	"go.starlark.net/syntax"
+
+	starlarkpb "github.com/fdatoo/switchyard/gen/switchyard/starlarkls/v1"
 )
 
 // Diagnostic is the daemon-internal representation of a Starlark editor
@@ -69,10 +70,10 @@ func Diagnose(filePath, source string, symbols map[string]SymbolInfo, predeclare
 		path := load.ModuleName()
 		if !loadablePaths[path] && !loadablePaths[filepath.Base(path)] {
 			diags = append(diags, Diagnostic{
-				StartLine: int32(load.Module.TokenPos.Line),
-				StartCol:  int32(load.Module.TokenPos.Col - 1),
-				EndLine:   int32(load.Module.TokenPos.Line),
-				EndCol:    int32(load.Module.TokenPos.Col-1) + int32(len(load.Module.Raw)),
+				StartLine: load.Module.TokenPos.Line,
+				StartCol:  load.Module.TokenPos.Col - 1,
+				EndLine:   load.Module.TokenPos.Line,
+				EndCol:    load.Module.TokenPos.Col - 1 + int32(len(load.Module.Raw)),
 				Severity:  "error",
 				Message:   fmt.Sprintf("load: file %q not found in scripts directory", path),
 				Code:      "load_not_found",
@@ -95,10 +96,10 @@ func Diagnose(filePath, source string, symbols map[string]SymbolInfo, predeclare
 func parseDiagnostic(err error) Diagnostic {
 	if se, ok := err.(syntax.Error); ok {
 		return Diagnostic{
-			StartLine: int32(se.Pos.Line),
-			StartCol:  int32(max(se.Pos.Col-1, 0)),
-			EndLine:   int32(se.Pos.Line),
-			EndCol:    int32(max(se.Pos.Col, 1)),
+			StartLine: se.Pos.Line,
+			StartCol:  max(se.Pos.Col-1, 0),
+			EndLine:   se.Pos.Line,
+			EndCol:    max(se.Pos.Col, 1),
 			Severity:  "error",
 			Message:   se.Msg,
 			Code:      "parse_error",
@@ -173,10 +174,10 @@ func (w *refWalker) isResolved(name string, locals []map[string]bool) bool {
 
 func (w *refWalker) flag(id *syntax.Ident) {
 	*w.diags = append(*w.diags, Diagnostic{
-		StartLine: int32(id.NamePos.Line),
-		StartCol:  int32(id.NamePos.Col - 1),
-		EndLine:   int32(id.NamePos.Line),
-		EndCol:    int32(id.NamePos.Col-1) + int32(len(id.Name)),
+		StartLine: id.NamePos.Line,
+		StartCol:  id.NamePos.Col - 1,
+		EndLine:   id.NamePos.Line,
+		EndCol:    id.NamePos.Col - 1 + int32(len(id.Name)),
 		Severity:  "warning",
 		Message:   fmt.Sprintf("unresolved name %q", id.Name),
 		Code:      "unresolved_name",
@@ -192,7 +193,7 @@ func (w *refWalker) walkStmt(stmt syntax.Stmt, locals []map[string]bool) {
 			w.walkParamDefault(p, locals)
 		}
 		collectBodyBindings(s.Body, scope)
-		nested := append(locals, scope)
+		nested := appendScope(locals, scope)
 		for _, bs := range s.Body {
 			w.walkStmt(bs, nested)
 		}
@@ -213,7 +214,7 @@ func (w *refWalker) walkStmt(stmt syntax.Stmt, locals []map[string]bool) {
 	case *syntax.ForStmt:
 		scope := map[string]bool{}
 		collectAssignTargets(s.Vars, scope)
-		nested := append(locals, scope)
+		nested := appendScope(locals, scope)
 		w.walkExpr(s.X, locals)
 		for _, bs := range s.Body {
 			w.walkStmt(bs, nested)
@@ -225,6 +226,12 @@ func (w *refWalker) walkStmt(stmt syntax.Stmt, locals []map[string]bool) {
 		}
 	case *syntax.BranchStmt, *syntax.LoadStmt:
 	}
+}
+
+func appendScope(locals []map[string]bool, scope map[string]bool) []map[string]bool {
+	nested := make([]map[string]bool, len(locals), len(locals)+1)
+	copy(nested, locals)
+	return append(nested, scope)
 }
 
 func collectBodyBindings(stmts []syntax.Stmt, out map[string]bool) {
@@ -319,7 +326,7 @@ func (w *refWalker) walkCallArg(expr syntax.Expr, locals []map[string]bool) {
 
 func (w *refWalker) walkComprehension(expr *syntax.Comprehension, locals []map[string]bool) {
 	scope := map[string]bool{}
-	nested := append(locals, scope)
+	nested := appendScope(locals, scope)
 	for _, clause := range expr.Clauses {
 		switch c := clause.(type) {
 		case *syntax.ForClause:

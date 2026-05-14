@@ -36,12 +36,12 @@ func (s Story) ToProto() *activityv1.Story {
 	}
 
 	story := &activityv1.Story{
-		Id:             s.ID,
-		Title:          s.Title,
-		InnerEventIds:  s.InnerEventIDs,
-		Tags:           tags,
-		Source:         s.Source,
-		EntityIds:      s.EntityIDs,
+		Id:            s.ID,
+		Title:         s.Title,
+		InnerEventIds: s.InnerEventIDs,
+		Tags:          tags,
+		Source:        s.Source,
+		EntityIds:     s.EntityIDs,
 	}
 	if !s.OccurredAt.IsZero() {
 		story.OccurredAt = timestamppb.New(s.OccurredAt)

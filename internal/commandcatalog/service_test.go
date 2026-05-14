@@ -17,10 +17,10 @@ import (
 	"github.com/fdatoo/switchyard/internal/automation"
 	"github.com/fdatoo/switchyard/internal/commandcatalog"
 	"github.com/fdatoo/switchyard/internal/config"
-	"github.com/fdatoo/switchyard/internal/page"
 	"github.com/fdatoo/switchyard/internal/display"
 	"github.com/fdatoo/switchyard/internal/driver"
 	"github.com/fdatoo/switchyard/internal/entity"
+	"github.com/fdatoo/switchyard/internal/page"
 	"github.com/fdatoo/switchyard/internal/pkl"
 	"github.com/fdatoo/switchyard/internal/widgetpack"
 )

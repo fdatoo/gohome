@@ -22,9 +22,9 @@ type EventLookup interface {
 
 // Service implements ReplayServiceHandler.
 type Service struct {
-	snaps   SnapshotStore
-	events  EventReader
-	byID    EventLookup
+	snaps  SnapshotStore
+	events EventReader
+	byID   EventLookup
 	// bySeq is also EventLookup — same interface
 }
 

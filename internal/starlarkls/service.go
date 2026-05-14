@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"connectrpc.com/connect"
+
 	starlarkpb "github.com/fdatoo/switchyard/gen/switchyard/starlarkls/v1"
 	"github.com/fdatoo/switchyard/gen/switchyard/starlarkls/v1/starlarklsv1connect"
 )

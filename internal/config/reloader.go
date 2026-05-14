@@ -23,9 +23,9 @@ type Reloader struct {
 	app      ReloaderApplier
 	debounce time.Duration
 
-	mu        sync.Mutex
-	pending   []string
-	lastErr   string
+	mu      sync.Mutex
+	pending []string
+	lastErr string
 
 	signal chan struct{}
 }
