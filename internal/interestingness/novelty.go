@@ -32,9 +32,9 @@ func (c *NoveltyConfig) withDefaults() {
 type NoveltyDetector struct {
 	cfg NoveltyConfig
 
-	mu            sync.Mutex
-	seenEntities  map[string]struct{}
-	lastCommand   map[string]time.Time // command kind → last seen time
+	mu           sync.Mutex
+	seenEntities map[string]struct{}
+	lastCommand  map[string]time.Time // command kind → last seen time
 }
 
 // NewNoveltyDetector creates a NoveltyDetector with the given config.

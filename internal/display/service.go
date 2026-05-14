@@ -193,16 +193,16 @@ func generateToken() (string, error) {
 
 // displayRecord is the on-disk representation of a Display.
 type displayRecord struct {
-	ID                  string                             `json:"id"`
-	DeviceName          string                             `json:"device_name"`
-	PageSlug            string                             `json:"page_slug,omitempty"`
+	ID                  string                                 `json:"id"`
+	DeviceName          string                                 `json:"device_name"`
+	PageSlug            string                                 `json:"page_slug,omitempty"`
 	TileOverrides       map[string]*displayv1.FidelityOverride `json:"tile_overrides,omitempty"`
-	IdleBehavior        *displayv1.IdleBehavior            `json:"idle_behavior,omitempty"`
-	AllowedInteractions []string                           `json:"allowed_interactions,omitempty"`
-	AlertThreshold      displayv1.AlertThreshold           `json:"alert_threshold,omitempty"`
-	Token               string                             `json:"token"`
-	CreatedAt           time.Time                          `json:"created_at"`
-	LastSeenAt          *time.Time                         `json:"last_seen_at,omitempty"`
+	IdleBehavior        *displayv1.IdleBehavior                `json:"idle_behavior,omitempty"`
+	AllowedInteractions []string                               `json:"allowed_interactions,omitempty"`
+	AlertThreshold      displayv1.AlertThreshold               `json:"alert_threshold,omitempty"`
+	Token               string                                 `json:"token"`
+	CreatedAt           time.Time                              `json:"created_at"`
+	LastSeenAt          *time.Time                             `json:"last_seen_at,omitempty"`
 }
 
 func (r displayRecord) toProto() *displayv1.Display {

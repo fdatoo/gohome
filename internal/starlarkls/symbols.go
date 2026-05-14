@@ -39,7 +39,7 @@ func ExtractSymbols(dir string) (map[string]SymbolInfo, error) {
 				doc := extractDoc(s)
 				out[s.Name.Name] = SymbolInfo{
 					File: path,
-					Line: int32(s.Name.NamePos.Line),
+					Line: s.Name.NamePos.Line,
 					Kind: "function",
 					Doc:  doc,
 				}
@@ -47,7 +47,7 @@ func ExtractSymbols(dir string) (map[string]SymbolInfo, error) {
 				if id, ok := s.LHS.(*syntax.Ident); ok && strings.ToUpper(id.Name) == id.Name && id.Name != "_" {
 					out[id.Name] = SymbolInfo{
 						File: path,
-						Line: int32(id.NamePos.Line),
+						Line: id.NamePos.Line,
 						Kind: "global",
 					}
 				}

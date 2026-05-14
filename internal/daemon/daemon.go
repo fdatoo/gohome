@@ -27,7 +27,6 @@ import (
 	"github.com/fdatoo/switchyard/internal/activity"
 	"github.com/fdatoo/switchyard/internal/api"
 	"github.com/fdatoo/switchyard/internal/api/listener"
-	drvmgmt "github.com/fdatoo/switchyard/internal/driver/management"
 	"github.com/fdatoo/switchyard/internal/auth"
 	"github.com/fdatoo/switchyard/internal/auth/audit"
 	"github.com/fdatoo/switchyard/internal/auth/authn"
@@ -41,20 +40,21 @@ import (
 	"github.com/fdatoo/switchyard/internal/carport"
 	"github.com/fdatoo/switchyard/internal/commandcatalog"
 	"github.com/fdatoo/switchyard/internal/config"
-	"github.com/fdatoo/switchyard/internal/page"
 	"github.com/fdatoo/switchyard/internal/display"
 	"github.com/fdatoo/switchyard/internal/driver"
-	"github.com/fdatoo/switchyard/internal/solar"
+	drvmgmt "github.com/fdatoo/switchyard/internal/driver/management"
 	"github.com/fdatoo/switchyard/internal/editsession"
 	"github.com/fdatoo/switchyard/internal/entity"
 	"github.com/fdatoo/switchyard/internal/eventstore"
 	"github.com/fdatoo/switchyard/internal/mcp"
 	"github.com/fdatoo/switchyard/internal/observability"
+	"github.com/fdatoo/switchyard/internal/page"
 	"github.com/fdatoo/switchyard/internal/pkl"
 	"github.com/fdatoo/switchyard/internal/policy"
 	"github.com/fdatoo/switchyard/internal/registry"
 	"github.com/fdatoo/switchyard/internal/replay"
 	"github.com/fdatoo/switchyard/internal/script"
+	"github.com/fdatoo/switchyard/internal/solar"
 	starlark "github.com/fdatoo/switchyard/internal/starlark"
 	"github.com/fdatoo/switchyard/internal/starlarkls"
 	"github.com/fdatoo/switchyard/internal/state"
@@ -606,18 +606,18 @@ func (d *Daemon) Run(ctx context.Context) (err error) {
 	replaySvc := replay.NewService(replayAdapter, replayAdapter, replayAdapter, replayAdapter)
 
 	services := listener.Services{
-		System:     api.NewSystemService(sysBE),
-		Area:       api.NewAreaService(areaRd),
-		Zone:       api.NewZoneService(zoneRd),
-		Device:     api.NewDeviceService(devRd, devWr),
-		Entity:     entSvc,
-		Driver:     api.NewDriverService(drvCtl),
-		Event:      api.NewEventService(evtSrc),
-		Config:     api.NewConfigService(cfgAppl),
-		Automation: api.NewAutomationService(autoCtl),
-		Script:     api.NewScriptService(scriptRun, &eventAppenderAdapter{store: d.store}, sysBE),
-		Scene:      api.NewRealSceneService(d.configMgr, &sceneInvokerAdapter{applier: d.sceneApplier}, d.logger),
-		Page:       page.NewService(newPageBackend(configDir, driversDir, packStore), page.NewCatalog(nil)),
+		System:         api.NewSystemService(sysBE),
+		Area:           api.NewAreaService(areaRd),
+		Zone:           api.NewZoneService(zoneRd),
+		Device:         api.NewDeviceService(devRd, devWr),
+		Entity:         entSvc,
+		Driver:         api.NewDriverService(drvCtl),
+		Event:          api.NewEventService(evtSrc),
+		Config:         api.NewConfigService(cfgAppl),
+		Automation:     api.NewAutomationService(autoCtl),
+		Script:         api.NewScriptService(scriptRun, &eventAppenderAdapter{store: d.store}, sysBE),
+		Scene:          api.NewRealSceneService(d.configMgr, &sceneInvokerAdapter{applier: d.sceneApplier}, d.logger),
+		Page:           page.NewService(newPageBackend(configDir, driversDir, packStore), page.NewCatalog(nil)),
 		WidgetPack:     packService,
 		CommandCatalog: cmdCatalogSvc,
 		Auth: api.NewAuthService(api.AuthDeps{
@@ -638,8 +638,8 @@ func (d *Daemon) Run(ctx context.Context) (err error) {
 		Activity:         activitySvc,
 		DriverManagement: drvMgmtSvc,
 		Replay:           replaySvc,
-		Display:     display.NewService(filepath.Join(dataDir, "displays"), display.NewPairCodeStore()),
-		Solar:       solar.NewService(),
+		Display:          display.NewService(filepath.Join(dataDir, "displays"), display.NewPairCodeStore()),
+		Solar:            solar.NewService(),
 	}
 
 	authnChain := auth.Chain(auth.LocalPeerCred{}, bearer, authn.NewSessionCookie(sessStore), auth.RejectAll{})

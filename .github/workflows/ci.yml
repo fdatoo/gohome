@@ -165,7 +165,7 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install protoc-gen-go-grpc
-        run: go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.1
+        run: go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.2
 
       - name: Install Pkl
         run: |

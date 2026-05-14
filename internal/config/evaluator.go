@@ -133,7 +133,9 @@ func (e *pklEvaluator) Evaluate(ctx context.Context, configDir string) (*configp
 	}
 	disc, discErrs := discoverConfigDir(ctx, e, configDir)
 	merged, mergeErrs, mergeErr := mergeDiscovered(snap, disc)
-	allErrs := append(discErrs, mergeErrs...)
+	allErrs := make([]ValidationError, 0, len(discErrs)+len(mergeErrs))
+	allErrs = append(allErrs, discErrs...)
+	allErrs = append(allErrs, mergeErrs...)
 	if mergeErr != nil {
 		return merged, allErrs, mergeErr
 	}

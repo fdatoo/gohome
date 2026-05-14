@@ -4,12 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -151,8 +151,10 @@ func pklErrorLine(msg string) int {
 	if len(m) < 2 {
 		return 0
 	}
-	var n int
-	fmt.Sscanf(m[1], "%d", &n)
+	n, err := strconv.Atoi(m[1])
+	if err != nil {
+		return 0
+	}
 	return n
 }
 

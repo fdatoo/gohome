@@ -460,4 +460,3 @@ func sceneFromJSON(s sceneJSON) (*configpb.SceneConfig, error) {
 	}
 	return scfg, nil
 }
-

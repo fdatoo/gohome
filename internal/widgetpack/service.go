@@ -7,9 +7,9 @@ import (
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	pagev1 "github.com/fdatoo/switchyard/gen/switchyard/page/v1"
 	v1 "github.com/fdatoo/switchyard/gen/switchyard/v1alpha1"
 	"github.com/fdatoo/switchyard/gen/switchyard/v1alpha1/switchyardv1alpha1connect"
-	pagev1 "github.com/fdatoo/switchyard/gen/switchyard/page/v1"
 )
 
 // Service implements WidgetPackServiceHandler.

@@ -23,15 +23,15 @@ type EntityEvent struct {
 	EntityID string
 	Fields   map[string]string // full field set after the event is applied
 	// Metadata (populated by EventReader implementations)
-	EventID       string
-	Kind          string
-	Source        string
-	CausationID   string
-	CorrelationID string
-	Emitter       string
-	SpanID        string
-	OccurredAt    time.Time
-	PayloadJSON   string
+	EventID        string
+	Kind           string
+	Source         string
+	CausationID    string
+	CorrelationID  string
+	Emitter        string
+	SpanID         string
+	OccurredAt     time.Time
+	PayloadJSON    string
 	WhyInteresting string
 }
 

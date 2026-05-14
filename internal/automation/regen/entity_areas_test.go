@@ -21,7 +21,7 @@ func TestRenderEntityAreas_EmittedSorted(t *testing.T) {
 	idxA := strings.Index(s, `["light.a"]`)
 	idxB := strings.Index(s, `["light.b"]`)
 	idxC := strings.Index(s, `["light.c"]`)
-	if !(idxA >= 0 && idxA < idxB && idxB < idxC) {
+	if idxA < 0 || idxA >= idxB || idxB >= idxC {
 		t.Fatalf("entries not sorted by key:\n%s", s)
 	}
 	for _, want := range []string{

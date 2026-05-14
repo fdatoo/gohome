@@ -37,7 +37,7 @@ type FileWatcher struct {
 	pollInterval time.Duration
 
 	mu          sync.Mutex
-	watched     map[string]watchedFile  // key: path
+	watched     map[string]watchedFile // key: path
 	subscribers []subscriber
 }
 
