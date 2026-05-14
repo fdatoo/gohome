@@ -84,19 +84,16 @@ func TestPipeline_AppendsTwoTaggedEventsForTwoFailures(t *testing.T) {
 	_, err = store.Append(ctx, failureEvent())
 	require.NoError(t, err)
 
-	// Give the pipeline a moment to process.
-	time.Sleep(200 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		events, err := store.Query(ctx, eventstore.QueryOptions{
+			Filter: eventstore.Filter{Kinds: []string{"interestingness.tagged"}},
+		})
+		require.NoError(t, err)
+		return len(events) == 2
+	}, 5*time.Second, 25*time.Millisecond, "expected exactly 2 interestingness.tagged events")
 
-	// Cancel and wait for pipeline.
 	pipelineCancel()
 	<-pipelineDone
-
-	// Query for interestingness.tagged events.
-	events, err := store.Query(ctx, eventstore.QueryOptions{
-		Filter: eventstore.Filter{Kinds: []string{"interestingness.tagged"}},
-	})
-	require.NoError(t, err)
-	assert.Equal(t, 2, len(events), "expected exactly 2 interestingness.tagged events")
 }
 
 // TestPipeline_NoTagsForNonInterestingEvents verifies that events not matching
